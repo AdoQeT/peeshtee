@@ -356,31 +356,6 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     const count = player.collectedCards.length;
     const visibleLayers = Math.min(7, Math.ceil(Math.max(count, 1) / 4));
 
-    const isPrimaryTopCountPile =
-      isCountingActive &&
-      onTableCountState &&
-      ((!isFourPlayers && playerIdx === 1) || (isFourPlayers && playerIdx === 2));
-
-    const isActiveCountPile =
-      isCountingActive && onTableCountState && (playerIdx === 0 || isPrimaryTopCountPile);
-
-    const currentCard = playerIdx === 0
-      ? onTableCountState?.userCurrentCard
-      : onTableCountState?.oppCurrentCard;
-    const countedIndex = playerIdx === 0
-      ? onTableCountState?.userCountedIndex ?? 0
-      : onTableCountState?.oppCountedIndex ?? 0;
-    const totalCount = playerIdx === 0
-      ? onTableCountState?.userTotal ?? count
-      : onTableCountState?.oppTotal ?? count;
-    const remainingClosed = Math.max(0, totalCount - countedIndex);
-    const pointCards = playerIdx === 0
-      ? onTableCountState?.userPointCards ?? []
-      : onTableCountState?.oppPointCards ?? [];
-    const cardPoints = playerIdx === 0
-      ? onTableCountState?.userCardPoints ?? 0
-      : onTableCountState?.oppCardPoints ?? 0;
-
     const hasCapturePulse =
       recentCapture && recentCapture.playerIdx === playerIdx && !recentCapture.isPisti;
 
@@ -396,54 +371,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           }}
           className={`relative flex items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
             hasCapturePulse ? 'scale-105 border-emerald-400 bg-emerald-950/40' : ''
-          } ${
-            isActiveCountPile
-              ? 'border-amber-400 bg-slate-950/75 shadow-[0_0_25px_rgba(245,158,11,0.35)] px-1'
-              : 'border-dashed border-white/15 bg-black/25'
-          }`}
+          } border-dashed border-white/15 bg-black/25`}
           title={`${player.name} Toplanan Kartlar: ${count}`}
         >
-          {isActiveCountPile ? (
-            /* LIVE ON-TABLE 3D CARD FLIPPING & COUNTING */
-            <div className="relative w-full h-full flex items-center justify-center">
-              {/* Background residual closed stack (shrinks as cards are counted) */}
-              {remainingClosed > 0 && (
-                <div
-                  className="absolute inset-1 rounded-lg opacity-45 pointer-events-none"
-                  style={{ transform: 'translate3d(-4px, -3px, 0) rotate(-4deg)' }}
-                >
-                  <CardBackSurface cardBack={cardBack} />
-                </div>
-              )}
-
-              {/* Active Flipped Card with key={countedIndex} for crisp 3D flip animation on every tick */}
-              {currentCard ? (
-                <div
-                  key={`${playerIdx}-count-${countedIndex}`}
-                  className="w-12 h-16 sm:w-14 sm:h-20 rounded-lg overflow-hidden shadow-xl border-2 border-amber-300 transition-transform duration-150"
-                  style={{
-                    animation: 'cardCountFlip 190ms cubic-bezier(0.22, 1, 0.36, 1) forwards'
-                  }}
-                >
-                  <CardFrontSurface card={currentCard} theme={theme} />
-                </div>
-              ) : (
-                <span className="text-[9px] text-slate-400 font-bold text-center">
-                  Kart Yok
-                </span>
-              )}
-
-              {/* Special Point Popup when currentCard has points */}
-              {currentCard && currentCard.basePoints > 0 && (
-                <div
-                  key={`pt-${countedIndex}`}
-                  className="absolute -top-6 right-0 z-30 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] font-cyber shadow-lg border border-white animate-bounce"
-                >
-                  +{currentCard.basePoints}P!
-                </div>
-              )}
-            </div>
-          ) : count === 0 ? (
+          {count === 0 ? (
             <span className="text-[9px] text-white/30 font-semibold text-center px-1 leading-tight">
               Toplanan
               <br />0
@@ -473,39 +404,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               labelPos === 'bottom' ? '-bottom-4' : '-top-4'
             } bg-slate-950/95 border border-white/20 text-slate-100 text-[9px] font-black px-2 py-0.2 rounded-full shadow-md whitespace-nowrap z-20`}
           >
-            {isActiveCountPile
-              ? `📦 ${countedIndex} / ${totalCount}`
-              : `📦 ${count}`}
+            📦 {count}
           </div>
         </div>
-
-        {/* On-Table Separated Point Cards Showcase Tray (♦10, ♣2, A, J) */}
-        {isActiveCountPile && (
-          <div className="flex flex-col items-start p-2 rounded-2xl bg-slate-950/90 border border-amber-400/50 shadow-xl min-w-[130px] sm:min-w-[165px]">
-            <div className="flex items-center justify-between w-full mb-1 text-[9px] font-bold text-amber-300 gap-2">
-              <span className="uppercase tracking-wider">Ayıklanan Sayılar:</span>
-              <span className="font-cyber font-black text-amber-950 bg-amber-400 px-1.5 py-0.2 rounded-full">
-                +{cardPoints}P
-              </span>
-            </div>
-            {pointCards.length === 0 ? (
-              <span className="text-[9px] text-slate-500 italic py-2">
-                Sayı kartları taranıyor...
-              </span>
-            ) : (
-              <div className="flex items-center -space-x-3.5 overflow-visible py-0.5 pl-0.5">
-                {pointCards.slice(-7).map((pc, idx) => (
-                  <div
-                    key={`${pc.id}-${idx}`}
-                    className="w-8 h-11 sm:w-9 sm:h-13 relative rounded-md shadow-md border border-amber-300/60 shrink-0 transition-transform duration-150 hover:-translate-y-1"
-                  >
-                    <CardFrontSurface card={pc} theme={theme} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -592,7 +493,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     <div
       className={`relative flex-1 w-full max-w-6xl mx-auto flex flex-col justify-between items-center py-2 sm:py-3 px-2 sm:px-6 select-none overflow-hidden rounded-3xl border-4 shadow-[inset_0_0_80px_rgba(0,0,0,0.75),0_25px_60px_rgba(0,0,0,0.8)] transition-colors duration-500 ${getThemeBg()}`}
     >
-      {/* Keyframes for On-Table 3D Card Count Flip */}
+      {/* Keyframes for On-Table 3D Card Count Flip & Emote Pop */}
       <style>{`
         @keyframes cardCountFlip {
           0% {
@@ -603,6 +504,28 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           }
           100% {
             transform: perspective(600px) rotateY(0deg) translateY(0) scale(1);
+          }
+        }
+        @keyframes emotePop2s {
+          0% {
+            transform: translate(-50%, 8px) scale(0.4);
+            opacity: 0;
+          }
+          14% {
+            transform: translate(-50%, -6px) scale(1.22);
+            opacity: 1;
+          }
+          24% {
+            transform: translate(-50%, -4px) scale(1);
+            opacity: 1;
+          }
+          80% {
+            transform: translate(-50%, -6px) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-50%, -22px) scale(0.8);
+            opacity: 0;
           }
         }
       `}</style>
@@ -625,9 +548,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             .map(e => (
               <div
                 key={e.id}
-                className="absolute -top-12 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-bounce"
+                style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
+                className="absolute -top-14 left-1/2 z-40 pointer-events-none"
               >
-                <div className="px-3 py-1 rounded-2xl bg-slate-900 border-2 border-amber-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-amber-400 text-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-center justify-center">
                   {e.emoji}
                 </div>
               </div>
@@ -699,7 +623,21 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       <div className="relative z-10 w-full flex items-center justify-between px-1 sm:px-4 my-auto">
         {/* Left Player (Seat 3 - Muhtar in 4-Player mode) */}
         {isFourPlayers && players[3] ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
+            {/* Floating Active Emote for Left Player */}
+            {activeEmotes
+              ?.filter(e => e.playerIdx === 3)
+              .map(e => (
+                <div
+                  key={e.id}
+                  style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
+                  className="absolute -top-12 left-1/2 z-40 pointer-events-none"
+                >
+                  <div className="px-3 py-1 rounded-2xl bg-slate-900/95 border-2 border-rose-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                    {e.emoji}
+                  </div>
+                </div>
+              ))}
             <div className="flex flex-col items-center">
               <span
                 className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1.5 ${
@@ -757,63 +695,215 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
         {/* CENTER TABLE: If Counting -> On-Table Counting Felt HUD, otherwise Deck + Pot */}
         {isCountingActive && onTableCountState ? (
-          <div className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.4)] max-w-md w-full text-center mx-auto">
-            <span className="text-[11px] font-cyber text-amber-400 uppercase tracking-widest font-black flex items-center gap-1.5 mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-              Masa Üstü Canlı Kart Sayımı
-            </span>
-            <p className="text-[10px] text-slate-400 mb-2">
-              Toplanan kapalı desteler masada tek tek çevrilip sayılıyor, sayı kartları kenara ayrılıyor!
-            </p>
+          <div className="flex flex-col items-center justify-center p-3 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_50px_rgba(245,158,11,0.45)] max-w-2xl w-full text-center mx-auto my-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between w-full px-2 mb-1">
+              <span className="text-[11px] sm:text-xs font-cyber text-amber-400 uppercase tracking-widest font-black flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+                Masa Üstü Canlı Kart Sayımı
+              </span>
+              <span className="text-[10px] text-slate-400">
+                {onTableCountState.isDone ? '✅ Sayım Tamamlandı' : '🔍 Kartlar taranıyor...'}
+              </span>
+            </div>
 
-            {/* Counts comparison between User/Team & Opponent/Team */}
-            <div className="grid grid-cols-2 gap-3 w-full my-1.5">
-              <div
-                className={`p-2.5 rounded-2xl border transition-all ${
-                  onTableCountState.isDone && onTableCountState.userMajority
-                    ? 'border-emerald-400 bg-emerald-950/70 shadow-[0_0_18px_rgba(52,211,153,0.35)]'
-                    : 'border-white/15 bg-slate-900/80'
-                }`}
-              >
-                <div className="text-[11px] text-emerald-300 font-bold">
-                  {isFourPlayers ? 'Bizim Takım' : 'Senin Kartların'}
-                </div>
-                <div className="text-xl sm:text-2xl font-black text-white font-cyber my-0.5">
-                  {onTableCountState.userCountedIndex}{' '}
-                  <span className="text-xs text-slate-400 font-normal">
-                    / {onTableCountState.userTotal}
-                  </span>
-                </div>
-                <div className="text-[10px] text-amber-300 font-bold">
-                  +{onTableCountState.userCardPoints}P Sayı • +{onTableCountState.userPistiPoints}P Pişti
-                </div>
-              </div>
+            {/* Counts comparison: BIG PUAN on top, smaller kart sayısı underneath + Big Visual Counting Stage */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full my-2">
+              {/* USER / TEAM PODIUM */}
+              {(() => {
+                const userPistiPts = onTableCountState.userPistiPoints ?? 0;
+                const userCardPts = onTableCountState.userCardPoints ?? 0;
+                const userPts =
+                  userCardPts +
+                  userPistiPts +
+                  (onTableCountState.isDone && onTableCountState.userMajority ? 3 : 0);
+                const userPistiCount = Math.floor(userPistiPts / 10);
+                const currentCard = onTableCountState.userCurrentCard;
+                const pointCards = onTableCountState.userPointCards || [];
 
-              <div
-                className={`p-2.5 rounded-2xl border transition-all ${
-                  onTableCountState.isDone && onTableCountState.oppMajority
-                    ? 'border-rose-400 bg-rose-950/70 shadow-[0_0_18px_rgba(251,113,133,0.35)]'
-                    : 'border-white/15 bg-slate-900/80'
-                }`}
-              >
-                <div className="text-[11px] text-rose-300 font-bold">
-                  {isFourPlayers ? 'Rakip Takım' : 'Rakip Kartları'}
-                </div>
-                <div className="text-xl sm:text-2xl font-black text-white font-cyber my-0.5">
-                  {onTableCountState.oppCountedIndex}{' '}
-                  <span className="text-xs text-slate-400 font-normal">
-                    / {onTableCountState.oppTotal}
-                  </span>
-                </div>
-                <div className="text-[10px] text-amber-300 font-bold">
-                  +{onTableCountState.oppCardPoints}P Sayı • +{onTableCountState.oppPistiPoints}P Pişti
-                </div>
-              </div>
+                return (
+                  <div
+                    className={`p-3 rounded-2xl border flex flex-col items-center transition-all ${
+                      onTableCountState.isDone && onTableCountState.userMajority
+                        ? 'border-emerald-400 bg-emerald-950/75 shadow-[0_0_24px_rgba(52,211,153,0.35)]'
+                        : 'border-white/15 bg-slate-900/90'
+                    }`}
+                  >
+                    <div className="text-[11px] sm:text-xs text-emerald-300 font-bold uppercase tracking-wider">
+                      {isFourPlayers ? '🔵 Bizim Takım' : '👤 Senin Kartların'}
+                    </div>
+
+                    {/* BÜYÜK PUAN (İnsanın gözüne çarpan büyük sayı) */}
+                    <div className="text-2xl sm:text-4xl font-black text-amber-300 font-cyber my-0.5 tracking-tight drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]">
+                      +{userPts}{' '}
+                      <span className="text-xs sm:text-sm font-black text-amber-400 uppercase tracking-widest font-sans">
+                        Puan
+                      </span>
+                    </div>
+
+                    {/* Altındaki küçük yazı: Kart sayısı ve detaylar */}
+                    <div className="text-[10px] sm:text-[11px] text-slate-300 font-medium">
+                      <span className="font-bold text-white">
+                        {onTableCountState.userCountedIndex} / {onTableCountState.userTotal} Kart
+                      </span>
+                      {userPistiCount > 0 && (
+                        <span className="text-amber-400 ml-1 font-bold">
+                          ({userPistiCount} Pişti)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* LARGE ACTIVE FLIPPING CARD IN FRONT OF USER */}
+                    <div className="mt-2.5 flex items-center justify-center gap-2">
+                      <div className="relative w-16 h-22 sm:w-20 sm:h-28 rounded-xl shadow-xl border-2 border-amber-300/80 bg-black/40 flex items-center justify-center overflow-hidden">
+                        {currentCard ? (
+                          <div
+                            key={`user-cnt-${onTableCountState.userCountedIndex}`}
+                            className="w-full h-full"
+                            style={{
+                              animation: 'cardCountFlip 190ms cubic-bezier(0.22, 1, 0.36, 1) forwards'
+                            }}
+                          >
+                            <CardFrontSurface card={currentCard} theme={theme} />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full">
+                            <CardBackSurface cardBack={cardBack} />
+                          </div>
+                        )}
+
+                        {/* Special Point Pop */}
+                        {currentCard && currentCard.basePoints > 0 && (
+                          <div className="absolute -top-1 -right-1 z-30 px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce">
+                            +{currentCard.basePoints}P!
+                          </div>
+                        )}
+                      </div>
+
+                      {/* AYIKLANAN SAYILAR TEPSİSİ */}
+                      <div className="flex flex-col items-start min-w-[70px] sm:min-w-[90px]">
+                        <span className="text-[9px] font-bold text-amber-300 uppercase">
+                          Sayılar (+{onTableCountState.userCardPoints}P):
+                        </span>
+                        <div className="flex items-center -space-x-3 mt-1">
+                          {pointCards.length === 0 ? (
+                            <span className="text-[9px] text-slate-500 italic">Henüz yok</span>
+                          ) : (
+                            pointCards.slice(-4).map((pc, idx) => (
+                              <div
+                                key={`${pc.id}-${idx}`}
+                                className="w-7 h-10 sm:w-8 sm:h-12 rounded shadow border border-amber-300/60 overflow-hidden shrink-0"
+                              >
+                                <CardFrontSurface card={pc} theme={theme} />
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* OPPONENT / OPPONENT TEAM PODIUM */}
+              {(() => {
+                const oppPistiPts = onTableCountState.oppPistiPoints ?? 0;
+                const oppCardPts = onTableCountState.oppCardPoints ?? 0;
+                const oppPts =
+                  oppCardPts +
+                  oppPistiPts +
+                  (onTableCountState.isDone && onTableCountState.oppMajority ? 3 : 0);
+                const oppPistiCount = Math.floor(oppPistiPts / 10);
+                const currentCard = onTableCountState.oppCurrentCard;
+                const pointCards = onTableCountState.oppPointCards || [];
+
+                return (
+                  <div
+                    className={`p-3 rounded-2xl border flex flex-col items-center transition-all ${
+                      onTableCountState.isDone && onTableCountState.oppMajority
+                        ? 'border-rose-400 bg-rose-950/75 shadow-[0_0_24px_rgba(251,113,133,0.35)]'
+                        : 'border-white/15 bg-slate-900/90'
+                    }`}
+                  >
+                    <div className="text-[11px] sm:text-xs text-rose-300 font-bold uppercase tracking-wider">
+                      {isFourPlayers ? '🔴 Rakip Takım' : '👤 Rakip Kartları'}
+                    </div>
+
+                    {/* BÜYÜK PUAN */}
+                    <div className="text-2xl sm:text-4xl font-black text-rose-300 font-cyber my-0.5 tracking-tight drop-shadow-[0_2px_8px_rgba(244,63,94,0.5)]">
+                      +{oppPts}{' '}
+                      <span className="text-xs sm:text-sm font-black text-rose-400 uppercase tracking-widest font-sans">
+                        Puan
+                      </span>
+                    </div>
+
+                    {/* Altındaki küçük yazı: Kart sayısı ve detaylar */}
+                    <div className="text-[10px] sm:text-[11px] text-slate-300 font-medium">
+                      <span className="font-bold text-white">
+                        {onTableCountState.oppCountedIndex} / {onTableCountState.oppTotal} Kart
+                      </span>
+                      {oppPistiCount > 0 && (
+                        <span className="text-amber-400 ml-1 font-bold">
+                          ({oppPistiCount} Pişti)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* LARGE ACTIVE FLIPPING CARD FOR OPPONENT */}
+                    <div className="mt-2.5 flex items-center justify-center gap-2">
+                      <div className="relative w-16 h-22 sm:w-20 sm:h-28 rounded-xl shadow-xl border-2 border-rose-400/80 bg-black/40 flex items-center justify-center overflow-hidden">
+                        {currentCard ? (
+                          <div
+                            key={`opp-cnt-${onTableCountState.oppCountedIndex}`}
+                            className="w-full h-full"
+                            style={{
+                              animation: 'cardCountFlip 190ms cubic-bezier(0.22, 1, 0.36, 1) forwards'
+                            }}
+                          >
+                            <CardFrontSurface card={currentCard} theme={theme} />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full">
+                            <CardBackSurface cardBack={cardBack} />
+                          </div>
+                        )}
+
+                        {/* Special Point Pop */}
+                        {currentCard && currentCard.basePoints > 0 && (
+                          <div className="absolute -top-1 -right-1 z-30 px-1.5 py-0.2 rounded-full bg-rose-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce">
+                            +{currentCard.basePoints}P!
+                          </div>
+                        )}
+                      </div>
+
+                      {/* AYIKLANAN SAYILAR TEPSİSİ */}
+                      <div className="flex flex-col items-start min-w-[70px] sm:min-w-[90px]">
+                        <span className="text-[9px] font-bold text-rose-300 uppercase">
+                          Sayılar (+{onTableCountState.oppCardPoints}P):
+                        </span>
+                        <div className="flex items-center -space-x-3 mt-1">
+                          {pointCards.length === 0 ? (
+                            <span className="text-[9px] text-slate-500 italic">Henüz yok</span>
+                          ) : (
+                            pointCards.slice(-4).map((pc, idx) => (
+                              <div
+                                key={`${pc.id}-${idx}`}
+                                className="w-7 h-10 sm:w-8 sm:h-12 rounded shadow border border-rose-300/60 overflow-hidden shrink-0"
+                              >
+                                <CardFrontSurface card={pc} theme={theme} />
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Majority Announcement */}
             {onTableCountState.isDone && (
-              <div className="my-1.5 px-3.5 py-1.5 rounded-xl bg-amber-950/90 border border-amber-400/70 text-xs font-black text-amber-300">
+              <div className="my-1.5 px-4 py-1.5 rounded-xl bg-amber-950/90 border border-amber-400/70 text-xs font-black text-amber-300 animate-in fade-in">
                 {onTableCountState.userMajority
                   ? `🏆 KART ÇOĞUNLUĞU (+3 PUAN) SİZİN! (${onTableCountState.userTotal} vs ${onTableCountState.oppTotal})`
                   : onTableCountState.oppMajority
@@ -822,14 +912,14 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               </div>
             )}
 
-            {/* Score summary on table felt */}
+            {/* Total match score row */}
             {onTableCountState.isDone && (
               <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 my-1 text-xs">
                 <div className="px-3 py-1 rounded-xl bg-emerald-950/85 border border-emerald-500/50 text-emerald-300 font-bold flex items-center gap-1.5 shadow-md">
                   <span>{isFourPlayers ? '🔵 Bizim Takım' : '👤 Sen'}:</span>
                   <span className="font-cyber font-black text-white text-sm">{players[0]?.score ?? 0}</span>
                   {roundScores?.user && (
-                    <span className="text-emerald-400 text-[11px] font-mono">
+                    <span className="text-emerald-400 text-[11px] font-mono font-bold">
                       (+{roundScores.user.totalRoundPoints}P)
                     </span>
                   )}
@@ -838,7 +928,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   <span>{isFourPlayers ? '🔴 Rakip Takım' : `👤 ${players[1]?.name || 'Rakip'}`}:</span>
                   <span className="font-cyber font-black text-white text-sm">{players[1]?.score ?? 0}</span>
                   {roundScores?.opp && (
-                    <span className="text-rose-400 text-[11px] font-mono">
+                    <span className="text-rose-400 text-[11px] font-mono font-bold">
                       (+{roundScores.opp.totalRoundPoints}P)
                     </span>
                   )}
@@ -1091,7 +1181,21 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
         {/* Right Player (Seat 1 - Kurnaz Bot in 4-Player mode) */}
         {isFourPlayers && players[1] ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
+            {/* Floating Active Emote for Right Player */}
+            {activeEmotes
+              ?.filter(e => e.playerIdx === 1)
+              .map(e => (
+                <div
+                  key={e.id}
+                  style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
+                  className="absolute -top-12 left-1/2 z-40 pointer-events-none"
+                >
+                  <div className="px-3 py-1 rounded-2xl bg-slate-900/95 border-2 border-rose-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                    {e.emoji}
+                  </div>
+                </div>
+              ))}
             <div className="hidden sm:flex flex-col gap-3">
               {renderCollectedPile(players[1], 1, 'bottom', true)}
               {renderPistiPile(players[1], 1, 'bottom', true)}
@@ -1163,9 +1267,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             .map(e => (
               <div
                 key={e.id}
-                className="absolute -top-12 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-bounce"
+                style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
+                className="absolute -top-14 left-1/2 z-40 pointer-events-none"
               >
-                <div className="px-3 py-1 rounded-2xl bg-slate-900 border-2 border-emerald-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-emerald-400 text-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-center justify-center">
                   {e.emoji}
                 </div>
               </div>
@@ -1292,21 +1397,6 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   }}
                   className="relative transition-all duration-200 ease-out"
                 >
-                  {/* Tactical Callout Pill above Card */}
-                  {!isHidden && (isPistiMatch || isCaptureMatch || isJackSweep) && (
-                    <div
-                      className={`absolute -top-6 left-1/2 -translate-x-1/2 z-30 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap pointer-events-none shadow-lg ${
-                        isPistiMatch
-                          ? 'bg-gradient-to-r from-amber-400 to-rose-500 text-slate-950 animate-bounce shadow-[0_0_15px_rgba(245,158,11,0.9)]'
-                          : isCaptureMatch
-                          ? 'bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
-                          : 'bg-indigo-500 text-white border border-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.8)]'
-                      }`}
-                    >
-                      {isPistiMatch ? '🔥 PİŞTİ!' : isCaptureMatch ? '⚡ TOPLA' : '🃏 SÜPÜR'}
-                    </div>
-                  )}
-
                   <CardView
                     card={card}
                     isPlayable={isPlayerTurn && !isHidden}

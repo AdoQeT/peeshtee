@@ -241,6 +241,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   const [newlyDrawnCardId, setNewlyDrawnCardId] = useState<string | null>(null);
   const [hasDrawnPlayableThisTurn, setHasDrawnPlayableThisTurn] = useState(false);
   const [isAnimatingAction, setIsAnimatingAction] = useState(false);
+  const [isUnoShuffling, setIsUnoShuffling] = useState(false);
+  const [isInitialDealing, setIsInitialDealing] = useState(false);
 
   const [wildPickerCard, setWildPickerCard] = useState<UnoCard | null>(null);
   const [wildPickerRect, setWildPickerRect] = useState<DOMRect | undefined>(undefined);
@@ -369,13 +371,23 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     []
   );
 
-  // Start / Reset Round with animated initial deal
+  // Start / Reset Round with animated initial deal & 3D shuffle
   const startNewRound = useCallback(() => {
+    setIsAnimatingAction(true);
+    setIsUnoShuffling(true);
+    sound.playRiffleShuffle();
+
     const fullDeck = shuffleUnoDeck(createUnoDeck());
     const dealt = dealUnoGame(fullDeck, playersSyncRef.current.length);
 
     deckSyncRef.current = [...dealt.remainingDeck];
     discardSyncRef.current = [dealt.initialDiscard];
+
+    // Collect all card IDs initially hidden while dealing
+    const idsToHide = new Set<string>();
+    dealt.hands.forEach(h => h.forEach(c => idsToHide.add(c.id)));
+    idsToHide.add(dealt.initialDiscard.id);
+    setHiddenCardIds(idsToHide);
 
     const updatedPlayers = playersSyncRef.current.map((p, idx) => ({
       ...p,
@@ -385,37 +397,128 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     playersSyncRef.current = updatedPlayers;
     setPlayers(updatedPlayers);
 
-    const initialCard = dealt.initialDiscard;
-    const nextGameState: UnoGameState = {
-      ...gameStateSyncRef.current,
-      deck: dealt.remainingDeck,
-      discardPile: [initialCard],
-      currentColor: dealt.initialColor,
-      currentTurn: 0,
-      direction: 1,
-      roundWinner: null,
-      isRoundOver: false,
-      lastActionMessage: `Başlangıç Kartı: ${formatCardName(initialCard)}`
-    };
-    gameStateSyncRef.current = nextGameState;
-    setGameState(nextGameState);
-
+    setDiscardStack([]);
     setNewlyDrawnCardId(null);
     setHasDrawnPlayableThisTurn(false);
-    setIsAnimatingAction(false);
-    setActionLog([`🎴 Yeni el başladı! Ortadaki kart: ${formatCardName(initialCard)}`]);
     setSeatBubbles({});
 
-    setDiscardStack([
-      {
-        card: initialCard,
-        rotation: 2,
-        offsetX: 0,
-        offsetY: 0,
-        playedBy: 'Başlangıç'
+    // After shuffle finishes (~1600ms), deal cards round-robin 1 by 1
+    window.setTimeout(() => {
+      setIsUnoShuffling(false);
+      setIsInitialDealing(true);
+
+      const totalP = playersSyncRef.current.length;
+      const initialCard = dealt.initialDiscard;
+
+      // 7 cards per player
+      const dealSteps: { playerIdx: number; card: UnoCard; delay: number }[] = [];
+      let delay = 60;
+      const stepInterval = 55;
+
+      for (let c = 0; c < 7; c++) {
+        for (let p = 0; p < totalP; p++) {
+          const card = dealt.hands[p]?.[c];
+          if (!card) continue;
+          dealSteps.push({ playerIdx: p, card, delay });
+          delay += stepInterval;
+        }
       }
-    ]);
-  }, []);
+
+      dealSteps.forEach(step => {
+        window.setTimeout(() => {
+          sound.playCardDeal();
+          const targetHandEl = playerHandRefs.current[step.playerIdx];
+          const deckEl = deckRef.current;
+          const fallbackDeckRect = {
+            x: window.innerWidth / 2 - 80,
+            y: window.innerHeight / 2 - 50,
+            width: 80,
+            height: 116
+          };
+          const deckRect = deckEl?.getBoundingClientRect() || fallbackDeckRect;
+
+          const handRect = targetHandEl?.getBoundingClientRect() || {
+            x: window.innerWidth / 2,
+            y: step.playerIdx === 0 ? window.innerHeight - 120 : 100,
+            width: 80,
+            height: 116
+          };
+
+          spawnFlyingUnoCard(step.card, deckRect, handRect, {
+            startFaceUp: false,
+            endFaceUp: step.playerIdx === 0,
+            duration: 330,
+            onFinish: () => {
+              setHiddenCardIds(prev => {
+                const next = new Set(prev);
+                next.delete(step.card.id);
+                return next;
+              });
+            }
+          });
+        }, step.delay);
+      });
+
+      // After all player cards dealt, deal the 1st discard card
+      const finishDealDelay = delay + 120;
+      window.setTimeout(() => {
+        sound.playCardDeal();
+        const deckEl = deckRef.current;
+        const discardEl = discardRef.current;
+        const deckRect = deckEl?.getBoundingClientRect() || {
+          x: window.innerWidth / 2 - 80,
+          y: window.innerHeight / 2 - 50,
+          width: 80,
+          height: 116
+        };
+        const discardRect = discardEl?.getBoundingClientRect() || {
+          x: window.innerWidth / 2 + 30,
+          y: window.innerHeight / 2 - 50,
+          width: 88,
+          height: 128
+        };
+
+        spawnFlyingUnoCard(initialCard, deckRect, discardRect, {
+          startFaceUp: false,
+          endFaceUp: true,
+          duration: 380,
+          targetRotation: 3,
+          onFinish: () => {
+            setHiddenCardIds(new Set());
+            setDiscardStack([
+              {
+                card: initialCard,
+                rotation: 3,
+                offsetX: 0,
+                offsetY: 0,
+                playedBy: 'Başlangıç'
+              }
+            ]);
+
+            const nextGameState: UnoGameState = {
+              ...gameStateSyncRef.current,
+              deck: dealt.remainingDeck,
+              discardPile: [initialCard],
+              currentColor: dealt.initialColor,
+              currentTurn: 0,
+              direction: 1,
+              roundWinner: null,
+              isRoundOver: false,
+              lastActionMessage: `Başlangıç Kartı: ${formatCardName(initialCard)}`
+            };
+            gameStateSyncRef.current = nextGameState;
+            setGameState(nextGameState);
+
+            setIsInitialDealing(false);
+            setIsAnimatingAction(false);
+            setTablePulseKey(k => k + 1);
+            setActionLog([`🎴 Yeni el başladı! Ortadaki kart: ${formatCardName(initialCard)}`]);
+            triggerBanner(`Ortadaki Kart: ${formatCardName(initialCard)}!`, 'wild', 2000);
+          }
+        });
+      }, finishDealDelay);
+    }, 1650);
+  }, [spawnFlyingUnoCard, triggerBanner]);
 
   // Initial Deal
   useEffect(() => {
@@ -1291,6 +1394,40 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
             {/* Animated SVG Direction Orbit Ring behind Center Piles */}
             <div className="relative flex items-center justify-center py-3 px-6 sm:px-12 rounded-[36px] bg-slate-950/60 border border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]">
+              {/* Dynamic 3D Animated UNO Deck Shuffle Overlay */}
+              {isUnoShuffling && (
+                <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md rounded-[36px] p-4 animate-in fade-in">
+                  <div className="relative w-44 h-28 flex items-center justify-center">
+                    {['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7'].map((c, i) => (
+                      <div
+                        key={c}
+                        style={{
+                          transform: `translate3d(${(i - 2) * 16}px, ${i % 2 === 0 ? -4 : 4}px, 0) rotate(${(i - 2) * 9}deg)`,
+                          boxShadow: `0 8px 24px ${c}77`
+                        }}
+                        className="w-14 h-20 rounded-xl border-2 border-white/80 flex items-center justify-center font-cyber font-black text-white text-xs shadow-2xl transition-transform animate-pulse"
+                      >
+                        <div className="w-full h-full rounded-lg flex items-center justify-center" style={{ backgroundColor: c }}>
+                          UNO
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2.5 px-3.5 py-1 rounded-full bg-slate-900 border border-amber-400 text-amber-300 font-cyber text-[11px] font-black tracking-wider flex items-center gap-1.5 animate-bounce shadow-lg">
+                    <Sparkles className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    <span>UNO DESTESİ KARILIYOR...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Dealing in progress indicator */}
+              {isInitialDealing && (
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1 rounded-full bg-slate-900/90 border border-emerald-400 text-emerald-300 font-cyber text-[10px] font-black tracking-wider flex items-center gap-1.5 animate-pulse shadow-md pointer-events-none">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>KARTLAR MASAYA DAĞITILIYOR...</span>
+                </div>
+              )}
+
               <svg
                 viewBox="0 0 360 190"
                 className="absolute inset-0 w-full h-full pointer-events-none opacity-35"

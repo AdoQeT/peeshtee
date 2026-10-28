@@ -507,13 +507,26 @@ export default function App() {
             const oy = step.card.tableOffsetY ?? 0;
             const rot = step.card.tableRotation ?? 0;
 
+            const domSlot = document.querySelector(
+              `[data-card-id="${step.card.id}"]`
+            ) as HTMLElement | null;
+            let targetX = potPos.x + ox;
+            let targetY = potPos.y + oy;
+            if (domSlot) {
+              const r = domSlot.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0) {
+                targetX = r.left + r.width / 2;
+                targetY = r.top + r.height / 2;
+              }
+            }
+
             const flyItem: FlyingCardData = {
               id: flyId,
               card: step.card,
               startX: deckPos.x,
               startY: deckPos.y,
-              targetX: potPos.x + ox,
-              targetY: potPos.y + oy,
+              targetX,
+              targetY,
               startRotation: 0,
               targetRotation: rot,
               startFaceUp: false,
@@ -1393,11 +1406,12 @@ export default function App() {
   );
 
   const triggerEmote = useCallback((playerIdx: number, emoji: string) => {
+    sound.playClick();
     const emoteId = `emote-${Date.now()}-${Math.random()}`;
     setActiveEmotes(prev => [...prev.filter(e => e.playerIdx !== playerIdx), { playerIdx, emoji, id: emoteId }]);
     const timer = window.setTimeout(() => {
       setActiveEmotes(prev => prev.filter(e => e.id !== emoteId));
-    }, 2800);
+    }, 2000);
     dealTimersRef.current.push(timer);
   }, []);
 

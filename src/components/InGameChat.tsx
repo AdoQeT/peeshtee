@@ -35,7 +35,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
   onSendMessage,
   isMultiplayer = false
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [inputText, setInputText] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -81,13 +81,13 @@ export const InGameChat: React.FC<InGameChatProps> = ({
   return (
     <aside
       aria-label="Oyun İçi Sohbet"
-      className="fixed bottom-3 left-3 z-40 flex flex-col items-start font-sans select-none"
+      className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-40 flex flex-col items-end font-sans select-none"
     >
-      {/* Minimized Toggle Pill */}
+      {/* Minimized Toggle Pill (only if collapsed) */}
       {!isOpen && (
         <button
           onClick={handleToggle}
-          className="relative px-3.5 py-2 rounded-2xl bg-slate-950/50 hover:bg-slate-900/80 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white shadow-[0_8px_25px_rgba(0,0,0,0.5)] transition-all active:scale-95 flex items-center gap-2 cursor-pointer group"
+          className="relative px-3 py-1.5 rounded-2xl bg-slate-950/60 hover:bg-slate-900/90 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white shadow-[0_8px_25px_rgba(0,0,0,0.5)] transition-all active:scale-95 flex items-center gap-2 cursor-pointer group"
           title="Sohbeti Aç"
         >
           <MessageSquare className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
@@ -100,35 +100,36 @@ export const InGameChat: React.FC<InGameChatProps> = ({
         </button>
       )}
 
-      {/* Expanded Semi-Transparent Floating Chat Box ("hafif soluk tam opak değil") */}
+      {/* Expanded Floating Chat Box: FULL AÇIK, HAFİF SOLUK, HOVER'DA OPAKLAŞIR */}
       {isOpen && (
-        <div className="w-72 sm:w-80 h-80 sm:h-96 rounded-2xl bg-slate-950/45 hover:bg-slate-950/75 backdrop-blur-md border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden transition-colors duration-300 animate-in fade-in slide-in-from-bottom-3">
+        <div className="w-64 sm:w-72 h-64 sm:h-72 rounded-2xl bg-slate-950/40 hover:bg-slate-950/85 opacity-65 hover:opacity-100 backdrop-blur-md border border-white/15 hover:border-white/30 shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
           {/* Chat Header */}
-          <div className="px-3.5 py-2.5 bg-black/40 border-b border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-black text-white font-cyber tracking-wider">
-                OYUN İÇİ SOHBET
+          <div className="px-3 py-2 bg-black/40 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[11px] font-black text-white font-cyber tracking-wider">
+                SOHBET
               </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-mono">
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-mono">
                 {isMultiplayer ? 'Online' : 'Botlar'}
               </span>
             </div>
             <button
               onClick={handleToggle}
+              title="Gizle"
               className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Quick Phrases Scroll Bar */}
-          <div className="px-2 py-1.5 bg-black/25 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="px-2 py-1 bg-black/20 border-b border-white/5 flex items-center gap-1 overflow-x-auto no-scrollbar">
             {QUICK_PHRASES.map((phrase, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(phrase)}
-                className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 hover:bg-amber-400/20 text-slate-300 hover:text-amber-200 border border-white/10 hover:border-amber-400/40 transition-colors cursor-pointer active:scale-95"
+                className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 hover:bg-amber-400/20 text-slate-300 hover:text-amber-200 border border-white/10 hover:border-amber-400/40 transition-colors cursor-pointer active:scale-95"
               >
                 {phrase}
               </button>
@@ -136,13 +137,13 @@ export const InGameChat: React.FC<InGameChatProps> = ({
           </div>
 
           {/* Messages Feed */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs">
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-2 text-xs">
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400/70 p-4">
-                <Sparkles className="w-5 h-5 mb-1.5 text-amber-400/50" />
-                <p className="text-[11px] font-medium">Henüz mesaj yok.</p>
-                <p className="text-[10px] text-slate-500">
-                  Yukarıdaki hızlı sözlere tıkla veya bir şeyler yaz!
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400/60 p-2">
+                <Sparkles className="w-4 h-4 mb-1 text-amber-400/40" />
+                <p className="text-[10px] font-medium">Sohbet hazır.</p>
+                <p className="text-[9px] text-slate-500">
+                  Hızlı sözlere tıkla veya mesaj yaz!
                 </p>
               </div>
             ) : (

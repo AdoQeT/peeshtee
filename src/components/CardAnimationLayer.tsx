@@ -282,11 +282,11 @@ const DynamicDeckShuffle: React.FC<{
       if (style === 'riffle_bridge') {
         const isLeft = idx < totalCards / 2;
         const halfIdx = isLeft ? idx : idx - totalCards / 2;
-        const splitX = isLeft ? centerX - 110 : centerX + 110;
-        const splitRot = isLeft ? -10 : 10;
+        const splitX = isLeft ? centerX - 120 : centerX + 120;
+        const splitRot = isLeft ? -12 : 12;
         const riffleOrder = isLeft ? halfIdx * 2 : halfIdx * 2 + 1;
-        const riffleStart = 0.22 + (riffleOrder / totalCards) * 0.26;
-        const riffleEnd = Math.min(0.60, riffleStart + 0.08);
+        const riffleStart = 0.20 + (riffleOrder / totalCards) * 0.28;
+        const riffleEnd = Math.min(0.62, riffleStart + 0.08);
 
         keyframes = [
           {
@@ -295,28 +295,97 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeOut
           },
           {
-            transform: `translate3d(${splitX}px, ${centerY - halfIdx * 0.6}px, 0) translate(-50%, -50%) rotate(${splitRot}deg)`,
-            offset: 0.20,
+            transform: `translate3d(${splitX}px, ${centerY - halfIdx * 0.7}px, 0) translate(-50%, -50%) rotate(${splitRot}deg)`,
+            offset: 0.18,
             easing: easeInOut
           },
           {
-            transform: `translate3d(${splitX}px, ${centerY - halfIdx * 0.6}px, 0) translate(-50%, -50%) rotate(${splitRot}deg)`,
+            transform: `translate3d(${splitX}px, ${centerY - halfIdx * 0.7}px, 0) translate(-50%, -50%) rotate(${splitRot}deg)`,
             offset: riffleStart,
             easing: easeOut
           },
           {
-            transform: `translate3d(${centerX}px, ${centerY - riffleOrder * 0.4}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            transform: `translate3d(${centerX}px, ${centerY - riffleOrder * 0.4}px, 0) translate(-50%, -50%) rotate(${isLeft ? -2 : 2}deg)`,
             offset: riffleEnd,
             easing: easeInOut
           },
           {
-            transform: `translate3d(${centerX}px, ${centerY - 45}px, 0) translate(-50%, -50%) rotate(${isLeft ? 6 : -6}deg)`,
+            transform: `translate3d(${centerX}px, ${centerY - 55}px, 0) translate(-50%, -50%) rotate(${isLeft ? 8 : -8}deg)`,
             offset: 0.72,
             easing: easeInOut
           },
           {
             transform: `translate3d(${centerX}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(0deg)`,
             offset: 0.84,
+            easing: easeOut
+          },
+          {
+            transform: `translate3d(${finalX - stackOffset}px, ${finalY - stackOffset}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            offset: 1
+          }
+        ];
+      } else if (style === 'table_wash') {
+        // Casino Table Wash Scramble: Cards swirl out across the table in wide circular orbits
+        const angle = (idx / totalCards) * Math.PI * 2;
+        const radius = 90 + (idx % 3) * 35;
+        const orbitX1 = centerX + Math.cos(angle) * radius;
+        const orbitY1 = centerY + Math.sin(angle) * (radius * 0.55);
+        const orbitX2 = centerX + Math.cos(angle + 1.8) * (radius * 0.85);
+        const orbitY2 = centerY + Math.sin(angle + 1.8) * (radius * 0.5);
+        const rot1 = (idx * 27) % 70 - 35;
+        const rot2 = (idx * 43) % 60 - 30;
+
+        keyframes = [
+          {
+            transform: `translate3d(${centerX}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            offset: 0,
+            easing: easeOut
+          },
+          {
+            transform: `translate3d(${orbitX1}px, ${orbitY1}px, 0) translate(-50%, -50%) rotate(${rot1}deg)`,
+            offset: 0.22,
+            easing: easeInOut
+          },
+          {
+            transform: `translate3d(${orbitX2}px, ${orbitY2}px, 0) translate(-50%, -50%) rotate(${rot2}deg)`,
+            offset: 0.52,
+            easing: easeInOut
+          },
+          {
+            transform: `translate3d(${centerX}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            offset: 0.82,
+            easing: easeOut
+          },
+          {
+            transform: `translate3d(${finalX - stackOffset}px, ${finalY - stackOffset}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            offset: 1
+          }
+        ];
+      } else if (style === 'farot_wave') {
+        // Faro Cascade Wave: S-curve fan wave
+        const waveX = centerX - 140 + idx * 21;
+        const waveY = centerY + Math.sin((idx / totalCards) * Math.PI * 2) * 28;
+        const waveRot = Math.cos((idx / totalCards) * Math.PI * 2) * 16;
+
+        keyframes = [
+          {
+            transform: `translate3d(${centerX}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            offset: 0,
+            easing: easeOut
+          },
+          {
+            transform: `translate3d(${waveX}px, ${waveY}px, 0) translate(-50%, -50%) rotate(${waveRot}deg)`,
+            offset: 0.32,
+            easing: easeInOut
+          },
+          {
+            transform: `translate3d(${waveX}px, ${waveY}px, 0) translate(-50%, -50%) rotate(${waveRot}deg)`,
+            offset: 0.58,
+            easing: easeInOut
+          },
+          {
+            transform: `translate3d(${centerX}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(0deg)`,
+            offset: 0.82,
             easing: easeOut
           },
           {
@@ -335,23 +404,23 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeOut
           },
           {
-            transform: `translate3d(${centerX + 85}px, ${centerY}px, 0) translate(-50%, -50%) rotate(6deg)`,
+            transform: `translate3d(${centerX + 90}px, ${centerY}px, 0) translate(-50%, -50%) rotate(7deg)`,
             offset: 0.15,
             easing: easeInOut
           },
           {
-            transform: `translate3d(${centerX + 85}px, ${centerY}px, 0) translate(-50%, -50%) rotate(6deg)`,
+            transform: `translate3d(${centerX + 90}px, ${centerY}px, 0) translate(-50%, -50%) rotate(7deg)`,
             offset: packetStartTime,
             easing: easeOut
           },
           {
-            transform: `translate3d(${centerX - 70}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(-2deg)`,
+            transform: `translate3d(${centerX - 75}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(-3deg)`,
             offset: packetStartTime + 0.10,
             easing: easeInOut
           },
           {
             transform: `translate3d(${centerX}px, ${centerY - idx * 0.5}px, 0) translate(-50%, -50%) rotate(0deg)`,
-            offset: 0.85,
+            offset: 0.84,
             easing: easeOut
           },
           {
@@ -360,9 +429,10 @@ const DynamicDeckShuffle: React.FC<{
           }
         ];
       } else {
+        // Triple Cut: 3 Clean Stacks
         const stackNum = idx < 5 ? 0 : idx < 10 ? 1 : 2;
         const stackX = stackNum === 0 ? centerX - 120 : stackNum === 1 ? centerX : centerX + 120;
-        const stackRot = stackNum === 0 ? -7 : stackNum === 1 ? 0 : 7;
+        const stackRot = stackNum === 0 ? -8 : stackNum === 1 ? 0 : 8;
 
         keyframes = [
           {

@@ -192,21 +192,31 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl bg-slate-900 border border-slate-700/80 shadow-[0_0_60px_rgba(0,0,0,0.85)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex justify-end select-none">
+      {/* Dimmed backdrop - click to close */}
+      <div
+        onClick={() => {
+          sound.playClick();
+          onClose();
+        }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+      />
+
+      {/* Right Slide-over Drawer Menu */}
+      <div className="relative w-full max-w-md sm:max-w-lg h-full bg-slate-950/95 border-l border-white/15 shadow-[-20px_0_60px_rgba(0,0,0,0.85)] flex flex-col z-10 animate-in slide-in-from-right duration-300 overflow-hidden">
         {/* Top Header */}
-        <div className="px-5 py-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-slate-950 flex items-center justify-center shadow-lg">
               <Users className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white font-cyber tracking-wide">
-                ARKADAŞLAR & OYUNCU AĞI
+                ARKADAŞLAR
               </h2>
               <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>ID veya İsim ile Arkadaş Ekle • Tek Tıkla Maça Çağır</span>
+                <span>ID ile Ekle • Tek Tıkla Maça Çağır</span>
               </p>
             </div>
           </div>
@@ -217,6 +227,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               onClose();
             }}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            title="Kapat"
           >
             <X className="w-5 h-5" />
           </button>

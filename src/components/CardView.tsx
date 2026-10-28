@@ -235,23 +235,6 @@ export const CardFrontSurface: React.FC<{
         <span className="text-xs sm:text-sm -mt-0.5">{suitIcon}</span>
       </div>
 
-      {/* Top Right Special Pişti Point Value Badge (Karo 10 = +3P, Sinek 2 = +2P, As/Vale = +1P) */}
-      {(isDiamond10 || isClub2 || isAce || isJack) && (
-        <div
-          className={`absolute top-1.5 right-1.5 px-1 py-0.2 rounded text-[8px] sm:text-[9px] font-black tracking-tighter z-10 pointer-events-none ${
-            isDiamond10
-              ? 'bg-amber-400 text-slate-950 shadow-sm'
-              : isClub2
-              ? 'bg-emerald-500 text-slate-950 shadow-sm'
-              : isJack
-              ? 'bg-indigo-500/90 text-white'
-              : 'bg-amber-500/25 text-amber-500 border border-amber-500/40'
-          }`}
-        >
-          {isDiamond10 ? '+3P' : isClub2 ? '+2P' : '+1P'}
-        </div>
-      )}
-
       {/* Center Art / Pip */}
       <div
         className={`absolute inset-0 flex items-center justify-center ${suitColor} pointer-events-none`}

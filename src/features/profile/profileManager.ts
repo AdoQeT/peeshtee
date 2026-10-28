@@ -172,12 +172,22 @@ export const PRESET_AVATARS: AvatarPreset[] = [
   }
 ];
 
+export interface FriendContact {
+  id: string;
+  name: string;
+  avatarId: string;
+  customAvatarDataUrl?: string;
+  roomCode?: string;
+  lastPlayedAt: number;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   avatarId: string;
   customAvatarDataUrl?: string; // Base64 uploaded custom profile picture
   customTitle?: string;
+  friends?: FriendContact[];
   stats: {
     matchesPlayed: number;
     wins: number;
@@ -209,6 +219,7 @@ export function getUserProfile(): UserProfile {
           avatarId: parsed.avatarId || 'wolf',
           customAvatarDataUrl: parsed.customAvatarDataUrl,
           customTitle: parsed.customTitle,
+          friends: parsed.friends || [],
           stats: {
             matchesPlayed: parsed.stats?.matchesPlayed || 0,
             wins: parsed.stats?.wins || 0,
@@ -232,6 +243,7 @@ export function getUserProfile(): UserProfile {
     name: 'Usta Oyuncu',
     avatarId: 'wolf',
     customTitle: 'Pişti Avcısı',
+    friends: [],
     stats: {
       matchesPlayed: 0,
       wins: 0,
@@ -245,6 +257,34 @@ export function getUserProfile(): UserProfile {
   };
   saveUserProfile(defaultProfile);
   return defaultProfile;
+}
+
+export function addOrUpdateFriend(friend: Omit<FriendContact, 'lastPlayedAt'>): UserProfile {
+  const profile = getUserProfile();
+  const list = profile.friends || [];
+  const existingIdx = list.findIndex(f => f.name.toLowerCase() === friend.name.toLowerCase() || f.id === friend.id);
+
+  const entry: FriendContact = {
+    ...friend,
+    lastPlayedAt: Date.now()
+  };
+
+  if (existingIdx !== -1) {
+    list[existingIdx] = { ...list[existingIdx], ...entry };
+  } else {
+    list.unshift(entry);
+  }
+
+  profile.friends = list.slice(0, 20); // Keep last 20 friends
+  saveUserProfile(profile);
+  return profile;
+}
+
+export function removeFriend(friendId: string): UserProfile {
+  const profile = getUserProfile();
+  profile.friends = (profile.friends || []).filter(f => f.id !== friendId && f.name !== friendId);
+  saveUserProfile(profile);
+  return profile;
 }
 
 export function saveUserProfile(profile: UserProfile): void {

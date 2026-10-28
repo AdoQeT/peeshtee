@@ -29,6 +29,7 @@ import { UnoGameView } from './components/UnoGameView';
 import { getUserProfile, UserProfile } from './features/profile/profileManager';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
 import confetti from 'canvas-confetti';
+import { AlertTriangle } from 'lucide-react';
 
 const INITIAL_SETTINGS: GameSettings = {
   soundEnabled: true,
@@ -110,6 +111,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false);
+  const [matchAbortedInfo, setMatchAbortedInfo] = useState<{ senderName: string; reason?: string } | null>(null);
 
   // User Profile & Sabit PP System
   const [userProfile, setUserProfile] = useState<UserProfile>(getUserProfile);
@@ -1458,6 +1461,18 @@ export default function App() {
         setPeerReconnectingSeconds(null);
       } else if (msg.type === 'PEER_DISCONNECTED') {
         setPeerReconnectingSeconds(null);
+        if (isMultiplayerGameRef.current) {
+          setMatchAbortedInfo({
+            senderName: 'Rakip',
+            reason: 'disconnect'
+          });
+        }
+      } else if (msg.type === 'MP_MATCH_ABORTED') {
+        setPeerReconnectingSeconds(null);
+        setMatchAbortedInfo({
+          senderName: msg.senderName || 'Rakip oyuncu',
+          reason: msg.reason || 'surrender'
+        });
       }
     });
 
@@ -2026,6 +2041,55 @@ export default function App() {
     setScreen('menu');
   }, []);
 
+  // Surrender Confirmation Action in Multiplayer
+  const handleConfirmSurrender = useCallback(() => {
+    setIsSurrenderModalOpen(false);
+    if (isMultiplayerGameRef.current) {
+      try {
+        multiplayerManager.send({
+          type: 'MP_MATCH_ABORTED',
+          reason: 'surrender',
+          senderName: userProfile.name
+        });
+        multiplayerManager.leaveRoom();
+      } catch (e) {
+        console.warn(e);
+      }
+      setIsMultiplayerGame(false);
+    }
+    clearScheduledTimers();
+    sound.playClick();
+    setFlyingCards([]);
+    setHiddenCardIds(new Set());
+    setIsShuffling(false);
+    setIsDealingAnimation(false);
+    setIsActionLocked(false);
+    setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
+    setRoundScores(null);
+    setReadySeatsForNextRound(new Set());
+    setScreen('menu');
+  }, [userProfile.name, clearScheduledTimers]);
+
+  // Notify peer on tab close / reload in multiplayer
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isMultiplayerGameRef.current) {
+        try {
+          multiplayerManager.send({
+            type: 'MP_MATCH_ABORTED',
+            reason: 'disconnect',
+            senderName: userProfile.name
+          });
+          multiplayerManager.leaveRoom();
+        } catch {
+          // Ignored
+        }
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [userProfile.name]);
+
   // Dev Test Macro: Reveal all hands exclusively on local client (Ctrl+Shift+X or Alt+X)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2135,6 +2199,7 @@ export default function App() {
         getDeckTargetPos={getDeckTargetPos}
         flyingCards={flyingCards}
         cardBack={settings.cardBack}
+        theme={settings.theme}
       />
 
       {/* Screen View */}
@@ -2204,6 +2269,10 @@ export default function App() {
             }}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onExitToMenu={() => {
+              if (isMultiplayerGame) {
+                setIsSurrenderModalOpen(true);
+                return;
+              }
               clearScheduledTimers();
               sound.playClick();
               setFlyingCards([]);
@@ -2246,7 +2315,13 @@ export default function App() {
             roundScores={roundScores}
             onNextRound={handleNextRound}
             onRestartGame={handleRestartGame}
-            onExitToMenu={handleExitToMenu}
+            onExitToMenu={() => {
+              if (isMultiplayerGame && !roundScores?.isGameOver) {
+                setIsSurrenderModalOpen(true);
+                return;
+              }
+              handleExitToMenu();
+            }}
             isReadyForNextRound={isReadyForNextRound}
             readySeatsCount={readySeatsCount}
             totalHumanPlayersCount={totalHumanPlayersCount}
@@ -2393,6 +2468,76 @@ export default function App() {
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           <span>👁️ DEV PEEK AKTİF (Alt+X)</span>
         </button>
+      )}
+
+      {/* Surrender Confirmation Modal for Online Multiplayer */}
+      {isSurrenderModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="p-6 rounded-3xl bg-slate-900 border-2 border-rose-500/80 shadow-[0_0_50px_rgba(244,63,94,0.4)] text-center max-w-sm w-full">
+            <div className="inline-flex p-3 rounded-2xl bg-rose-500/20 text-rose-400 mb-3">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white mb-2">
+              Maçı Terk Etmek İstiyor Musunuz?
+            </h3>
+            <p className="text-xs text-slate-300 mb-6 leading-relaxed">
+              Masadan ayrılırsanız devam eden online maç iptal edilecek ve rakip oyuncu bilgilendirilecektir.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setIsSurrenderModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"
+              >
+                Masada Kal
+              </button>
+              <button
+                onClick={handleConfirmSurrender}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg cursor-pointer transition-colors"
+              >
+                Maçı Terk Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Match Aborted Overlay (When Opponent Surrenders or Disconnects) */}
+      {matchAbortedInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="p-6 rounded-3xl bg-slate-900 border-2 border-amber-400/80 shadow-[0_0_50px_rgba(245,158,11,0.4)] text-center max-w-sm w-full">
+            <div className="inline-flex p-3 rounded-2xl bg-amber-500/20 text-amber-300 mb-3">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white mb-2">
+              Maç İptal Edildi
+            </h3>
+            <p className="text-xs text-slate-300 mb-6">
+              {matchAbortedInfo.senderName}{' '}
+              {matchAbortedInfo.reason === 'surrender'
+                ? 'maçı terk etti.'
+                : 'masadan ayrıldı veya bağlantısı koptu.'}
+            </p>
+            <button
+              onClick={() => {
+                setMatchAbortedInfo(null);
+                setIsMultiplayerGame(false);
+                clearScheduledTimers();
+                setFlyingCards([]);
+                setHiddenCardIds(new Set());
+                setIsShuffling(false);
+                setIsDealingAnimation(false);
+                setIsActionLocked(false);
+                setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
+                setRoundScores(null);
+                setReadySeatsForNextRound(new Set());
+                setScreen('menu');
+              }}
+              className="px-6 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-lg cursor-pointer"
+            >
+              Ana Menüye Dön
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

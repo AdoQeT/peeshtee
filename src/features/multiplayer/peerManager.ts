@@ -129,7 +129,8 @@ export type MultiplayerEvent =
     }
   | { type: 'PEER_RECONNECTING'; secondsLeft: number }
   | { type: 'PEER_RECONNECTED' }
-  | { type: 'PEER_DISCONNECTED'; peerId?: string };
+  | { type: 'PEER_DISCONNECTED'; peerId?: string }
+  | { type: 'MP_MATCH_ABORTED'; reason: string; senderPeerId?: string; senderName?: string };
 
 interface PacketEnvelope {
   __pistiEnvelope: true;
@@ -430,6 +431,10 @@ export class MultiplayerManager {
         localStorage.setItem(`pisti-pkt-${this.roomCode}`, str);
       } catch {}
     }
+  }
+
+  public leaveRoom() {
+    this.disconnect();
   }
 
   public disconnect() {

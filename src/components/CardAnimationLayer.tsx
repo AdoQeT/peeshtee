@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { Card, ShuffleStyle } from '../types/game';
+import { Card, ShuffleStyle, TableTheme } from '../types/game';
 import { CARD_DIMENSIONS, CardBackSurface, CardFrontSurface } from './CardView';
 
 export interface FlyingCardData {
@@ -33,6 +33,7 @@ interface CardAnimationLayerProps {
   getDeckTargetPos: () => { x: number; y: number };
   flyingCards: FlyingCardData[];
   cardBack: string;
+  theme?: TableTheme;
 }
 
 export const SHUFFLE_STYLE_NAMES: Record<ShuffleStyle, string> = {
@@ -43,9 +44,10 @@ export const SHUFFLE_STYLE_NAMES: Record<ShuffleStyle, string> = {
   farot_wave: 'Kavisli Yelpaze & Dalga Şelalesi (Faro Cascade)'
 };
 
-const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string }> = ({
+const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: TableTheme }> = ({
   fc,
-  cardBack
+  cardBack,
+  theme = 'traditional'
 }) => {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const inner3DRef = useRef<HTMLDivElement | null>(null);
@@ -223,7 +225,7 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string }> = ({
           }}
           className="rounded-[inherit]"
         >
-          <CardFrontSurface card={fc.card} />
+          <CardFrontSurface card={fc.card} theme={theme} />
         </div>
 
         {/* Back Face (180deg) */}
@@ -431,7 +433,8 @@ export const CardAnimationLayer: React.FC<CardAnimationLayerProps> = ({
   shuffleStyle,
   getDeckTargetPos,
   flyingCards,
-  cardBack
+  cardBack,
+  theme = 'traditional'
 }) => {
   return (
     <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
@@ -444,7 +447,7 @@ export const CardAnimationLayer: React.FC<CardAnimationLayerProps> = ({
       )}
 
       {flyingCards.map(fc => (
-        <FlyingCardItem key={fc.id} fc={fc} cardBack={cardBack} />
+        <FlyingCardItem key={fc.id} fc={fc} cardBack={cardBack} theme={theme} />
       ))}
     </div>
   );

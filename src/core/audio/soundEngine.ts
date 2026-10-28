@@ -762,6 +762,143 @@ class SoundEngine {
     osc.start(t);
     osc.stop(t + 0.05);
   }
+
+  /**
+   * UNO: Reverse Direction Whoosh Sound
+   */
+  public playUnoReverse() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(700, t + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.38);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800, t);
+    filter.Q.setValueAtTime(3, t);
+
+    gain.gain.setValueAtTime(0.01, t);
+    gain.gain.linearRampToValueAtTime(0.24 * this.volume, t + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.42);
+  }
+
+  /**
+   * UNO: Skip Turn Laser Strike Sound
+   */
+  public playUnoSkip() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.22);
+
+    gain.gain.setValueAtTime(0.3 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.26);
+  }
+
+  /**
+   * UNO: Wild Card 4-Color Harmonic Chime
+   */
+  public playUnoWild() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const notes = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+    notes.forEach((freq, idx) => {
+      const t = this.ctx!.currentTime + idx * 0.07;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+
+      gain.gain.setValueAtTime(0.2 * this.volume, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(t);
+      osc.stop(t + 0.38);
+    });
+  }
+
+  /**
+   * UNO: Dramatic "UNO!" Shout Fanfare
+   */
+  public playUnoShout() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const chords = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    chords.forEach(freq => {
+      const t = this.ctx!.currentTime;
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+
+      gain.gain.setValueAtTime(0.22 * this.volume, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+  }
+
+  /**
+   * UNO: Draw 2 / Draw 4 Impact Thump
+   */
+  public playUnoDrawPenalty() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.28);
+
+    gain.gain.setValueAtTime(0.32 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.32);
+  }
 }
 
 export const sound = new SoundEngine();

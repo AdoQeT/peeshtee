@@ -137,10 +137,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               avatarId={userProfile.avatarId}
               customAvatarUrl={userProfile.customAvatarDataUrl}
               size="xs"
+              isOwner={userProfile.isOwner}
             />
             <span className="text-amber-300 font-cyber font-black max-w-[85px] sm:max-w-[120px] truncate">
               {userProfile.name}
             </span>
+            {userProfile.isOwner && (
+              <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm">
+                KURUCU
+              </span>
+            )}
             <span className="hidden sm:inline text-[10px] font-mono text-cyan-400">
               #{userProfile.friendCode}
             </span>

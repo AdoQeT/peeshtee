@@ -189,6 +189,7 @@ export interface UserProfile {
   avatarId: string;
   customAvatarDataUrl?: string; // Base64 uploaded custom profile picture
   customTitle?: string;
+  isOwner?: boolean; // Creator & Owner VIP badge and golden crown
   friends?: FriendContact[];
   stats: {
     matchesPlayed: number;
@@ -230,7 +231,8 @@ export function getUserProfile(): UserProfile {
           name: parsed.name,
           avatarId: parsed.avatarId || 'wolf',
           customAvatarDataUrl: parsed.customAvatarDataUrl,
-          customTitle: parsed.customTitle,
+          customTitle: parsed.customTitle || '👑 Oyun Kurucusu',
+          isOwner: parsed.isOwner ?? true,
           friends: parsed.friends || [],
           stats: {
             matchesPlayed: parsed.stats?.matchesPlayed || 0,
@@ -258,9 +260,10 @@ export function getUserProfile(): UserProfile {
   const defaultProfile: UserProfile = {
     id: `player-${Math.random().toString(36).substring(2, 9)}`,
     friendCode: generateFriendCode(),
-    name: 'Usta Oyuncu',
-    avatarId: 'wolf',
-    customTitle: 'Pişti Avcısı',
+    name: 'Oyun Kurucusu',
+    avatarId: 'lion',
+    customTitle: '👑 Kurucu & Geliştirici',
+    isOwner: true,
     friends: [],
     stats: {
       matchesPlayed: 0,

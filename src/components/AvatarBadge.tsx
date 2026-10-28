@@ -7,6 +7,7 @@ interface AvatarBadgeProps {
   fallbackEmoji?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   showBorder?: boolean;
+  isOwner?: boolean;
   className?: string;
 }
 
@@ -24,6 +25,7 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
   fallbackEmoji,
   size = 'md',
   showBorder = true,
+  isOwner = false,
   className = ''
 }) => {
   const preset = getAvatarPreset(avatarId);
@@ -31,13 +33,24 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center shrink-0 select-none shadow-md overflow-hidden ${
+      className={`relative inline-flex items-center justify-center shrink-0 select-none shadow-md ${
+        isOwner ? 'ring-2 ring-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.7)]' : ''
+      } ${
         customAvatarUrl ? 'bg-slate-800' : `bg-gradient-to-br ${preset.gradient}`
       } ${
-        showBorder ? `border-2 ${preset.borderColor}` : ''
+        showBorder ? (isOwner ? 'border-2 border-yellow-300' : `border-2 ${preset.borderColor}`) : ''
       } ${sizeClass} ${className}`}
-      title={`${preset.name} — ${preset.title}`}
+      title={`${isOwner ? '👑 [KURUCU] ' : ''}${preset.name} — ${preset.title}`}
     >
+      {/* Floating Gold Crown for Game Owner */}
+      {isOwner && (
+        <span
+          className="absolute -top-1.5 -right-1.5 z-30 pointer-events-none drop-shadow-[0_2px_6px_rgba(245,158,11,0.95)] animate-pulse"
+          style={{ fontSize: size === 'xs' ? '10px' : size === 'sm' ? '12px' : '15px' }}
+        >
+          👑
+        </span>
+      )}
       {customAvatarUrl ? (
         <img
           src={customAvatarUrl}
@@ -50,7 +63,7 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
         </span>
       )}
       {/* Subtle top-left gloss glare */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/30 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/30 pointer-events-none rounded-[inherit]" />
     </div>
   );
 };

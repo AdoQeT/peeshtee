@@ -51,4 +51,5 @@ export interface UnoGameState {
   isRoundOver: boolean;
   isGameOver: boolean;
   lastActionMessage: string | null;
+  pendingDrawPenalty?: number;
 }

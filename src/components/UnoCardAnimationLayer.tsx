@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { UnoCard } from '../features/uno/unoTypes';
 import { UnoCardView, UnoCardBack } from './UnoCardView';
 
@@ -206,13 +207,14 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
 export const UnoCardAnimationLayer: React.FC<{
   flyingCards: FlyingUnoCardData[];
 }> = ({ flyingCards }) => {
-  if (flyingCards.length === 0) return null;
+  if (flyingCards.length === 0 || typeof document === 'undefined') return null;
 
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-[70]">
+  return createPortal(
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-[9999]">
       {flyingCards.map(fc => (
         <FlyingUnoCardItem key={fc.id} fc={fc} />
       ))}
-    </div>
+    </div>,
+    document.body
   );
 };

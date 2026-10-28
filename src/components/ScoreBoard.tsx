@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player, TableTheme } from '../types/game';
 import { Volume2, VolumeX, Home, Settings, Flame, Shield } from 'lucide-react';
+import { AvatarBadge } from './AvatarBadge';
 
 interface ScoreBoardProps {
   players: Player[];
@@ -31,10 +32,9 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
   const user = players[0];
   const isFourPlayers = players.length === 4;
 
-  // In 4-player mode: Team A = players[0] (Sen) + players[2] (Dayı), Team B = players[1] + players[3]
-  const userTeamScore = isFourPlayers
-    ? players[0].score + (players[2]?.score || 0)
-    : user.score;
+  // In 4-player mode: players[0] and players[1] already hold their team's canonical aggregate scores!
+  // Both players[0] and players[2] share userTeamScore; do NOT sum them together to avoid doubling!
+  const userTeamScore = user.score;
   const userTeamCards = isFourPlayers
     ? players[0].collectedCards.length + (players[2]?.collectedCards.length || 0)
     : user.collectedCards.length;
@@ -42,9 +42,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
     ? players[0].pistiCount + (players[2]?.pistiCount || 0)
     : user.pistiCount;
 
-  const rivalTeamScore = isFourPlayers
-    ? (players[1]?.score || 0) + (players[3]?.score || 0)
-    : players[1]?.score || 0;
+  const rivalTeamScore = players[1]?.score || 0;
   const rivalTeamCards = isFourPlayers
     ? (players[1]?.collectedCards.length || 0) + (players[3]?.collectedCards.length || 0)
     : players[1]?.collectedCards.length || 0;
@@ -66,16 +64,21 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         }`}
       >
         <div className="relative flex items-center -space-x-2">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-base sm:text-lg shadow-md border border-white/25 z-10">
-            {user.avatar || '😎'}
-          </div>
+          <AvatarBadge
+            avatarId={user.avatarId}
+            customAvatarUrl={user.customAvatarUrl}
+            fallbackEmoji={user.avatar}
+            size="md"
+            className="z-10 shadow-md"
+          />
           {isFourPlayers && players[2] && (
-            <div
-              title={`Ortağın: ${players[2].name}`}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-teal-600 to-cyan-800 flex items-center justify-center text-sm shadow-md border border-emerald-300/40"
-            >
-              {players[2].avatar || '🧔🏻'}
-            </div>
+            <AvatarBadge
+              avatarId={players[2].avatarId}
+              customAvatarUrl={players[2].customAvatarUrl}
+              fallbackEmoji={players[2].avatar}
+              size="sm"
+              className="border-emerald-300/40"
+            />
           )}
           {isUserTeamTurn && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping z-20" />
@@ -85,7 +88,9 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-xs text-slate-100">
-              {isFourPlayers ? 'Bizim Takım (Sen & Dayı)' : user.name}
+              {isFourPlayers
+                ? `Bizim Takım (${user.name} & ${players[2]?.name || 'Ortak'})`
+                : user.name}
             </span>
             {userTeamPistis > 0 && (
               <span className="flex items-center text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded-full font-black border border-amber-500/40">
@@ -178,7 +183,9 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
               </span>
             )}
             <span className="font-bold text-xs text-slate-100">
-              {isFourPlayers ? 'Rakip Takım (Bot & Muhtar)' : players[1]?.name || 'Rakip'}
+              {isFourPlayers
+                ? `Rakip Takım (${players[1]?.name || 'Rakip'} & ${players[3]?.name || '2. Rakip'})`
+                : players[1]?.name || 'Rakip'}
             </span>
           </div>
           <div className="flex items-center justify-end gap-2">
@@ -195,16 +202,23 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         </div>
 
         <div className="relative flex items-center -space-x-2">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-rose-600 to-purple-800 flex items-center justify-center text-base sm:text-lg shadow-md border border-white/25 z-10">
-            {players[1]?.avatar || '🤖'}
-          </div>
+          {players[1] && (
+            <AvatarBadge
+              avatarId={players[1].avatarId}
+              customAvatarUrl={players[1].customAvatarUrl}
+              fallbackEmoji={players[1].avatar}
+              size="md"
+              className="z-10 shadow-md"
+            />
+          )}
           {isFourPlayers && players[3] && (
-            <div
-              title={`Rakip: ${players[3].name}`}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-purple-700 to-indigo-900 flex items-center justify-center text-sm shadow-md border border-rose-300/40"
-            >
-              {players[3].avatar || '🦊'}
-            </div>
+            <AvatarBadge
+              avatarId={players[3].avatarId}
+              customAvatarUrl={players[3].customAvatarUrl}
+              fallbackEmoji={players[3].avatar}
+              size="sm"
+              className="border-rose-300/40"
+            />
           )}
           {isRivalTeamTurn && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-400 rounded-full animate-ping z-20" />

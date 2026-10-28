@@ -13,11 +13,14 @@ import {
   Loader2,
   Link,
   MessageCircle,
-  Bot
+  Bot,
+  Gamepad2
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
 import { GameSettings } from '../types/game';
+import { getUserProfile } from '../features/profile/profileManager';
+import { AvatarBadge } from './AvatarBadge';
 
 interface MultiplayerModalProps {
   isOpen: boolean;
@@ -29,11 +32,10 @@ interface MultiplayerModalProps {
   onHostLaunchMatch: (
     roomCode: string,
     lobbySettings: GameSettings,
-    slots: LobbyPlayerSlot[]
+    slots: LobbyPlayerSlot[],
+    gameType?: 'pisti' | 'uno'
   ) => void;
 }
-
-const AVATAR_CHOICES = ['😎', '🦊', '🐺', '🐲', '🌸', '👑', '🔥', '⚡'];
 
 export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   isOpen,
@@ -44,8 +46,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   onClose,
   onHostLaunchMatch
 }) => {
-  const [localName, setLocalName] = useState(userName === 'Oyuncu (Sen)' ? 'Oyuncu' : userName);
-  const [localAvatar, setLocalAvatar] = useState(userAvatar || '😎');
+  const userProfile = getUserProfile();
+  const [localName, setLocalName] = useState(userProfile.name || (userName === 'Oyuncu (Sen)' ? 'Usta Oyuncu' : userName));
+  const localAvatarId = userProfile.avatarId || 'wolf';
+  const localCustomAvatarUrl = userProfile.customAvatarDataUrl;
+  const localAvatar = userAvatar || '😎';
+
+  // Game Type: Pişti or UNO (Requested by user)
+  const [gameType, setGameType] = useState<'pisti' | 'uno'>('pisti');
 
   const [lobbyRole, setLobbyRole] = useState<'none' | 'host' | 'guest'>('none');
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
@@ -61,7 +69,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const createInitialSlots = (
     count: 2 | 4,
     hName: string,
-    hAvatar: string
+    hAvatar: string,
+    hAvatarId?: string,
+    hCustomUrl?: string
   ): LobbyPlayerSlot[] => {
     const list: LobbyPlayerSlot[] = [
       {
@@ -69,6 +79,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         peerId: multiplayerManager.instanceId,
         name: hName || 'Oda Sahibi',
         avatar: hAvatar || '😎',
+        avatarId: hAvatarId || 'wolf',
+        customAvatarUrl: hCustomUrl,
         isHost: true
       },
       {
@@ -76,6 +88,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         peerId: '',
         name: count === 4 ? '1. Rakip Bekleniyor' : '2. Oyuncu Bekleniyor',
         avatar: '⏳',
+        avatarId: 'lion',
         isHost: false
       }
     ];
@@ -87,6 +100,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           peerId: '',
           name: 'Ortağın Bekleniyor',
           avatar: '⏳',
+          avatarId: 'dayi',
           isHost: false
         },
         {
@@ -94,6 +108,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           peerId: '',
           name: '2. Rakip Bekleniyor',
           avatar: '⏳',
+          avatarId: 'muhtar',
           isHost: false
         }
       );
@@ -102,7 +117,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   };
 
   const [slots, setSlots] = useState<LobbyPlayerSlot[]>(() =>
-    createInitialSlots(2, localName, localAvatar)
+    createInitialSlots(2, localName, localAvatar, localAvatarId, localCustomAvatarUrl)
   );
 
   const [isConnecting, setIsConnecting] = useState(false);
@@ -118,6 +133,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   localNameRef.current = localName;
   const localAvatarRef = useRef(localAvatar);
   localAvatarRef.current = localAvatar;
+  const localAvatarIdRef = useRef(localAvatarId);
+  localAvatarIdRef.current = localAvatarId;
+  const localCustomAvatarUrlRef = useRef(localCustomAvatarUrl);
+  localCustomAvatarUrlRef.current = localCustomAvatarUrl;
+  const gameTypeRef = useRef(gameType);
+  gameTypeRef.current = gameType;
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   const playerCountRef = useRef(playerCount);
@@ -161,7 +182,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               next[existingIdx] = {
                 ...next[existingIdx],
                 name: event.guestName,
-                avatar: event.guestAvatar
+                avatar: event.guestAvatar,
+                avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
+                customAvatarUrl: event.guestCustomAvatarUrl
               };
             } else {
               // Find first empty slot (seatIndex 1, 2, or 3)
@@ -174,6 +197,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   peerId: event.guestPeerId,
                   name: event.guestName,
                   avatar: event.guestAvatar,
+                  avatarId: event.guestAvatarId || 'wolf',
+                  customAvatarUrl: event.guestCustomAvatarUrl,
                   isHost: false
                 };
               }
@@ -183,6 +208,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               type: 'HOST_LOBBY_SYNC',
               hostName: localNameRef.current || 'Oda Kurucu',
               hostAvatar: localAvatarRef.current,
+              hostAvatarId: localAvatarIdRef.current,
+              hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
+              gameType: gameTypeRef.current,
               settings: {
                 ...settingsRef.current,
                 playerCount: playerCountRef.current
@@ -212,6 +240,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               type: 'HOST_LOBBY_SYNC',
               hostName: localNameRef.current || 'Oda Kurucu',
               hostAvatar: localAvatarRef.current,
+              hostAvatarId: localAvatarIdRef.current,
+              hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
+              gameType: gameTypeRef.current,
               settings: {
                 ...settingsRef.current,
                 playerCount: playerCountRef.current
@@ -224,6 +255,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       } else if (event.type === 'HOST_LOBBY_SYNC') {
         sound.playMatchSweep();
         setSlots(event.slots);
+        if (event.gameType) {
+          setGameType(event.gameType);
+        }
         setTargetScore(event.settings.targetScore);
         setFiveRuleEnabled(event.settings.fiveRuleEnabled);
         setPlayerCount(event.settings.playerCount === 4 ? 4 : 2);
@@ -306,7 +340,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     if (lobbyRole === 'guest') return;
     sound.playClick();
     setPlayerCount(count);
-    const newSlots = createInitialSlots(count, localName, localAvatar);
+    const newSlots = createInitialSlots(count, localName, localAvatar, localAvatarId, localCustomAvatarUrl);
 
     // Keep any already connected guests in order
     let guestCursor = 1;
@@ -318,7 +352,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             ...newSlots[guestCursor],
             peerId: g.peerId,
             name: g.name,
-            avatar: g.avatar
+            avatar: g.avatar,
+            avatarId: g.avatarId,
+            customAvatarUrl: g.customAvatarUrl
           };
           guestCursor++;
         }
@@ -330,6 +366,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         type: 'HOST_LOBBY_SYNC',
         hostName: localName,
         hostAvatar: localAvatar,
+        hostAvatarId: localAvatarId,
+        hostCustomAvatarUrl: localCustomAvatarUrl,
+        gameType: gameType,
         settings: {
           ...initialSettings,
           targetScore,
@@ -404,11 +443,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     sound.playClick();
     setErrorMsg(null);
     setIsConnecting(true);
-    const code = 'PST-' + Math.floor(1000 + Math.random() * 9000);
+    const code = (gameType === 'uno' ? 'UNO-' : 'PST-') + Math.floor(1000 + Math.random() * 9000);
     setCreatedRoomCode(code);
     setLobbyRole('host');
 
-    const freshSlots = createInitialSlots(playerCount, localName, localAvatar);
+    const freshSlots = createInitialSlots(playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl);
     setSlots(freshSlots);
 
     await multiplayerManager.hostRoom(code, localName || 'Oda Sahibi', localAvatar);
@@ -422,7 +461,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setIsConnecting(true);
 
     const raw = joinCodeInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const normalized = raw.startsWith('PST') ? `PST-${raw.slice(3)}` : `PST-${raw}`;
+    const prefix = raw.startsWith('UNO') ? 'UNO-' : raw.startsWith('PST') ? 'PST-' : (gameType === 'uno' ? 'UNO-' : 'PST-');
+    const digits = raw.replace(/^(UNO|PST)/, '');
+    const normalized = `${prefix}${digits}`;
     setCreatedRoomCode(normalized);
 
     const ok = await multiplayerManager.joinRoom(
@@ -434,6 +475,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setIsConnecting(false);
     if (ok) {
       setLobbyRole('guest');
+      // Broadcast our custom avatar & avatarId immediately to host
+      multiplayerManager.send({
+        type: 'GUEST_JOINED',
+        guestName: localName || 'Misafir Oyuncu',
+        guestAvatar: localAvatar,
+        guestAvatarId: localAvatarId,
+        guestCustomAvatarUrl: localCustomAvatarUrl,
+        guestPeerId: multiplayerManager.instanceId
+      });
     } else {
       setErrorMsg('Odaya bağlanılamadı. Oda kodunu kontrol edip tekrar deneyin.');
     }
@@ -459,10 +509,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             ? 'Kurnaz Bot'
             : 'Muhtar';
         const botAvatar = s.seatIndex === 2 ? '👴' : s.seatIndex === 1 ? '🤖' : '🧔';
+        const botAvatarId = s.seatIndex === 2 ? 'dayi' : s.seatIndex === 1 ? 'lion' : 'muhtar';
         return {
           ...s,
           name: botName,
           avatar: botAvatar,
+          avatarId: botAvatarId,
           isAI: true
         };
       }
@@ -477,7 +529,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         targetScore,
         fiveRuleEnabled
       },
-      finalSlots
+      finalSlots,
+      gameType
     );
   };
 
@@ -542,47 +595,81 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           </div>
         </div>
 
-        {/* Player Profile Setup (Name & Avatar) */}
+        {/* Player Profile Setup (Name & Avatar Preview) */}
         <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-3.5 mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-            <div>
+          <div className="flex flex-col sm:flex-row items-center gap-3.5">
+            <AvatarBadge
+              avatarId={localAvatarId}
+              customAvatarUrl={localCustomAvatarUrl}
+              fallbackEmoji={localAvatar}
+              size="lg"
+            />
+            <div className="flex-1 w-full">
               <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
-                Senin Oyuncu Adın
+                Senin Oyuncu Profilin (İsim & PP)
               </label>
-              <input
-                type="text"
-                maxLength={16}
-                value={localName}
-                onChange={e => setLocalName(e.target.value)}
-                placeholder="Adını yaz..."
-                className="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-1.5 text-sm font-bold text-white focus:outline-none focus:border-cyan-400"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
-                Avatar Seç
-              </label>
-              <div className="flex items-center gap-1 flex-wrap">
-                {AVATAR_CHOICES.map(av => (
-                  <button
-                    key={av}
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setLocalAvatar(av);
-                    }}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-base transition-all ${
-                      localAvatar === av
-                        ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110 shadow-md'
-                        : 'bg-white/5 border border-white/10 hover:bg-white/15'
-                    }`}
-                  >
-                    {av}
-                  </button>
-                ))}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={18}
+                  value={localName}
+                  onChange={e => setLocalName(e.target.value)}
+                  placeholder="Adını yaz..."
+                  className="flex-1 bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-sm font-bold text-white focus:outline-none focus:border-cyan-400"
+                />
               </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Profil fotoğrafını veya sabit karakterini Ana Menüdeki "Oyuncu Profili" butonundan dilediğin zaman değiştirebilirsin.
+              </p>
             </div>
+          </div>
+        </div>
+
+        {/* Game Mode Selection (Pişti vs UNO) */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border border-amber-500/30 rounded-2xl p-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <Gamepad2 className="w-5 h-5 text-amber-400" />
+            <div>
+              <span className="text-xs font-black text-white font-cyber uppercase tracking-wider block">
+                Oynanacak Oyun Türü:
+              </span>
+              <span className="text-[10px] text-slate-300">
+                {gameType === 'pisti' ? 'Klasik 52 Kart Pişti Düellosu' : 'Klasik 108 Kart Uno Maçı'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+            <button
+              type="button"
+              disabled={lobbyRole === 'guest'}
+              onClick={() => {
+                sound.playClick();
+                setGameType('pisti');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black font-cyber transition-all ${
+                gameType === 'pisti'
+                  ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                  : 'text-slate-400 hover:text-white'
+              } ${lobbyRole === 'guest' ? 'cursor-default' : 'cursor-pointer'}`}
+            >
+              🎴 PİŞTİ
+            </button>
+            <button
+              type="button"
+              disabled={lobbyRole === 'guest'}
+              onClick={() => {
+                sound.playClick();
+                setGameType('uno');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black font-cyber transition-all ${
+                gameType === 'uno'
+                  ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)]'
+                  : 'text-slate-400 hover:text-white'
+              } ${lobbyRole === 'guest' ? 'cursor-default' : 'cursor-pointer'}`}
+            >
+              🔥 UNO
+            </button>
           </div>
         </div>
 
@@ -828,9 +915,13 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     className={`p-3 rounded-2xl border flex items-center justify-between gap-2.5 transition-all ${borderStyle}`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-xl shrink-0">
-                        {isOccupied ? slot.avatar : '⏳'}
-                      </div>
+                      <AvatarBadge
+                        avatarId={slot.avatarId}
+                        customAvatarUrl={slot.customAvatarUrl}
+                        fallbackEmoji={isOccupied ? slot.avatar : '⏳'}
+                        size="md"
+                        className="shrink-0"
+                      />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-black text-xs sm:text-sm text-white truncate">

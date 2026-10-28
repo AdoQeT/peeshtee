@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   UserProfile,
   PRESET_AVATARS,
@@ -6,7 +6,7 @@ import {
   saveUserProfile
 } from '../features/profile/profileManager';
 import { AvatarBadge } from './AvatarBadge';
-import { User, Trophy, Flame, Zap, Award, Check, X, Sparkles } from 'lucide-react';
+import { User, Trophy, Flame, Zap, Award, Check, X, Sparkles, Upload, Trash2, Camera } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 
 interface ProfileModalProps {
@@ -24,7 +24,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 }) => {
   const [name, setName] = useState(profile.name);
   const [selectedAvatarId, setSelectedAvatarId] = useState(profile.avatarId);
+  const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | undefined>(
+    profile.customAvatarDataUrl
+  );
   const [customTitle, setCustomTitle] = useState(profile.customTitle || '');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
 
@@ -34,12 +38,53 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       ? Math.round((profile.stats.wins / profile.stats.matchesPlayed) * 100)
       : 0;
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Fotoğraf boyutu çok büyük (Maksimum 10MB)!');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = event => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, 128, 128);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          setCustomAvatarDataUrl(dataUrl);
+          sound.playClick();
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearCustomAvatar = () => {
+    sound.playClick();
+    setCustomAvatarDataUrl(undefined);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = () => {
     sound.playClick();
     const updated: UserProfile = {
       ...profile,
       name: name.trim() || 'Usta Oyuncu',
       avatarId: selectedAvatarId,
+      customAvatarDataUrl: customAvatarDataUrl,
       customTitle: customTitle.trim() || currentPreset.title
     };
     saveUserProfile(updated);
@@ -58,10 +103,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white font-cyber tracking-wide">
-                OYUNCU PROFİLİ & SABİT PP
+                OYUNCU PROFİLİ & FOTOĞRAF
               </h2>
               <p className="text-[11px] text-slate-400 font-medium">
-                Karakterini seç, istatistiklerini gör ve masaya havanı at
+                Profil resmini yükle veya sabit karakterlerden seç, masaya havanı at!
               </p>
             </div>
           </div>
@@ -80,7 +125,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* Active Profile Card Preview */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 shadow-lg flex flex-col sm:flex-row items-center gap-4">
-            <AvatarBadge avatarId={selectedAvatarId} size="xl" />
+            <div className="relative group">
+              <AvatarBadge
+                avatarId={selectedAvatarId}
+                customAvatarUrl={customAvatarDataUrl}
+                size="xl"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Fotoğraf Yükle"
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-amber-300"
+              >
+                <Camera className="w-6 h-6 mb-1" />
+                <span className="text-[10px] font-bold">Değiştir</span>
+              </button>
+            </div>
+
             <div className="flex-1 text-center sm:text-left">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 justify-center sm:justify-start">
                 <h3 className="text-lg sm:text-xl font-black text-white font-cyber tracking-tight">
@@ -93,6 +154,36 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <p className="text-xs text-slate-400 mt-1 italic">
                 "{currentPreset.description}"
               </p>
+
+              {/* Upload custom photo quick actions */}
+              <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Fotoğraf Yükle (PP)</span>
+                </button>
+                {customAvatarDataUrl && (
+                  <button
+                    type="button"
+                    onClick={handleClearCustomAvatar}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Yüklenen fotoğrafı kaldır, sabit karaktere dön"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Kaldır</span>
+                  </button>
+                )}
+              </div>
 
               {/* Quick stats ribbon */}
               <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 text-xs">
@@ -147,7 +238,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <div className="flex items-center justify-between mb-2.5">
               <label className="text-xs font-black text-slate-200 tracking-wider uppercase flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Sabit Profil Resmi Seç (16 Karakter)</span>
+                <span>Sabit Profil Karakteri Seç (16 Karakter)</span>
               </label>
               <span className="text-[10px] text-slate-400 font-mono">
                 {currentPreset.name} seçili
@@ -156,13 +247,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
             <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 max-h-52 overflow-y-auto p-1.5 rounded-2xl bg-black/40 border border-white/5">
               {PRESET_AVATARS.map(avatar => {
-                const isSelected = selectedAvatarId === avatar.id;
+                const isSelected = selectedAvatarId === avatar.id && !customAvatarDataUrl;
                 return (
                   <button
                     key={avatar.id}
                     onClick={() => {
                       sound.playClick();
                       setSelectedAvatarId(avatar.id);
+                      setCustomAvatarDataUrl(undefined);
                       if (!customTitle) setCustomTitle(avatar.title);
                     }}
                     className={`group relative flex flex-col items-center justify-center p-2 rounded-2xl transition-all cursor-pointer ${

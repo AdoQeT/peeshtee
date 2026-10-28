@@ -176,6 +176,7 @@ export interface UserProfile {
   id: string;
   name: string;
   avatarId: string;
+  customAvatarDataUrl?: string; // Base64 uploaded custom profile picture
   customTitle?: string;
   stats: {
     matchesPlayed: number;
@@ -206,6 +207,7 @@ export function getUserProfile(): UserProfile {
           id: parsed.id || `player-${Math.random().toString(36).substring(2, 9)}`,
           name: parsed.name,
           avatarId: parsed.avatarId || 'wolf',
+          customAvatarDataUrl: parsed.customAvatarDataUrl,
           customTitle: parsed.customTitle,
           stats: {
             matchesPlayed: parsed.stats?.matchesPlayed || 0,

@@ -29,6 +29,7 @@ export interface UnoPlayer {
   name: string;
   avatarId: string;
   avatarEmoji?: string;
+  customAvatarUrl?: string;
   isAI: boolean;
   hand: UnoCard[];
   score: number;

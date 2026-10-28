@@ -5,7 +5,7 @@ interface UnoCardViewProps {
   card?: UnoCard;
   isBack?: boolean;
   isPlayable?: boolean;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   style?: React.CSSProperties;
@@ -139,7 +139,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
 
   return (
     <div
-      onClick={isPlayable ? onClick : undefined}
+      onClick={isPlayable ? e => onClick?.(e) : undefined}
       style={style}
       className={`relative select-none shrink-0 overflow-hidden rounded-[inherit] border-2 shadow-md transition-all duration-150 ${
         theme.cardBg

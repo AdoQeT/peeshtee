@@ -16,6 +16,8 @@ export interface LobbyPlayerSlot {
   peerId: string;
   name: string;
   avatar: string;
+  avatarId?: string;
+  customAvatarUrl?: string;
   isHost: boolean;
   isAI?: boolean;
 }
@@ -25,17 +27,23 @@ export type MultiplayerEvent =
       type: 'GUEST_JOINED';
       guestName: string;
       guestAvatar: string;
+      guestAvatarId?: string;
+      guestCustomAvatarUrl?: string;
       guestPeerId: string;
     }
   | {
       type: 'HOST_LOBBY_SYNC';
       hostName: string;
       hostAvatar: string;
+      hostAvatarId?: string;
+      hostCustomAvatarUrl?: string;
+      gameType?: 'pisti' | 'uno';
       settings: GameSettings;
       slots: LobbyPlayerSlot[];
     }
   | {
       type: 'MP_GAME_START';
+      gameType?: 'pisti' | 'uno';
       settings: GameSettings;
       seedDeck: Card[];
       shuffleStyle: ShuffleStyle;
@@ -55,6 +63,29 @@ export type MultiplayerEvent =
       tableOffsetY: number;
       tableRotation: number;
       senderPeerId?: string;
+    }
+  | {
+      type: 'MP_UNO_PLAY_CARD';
+      cardId: string;
+      chosenColor?: string;
+      seatIndex: number;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_UNO_DRAW_CARD';
+      seatIndex: number;
+      count: number;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_UNO_CALL_UNO';
+      seatIndex: number;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_UNO_NEXT_ROUND';
+      seedCards: any[];
+      startingTurnSeat: number;
     }
   | {
       type: 'MP_NEXT_ROUND';

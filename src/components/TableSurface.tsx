@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Card, TableTheme, Player, OnTableCountState } from '../types/game';
 import { CardView, CardBackSurface, CardFrontSurface, CARD_DIMENSIONS } from './CardView';
+import { AvatarBadge } from './AvatarBadge';
 import { Flame, Clock, Sparkles, RotateCcw } from 'lucide-react';
 import { DetailedRoundScore } from '../core/rules';
 
@@ -626,7 +627,13 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   : 'bg-slate-950/80 text-slate-300 border-white/15'
               }`}
             >
-              <span>{topOpponent.avatar}</span>
+              <AvatarBadge
+                avatarId={topOpponent.avatarId}
+                customAvatarUrl={topOpponent.customAvatarUrl}
+                fallbackEmoji={topOpponent.avatar}
+                size="xs"
+                showBorder={false}
+              />
               <span>{topOpponent.name}</span>
               {isFourPlayers && (
                 <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
@@ -679,13 +686,19 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-center">
               <span
-                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1 ${
+                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1.5 ${
                   currentTurn === 3 && !isCountingActive
                     ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
                     : 'bg-slate-950/80 text-slate-300 border-white/15'
                 }`}
               >
-                <span>{players[3].avatar}</span>
+                <AvatarBadge
+                  avatarId={players[3].avatarId}
+                  customAvatarUrl={players[3].customAvatarUrl}
+                  fallbackEmoji={players[3].avatar}
+                  size="xs"
+                  showBorder={false}
+                />
                 <span>{players[3].name}</span>
               </span>
               <div
@@ -1067,13 +1080,19 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             </div>
             <div className="flex flex-col items-center">
               <span
-                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1 ${
+                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1.5 ${
                   currentTurn === 1 && !isCountingActive
                     ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
                     : 'bg-slate-950/80 text-slate-300 border-white/15'
                 }`}
               >
-                <span>{players[1].avatar}</span>
+                <AvatarBadge
+                  avatarId={players[1].avatarId}
+                  customAvatarUrl={players[1].customAvatarUrl}
+                  fallbackEmoji={players[1].avatar}
+                  size="xs"
+                  showBorder={false}
+                />
                 <span>{players[1].name}</span>
               </span>
               <div

@@ -571,6 +571,8 @@ export default function App() {
     mpSlots?: LobbyPlayerSlot[],
     mySeatIdx: number = 0
   ): Player[] => {
+    const curProfile = getUserProfile();
+
     if (mpSlots && mpSlots.length >= count) {
       const playersList: Player[] = [];
       for (let j = 0; j < count; j++) {
@@ -582,6 +584,8 @@ export default function App() {
           name: isMe ? `${slot.name} (Sen)` : slot.name,
           isAI: Boolean(slot.isAI),
           avatar: slot.avatar,
+          avatarId: isMe ? curProfile.avatarId : slot.avatarId || 'wolf',
+          customAvatarUrl: isMe ? curProfile.customAvatarDataUrl : slot.customAvatarUrl,
           hand: [],
           collectedCards: [],
           pistiPairs: [],
@@ -606,9 +610,11 @@ export default function App() {
     const basePlayers: Player[] = [
       {
         id: 'user',
-        name: localName,
+        name: curProfile.name || localName,
         isAI: false,
         avatar: localAvatar,
+        avatarId: curProfile.avatarId || 'wolf',
+        customAvatarUrl: curProfile.customAvatarDataUrl,
         hand: [],
         collectedCards: [],
         pistiPairs: [],
@@ -623,6 +629,7 @@ export default function App() {
         name: p1Name,
         isAI: !customOpponentName,
         avatar: customOpponentAvatar || '🤖',
+        avatarId: 'lion',
         hand: [],
         collectedCards: [],
         pistiPairs: [],
@@ -641,6 +648,7 @@ export default function App() {
           name: 'Dayı (Ortak)',
           isAI: true,
           avatar: '👴',
+          avatarId: 'dayi',
           hand: [],
           collectedCards: [],
           pistiPairs: [],
@@ -655,6 +663,7 @@ export default function App() {
           name: 'Muhtar',
           isAI: true,
           avatar: '🧔',
+          avatarId: 'muhtar',
           hand: [],
           collectedCards: [],
           pistiPairs: [],
@@ -1377,12 +1386,21 @@ export default function App() {
           const mySlot = msg.slots.find(s => s.peerId === multiplayerManager.instanceId);
           const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
 
-          startMatchWithDeck(msg.settings, msg.seedDeck, msg.shuffleStyle, {
-            isMultiplayer: true,
-            isHost: false,
-            mySeatIndex: mySeatIdx,
-            slots: msg.slots
-          });
+          if (msg.gameType === 'uno') {
+            setIsMultiplayerGame(true);
+            setIsMultiplayerHost(false);
+            setMyMultiplayerSeat(mySeatIdx);
+            setActiveMultiplayerSlots(msg.slots);
+            setIsMultiplayerOpen(false);
+            setScreen('uno');
+          } else {
+            startMatchWithDeck(msg.settings, msg.seedDeck, msg.shuffleStyle, {
+              isMultiplayer: true,
+              isHost: false,
+              mySeatIndex: mySeatIdx,
+              slots: msg.slots
+            });
+          }
         }
       } else if (msg.type === 'MP_CARD_PLAYED') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
@@ -2155,9 +2173,16 @@ export default function App() {
         />
       ) : screen === 'uno' ? (
         <UnoGameView
-          onExitToMenu={() => setScreen('menu')}
-          playerCount={4}
+          onExitToMenu={() => {
+            setIsMultiplayerGame(false);
+            setScreen('menu');
+          }}
+          playerCount={isMultiplayerGame ? (settings.playerCount || 4) : 4}
           targetScore={250}
+          isMultiplayer={isMultiplayerGame}
+          isHost={isMultiplayerHost}
+          mySeatIndex={myMultiplayerSeat}
+          mpSlots={activeMultiplayerSlots}
         />
       ) : (
         <main className="relative z-10 flex-1 flex flex-col justify-between p-2 sm:p-4 max-w-7xl mx-auto w-full h-screen max-h-screen overflow-hidden">
@@ -2287,8 +2312,30 @@ export default function App() {
         onHostLaunchMatch={(
           _roomCode,
           lobbySettings,
-          finalSlots
+          finalSlots,
+          chosenGameType = 'pisti'
         ) => {
+          if (chosenGameType === 'uno') {
+            multiplayerManager.send({
+              type: 'MP_GAME_START',
+              gameType: 'uno',
+              settings: lobbySettings,
+              seedDeck: [],
+              shuffleStyle: 'riffle_bridge',
+              round: 1,
+              startingTurnSeat: 0,
+              slots: finalSlots
+            });
+
+            setIsMultiplayerGame(true);
+            setIsMultiplayerHost(true);
+            setMyMultiplayerSeat(0);
+            setActiveMultiplayerSlots(finalSlots);
+            setIsMultiplayerOpen(false);
+            setScreen('uno');
+            return;
+          }
+
           const randomStyle =
             SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
           const sharedSeedDeck = shuffleDeck(createDeck());
@@ -2296,6 +2343,7 @@ export default function App() {
           // Broadcast MP_GAME_START with deterministic seedDeck to all Guests
           multiplayerManager.send({
             type: 'MP_GAME_START',
+            gameType: 'pisti',
             settings: lobbySettings,
             seedDeck: sharedSeedDeck,
             shuffleStyle: randomStyle,

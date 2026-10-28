@@ -107,9 +107,9 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
       const apexX = fc.startX + dx * 0.5 + nx * curveMag;
       const apexY = fc.startY + dy * 0.5 - liftY;
 
-      // Generate a true, continuous quadratic Bezier arc sampled uniformly across 10 steps
-      // Without ANY piecewise deceleration stops!
-      const steps = 10;
+      // Generate a true, continuous quadratic Bezier arc sampled uniformly across 12 steps
+      // with dynamic 3D elevation drop-shadow and apex scale boost!
+      const steps = 12;
       keyframes = [];
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
@@ -117,11 +117,15 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
         const curX = oneMinusT * oneMinusT * fc.startX + 2 * oneMinusT * t * apexX + t * t * fc.targetX;
         const curY = oneMinusT * oneMinusT * fc.startY + 2 * oneMinusT * t * apexY + t * t * fc.targetY;
         const curRot = fc.startRotation + (fc.targetRotation - fc.startRotation) * t;
-        const curScale = startScale + (targetScale - startScale) * t + Math.sin(t * Math.PI) * 0.05;
+        const arcSine = Math.sin(t * Math.PI);
+        const curScale = startScale + (targetScale - startScale) * t + arcSine * 0.11;
+        const shadowY = Math.round(6 + arcSine * 22);
+        const shadowBlur = Math.round(10 + arcSine * 28);
 
         keyframes.push({
           offset: t,
-          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) scale(${curScale.toFixed(3)})`
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) scale(${curScale.toFixed(3)})`,
+          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,0.62))`
         });
       }
     }

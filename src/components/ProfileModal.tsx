@@ -143,10 +143,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
 
             <div className="flex-1 text-center sm:text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 justify-center sm:justify-start">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 justify-center sm:justify-start">
                 <h3 className="text-lg sm:text-xl font-black text-white font-cyber tracking-tight">
                   {name || 'İsimsiz Oyuncu'}
                 </h3>
+                <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+                  #{profile.friendCode}
+                </span>
                 <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
                   {customTitle || currentPreset.title}
                 </span>

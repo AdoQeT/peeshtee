@@ -174,6 +174,7 @@ export const PRESET_AVATARS: AvatarPreset[] = [
 
 export interface FriendContact {
   id: string;
+  friendCode?: string;
   name: string;
   avatarId: string;
   customAvatarDataUrl?: string;
@@ -183,6 +184,7 @@ export interface FriendContact {
 
 export interface UserProfile {
   id: string;
+  friendCode: string; // 6-digit unique human-readable ID (e.g. "482910")
   name: string;
   avatarId: string;
   customAvatarDataUrl?: string; // Base64 uploaded custom profile picture
@@ -202,6 +204,10 @@ export interface UserProfile {
 
 const STORAGE_KEY = 'project_p_user_profile';
 
+function generateFriendCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export function getAvatarPreset(avatarId: string): AvatarPreset {
   const found = PRESET_AVATARS.find(a => a.id === avatarId);
   return found || PRESET_AVATARS[0];
@@ -213,8 +219,14 @@ export function getUserProfile(): UserProfile {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed.name === 'string') {
-        return {
+        const friendCode =
+          typeof parsed.friendCode === 'string' && parsed.friendCode.length >= 4
+            ? parsed.friendCode
+            : generateFriendCode();
+
+        const profile: UserProfile = {
           id: parsed.id || `player-${Math.random().toString(36).substring(2, 9)}`,
+          friendCode,
           name: parsed.name,
           avatarId: parsed.avatarId || 'wolf',
           customAvatarDataUrl: parsed.customAvatarDataUrl,
@@ -231,6 +243,11 @@ export function getUserProfile(): UserProfile {
             unoWins: parsed.stats?.unoWins || 0
           }
         };
+
+        if (!parsed.friendCode) {
+          saveUserProfile(profile);
+        }
+        return profile;
       }
     }
   } catch (e) {
@@ -240,6 +257,7 @@ export function getUserProfile(): UserProfile {
   // Default guest profile
   const defaultProfile: UserProfile = {
     id: `player-${Math.random().toString(36).substring(2, 9)}`,
+    friendCode: generateFriendCode(),
     name: 'Usta Oyuncu',
     avatarId: 'wolf',
     customTitle: 'Pişti Avcısı',
@@ -262,10 +280,18 @@ export function getUserProfile(): UserProfile {
 export function addOrUpdateFriend(friend: Omit<FriendContact, 'lastPlayedAt'>): UserProfile {
   const profile = getUserProfile();
   const list = profile.friends || [];
-  const existingIdx = list.findIndex(f => f.name.toLowerCase() === friend.name.toLowerCase() || f.id === friend.id);
+  const cleanCode = friend.friendCode?.replace(/[^0-9A-Za-z]/g, '');
+
+  const existingIdx = list.findIndex(
+    f =>
+      (cleanCode && f.friendCode === cleanCode) ||
+      f.id === friend.id ||
+      f.name.toLowerCase() === friend.name.toLowerCase()
+  );
 
   const entry: FriendContact = {
     ...friend,
+    friendCode: cleanCode || friend.friendCode,
     lastPlayedAt: Date.now()
   };
 
@@ -275,7 +301,7 @@ export function addOrUpdateFriend(friend: Omit<FriendContact, 'lastPlayedAt'>): 
     list.unshift(entry);
   }
 
-  profile.friends = list.slice(0, 20); // Keep last 20 friends
+  profile.friends = list.slice(0, 40); // Keep up to 40 friends
   saveUserProfile(profile);
   return profile;
 }

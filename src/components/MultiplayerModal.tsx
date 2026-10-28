@@ -10,13 +10,13 @@ import {
   MessageCircle,
   Gamepad2,
   UserPlus,
-  Trash2,
-  Clock
+  Send
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
 import { GameSettings } from '../types/game';
-import { getUserProfile, addOrUpdateFriend, removeFriend, FriendContact } from '../features/profile/profileManager';
+import { getUserProfile, addOrUpdateFriend } from '../features/profile/profileManager';
+import { friendNetwork } from '../features/friends/friendNetwork';
 import { AvatarBadge } from './AvatarBadge';
 
 interface MultiplayerModalProps {
@@ -25,6 +25,13 @@ interface MultiplayerModalProps {
   userName: string;
   userAvatar: string;
   initialJoinCode?: string;
+  pendingFriendInvite?: {
+    friendCode?: string;
+    name: string;
+    gameType: 'pisti' | 'uno';
+  } | null;
+  onClearPendingInvite?: () => void;
+  onOpenFriendsModal?: () => void;
   onClose: () => void;
   onHostLaunchMatch: (
     roomCode: string,
@@ -40,6 +47,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   userName,
   userAvatar,
   initialJoinCode,
+  pendingFriendInvite,
+  onClearPendingInvite,
+  onOpenFriendsModal,
   onClose,
   onHostLaunchMatch
 }) => {
@@ -58,7 +68,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [joinCodeInput, setJoinCodeInput] = useState(initialJoinCode || '');
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [activeTab, setActiveTab] = useState<'lobby' | 'friends'>('lobby');
+  const [inviteSentBanner, setInviteSentBanner] = useState<string | null>(null);
 
   // 2 or 4 Player option
   const [playerCount, setPlayerCount] = useState<2 | 4>(
@@ -159,8 +169,61 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   useEffect(() => {
     if (initialJoinCode) {
       setJoinCodeInput(initialJoinCode);
+      if (isOpen && lobbyRole === 'none') {
+        handleJoinRoomWithCode(initialJoinCode);
+      }
     }
-  }, [initialJoinCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialJoinCode, isOpen]);
+
+  // Auto-host & dispatch real-time invite when triggered from FriendsModal
+  useEffect(() => {
+    if (isOpen && pendingFriendInvite) {
+      const targetFriend = pendingFriendInvite;
+      onClearPendingInvite?.();
+      setGameType(targetFriend.gameType);
+
+      const launchAndInvite = async () => {
+        let activeCode = createdRoomCode;
+        if (lobbyRole !== 'host' || !activeCode) {
+          setErrorMsg(null);
+          setIsConnecting(true);
+          activeCode =
+            (targetFriend.gameType === 'uno' ? 'UNO-' : 'PST-') +
+            Math.floor(1000 + Math.random() * 9000);
+          setCreatedRoomCode(activeCode);
+          setLobbyRole('host');
+
+          const freshSlots = createInitialSlots(
+            playerCount,
+            localName,
+            localAvatar,
+            localAvatarId,
+            localCustomAvatarUrl
+          );
+          setSlots(freshSlots);
+          await multiplayerManager.hostRoom(activeCode, localName || 'Oda Sahibi', localAvatar);
+          setIsConnecting(false);
+        }
+
+        friendNetwork.setStatus('lobby', activeCode, targetFriend.gameType);
+        friendNetwork.sendGameInvite(
+          { friendCode: targetFriend.friendCode, name: targetFriend.name },
+          activeCode,
+          targetFriend.gameType
+        );
+        setInviteSentBanner(
+          `📨 ${targetFriend.name}${
+            targetFriend.friendCode ? ` (#${targetFriend.friendCode})` : ''
+          } oyuncusuna canlı oda daveti gönderildi!`
+        );
+        window.setTimeout(() => setInviteSentBanner(null), 5000);
+      };
+
+      launchAndInvite();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, pendingFriendInvite]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -312,9 +375,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const handleResetLobby = () => {
     sound.playClick();
     multiplayerManager.leaveRoom();
+    friendNetwork.setStatus('menu');
     setLobbyRole('none');
     setCreatedRoomCode(null);
-    setSlots(createInitialSlots(playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl));
+    setSlots(
+      createInitialSlots(playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl)
+    );
     setErrorMsg(null);
     setIsConnecting(false);
   };
@@ -323,7 +389,13 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     if (lobbyRole === 'guest') return;
     sound.playClick();
     setPlayerCount(count);
-    const newSlots = createInitialSlots(count, localName, localAvatar, localAvatarId, localCustomAvatarUrl);
+    const newSlots = createInitialSlots(
+      count,
+      localName,
+      localAvatar,
+      localAvatarId,
+      localCustomAvatarUrl
+    );
 
     let guestCursor = 1;
     slots
@@ -407,14 +479,22 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     sound.playClick();
     setErrorMsg(null);
     setIsConnecting(true);
-    const code = (gameType === 'uno' ? 'UNO-' : 'PST-') + Math.floor(1000 + Math.random() * 9000);
+    const code =
+      (gameType === 'uno' ? 'UNO-' : 'PST-') + Math.floor(1000 + Math.random() * 9000);
     setCreatedRoomCode(code);
     setLobbyRole('host');
 
-    const freshSlots = createInitialSlots(playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl);
+    const freshSlots = createInitialSlots(
+      playerCount,
+      localName,
+      localAvatar,
+      localAvatarId,
+      localCustomAvatarUrl
+    );
     setSlots(freshSlots);
 
     await multiplayerManager.hostRoom(code, localName || 'Oda Sahibi', localAvatar);
+    friendNetwork.setStatus('lobby', code, gameType);
     setIsConnecting(false);
   };
 
@@ -425,7 +505,13 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setIsConnecting(true);
 
     const raw = codeToJoin.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const prefix = raw.startsWith('UNO') ? 'UNO-' : raw.startsWith('PST') ? 'PST-' : (gameType === 'uno' ? 'UNO-' : 'PST-');
+    const prefix = raw.startsWith('UNO')
+      ? 'UNO-'
+      : raw.startsWith('PST')
+      ? 'PST-'
+      : gameType === 'uno'
+      ? 'UNO-'
+      : 'PST-';
     const digits = raw.replace(/^(UNO|PST)/, '');
     const normalized = `${prefix}${digits}`;
     setCreatedRoomCode(normalized);
@@ -439,6 +525,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setIsConnecting(false);
     if (ok) {
       setLobbyRole('guest');
+      friendNetwork.setStatus('lobby', normalized, gameType);
       multiplayerManager.send({
         type: 'GUEST_JOINED',
         guestName: localName || 'Misafir Oyuncu',
@@ -496,6 +583,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       return s;
     });
 
+    friendNetwork.setStatus('playing', createdRoomCode, gameType);
+
     onHostLaunchMatch(
       createdRoomCode,
       {
@@ -535,6 +624,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const handleQuickPingFriend = (friend: { friendCode?: string; name: string }) => {
+    if (!createdRoomCode) return;
+    sound.playClick();
+    friendNetwork.sendGameInvite(friend, createdRoomCode, gameType);
+    setInviteSentBanner(`📨 ${friend.name} oyuncusuna canlı oda daveti gönderildi!`);
+    window.setTimeout(() => setInviteSentBanner(null), 4000);
+  };
+
   const connectedHumanCount = slots.filter(s => s.peerId && s.peerId !== '').length;
   const isHost = lobbyRole === 'host';
 
@@ -551,41 +648,30 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black text-white font-cyber tracking-wide">
-                ÇOK OYUNCULU LOBİ
+                ONLINE ÇOK OYUNCULU LOBİ
               </h2>
               <span className="text-[10px] text-cyan-400 font-medium">
-                P2P & Çift MQTT Bulut Sunucusu
+                Senin ID: #{profile.friendCode} • Hızlı Oda & Canlı Bağlantı
               </span>
             </div>
           </div>
 
-          {/* Navigation Tabs (Lobi / Arkadaşlar) */}
-          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-white/10">
-            <button
-              onClick={() => setActiveTab('lobby')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                activeTab === 'lobby' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Lobi
-            </button>
-            <button
-              onClick={() => setActiveTab('friends')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${
-                activeTab === 'friends' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Arkadaşlar</span>
-              {profile.friends && profile.friends.length > 0 && (
-                <span className="text-[9px] bg-amber-400 text-slate-950 px-1 rounded-full font-black">
-                  {profile.friends.length}
-                </span>
-              )}
-            </button>
+          <div className="flex items-center gap-2">
+            {onOpenFriendsModal && (
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  onOpenFriendsModal();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Arkadaşlar</span>
+              </button>
+            )}
             <button
               onClick={handleClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors ml-1"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -595,126 +681,39 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/60 text-xs font-bold text-rose-200 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-rose-950/90 border border-rose-500/50 text-rose-200 text-xs font-bold flex items-center justify-between">
               <span>⚠️ {errorMsg}</span>
-              <button onClick={() => setErrorMsg(null)} className="text-rose-400 hover:text-white">
-                ✕
+              <button
+                onClick={() => setErrorMsg(null)}
+                className="text-rose-400 hover:text-white text-xs ml-2"
+              >
+                Kapat
               </button>
             </div>
           )}
 
-          {activeTab === 'friends' ? (
-            /* FRIENDS & AUTO-INVITE TAB */
-            <div className="space-y-3">
-              <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                    Kayıtlı Arkadaşlar & Son Oyuncular
-                  </h3>
-                  <p className="text-[10px] text-slate-400">
-                    Oynadığın oyuncular buraya kaydedilir, tek tıkla oda daveti atabilirsin.
-                  </p>
-                </div>
-              </div>
-
-              {(!profile.friends || profile.friends.length === 0) ? (
-                <div className="p-8 text-center rounded-2xl bg-black/30 border border-dashed border-white/15">
-                  <UserPlus className="w-8 h-8 text-slate-500 mx-auto mb-2 opacity-60" />
-                  <p className="text-xs text-slate-400 font-bold">Henüz kayıtlı arkadaşınız yok.</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Online maç yaptığınız gerçek oyuncular otomatik olarak buraya eklenir.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {profile.friends.map((friend: FriendContact) => (
-                    <div
-                      key={friend.id}
-                      className="p-3 rounded-xl bg-slate-950/80 border border-white/10 flex items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <AvatarBadge
-                          avatarId={friend.avatarId}
-                          customAvatarUrl={friend.customAvatarDataUrl}
-                          size="sm"
-                        />
-                        <div className="min-w-0">
-                          <span className="font-bold text-xs text-white block truncate">
-                            {friend.name}
-                          </span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                            <Clock className="w-2.5 h-2.5" /> Son görülme aktif
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        {createdRoomCode ? (
-                          <button
-                            onClick={() => {
-                              handleShareWhatsApp();
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 hover:bg-emerald-500/30"
-                          >
-                            Odaya Çağır
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              handleCreateRoom();
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-xs font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 hover:bg-cyan-500/30"
-                          >
-                            Masa Aç
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            setProfile(removeFriend(friend.id));
-                          }}
-                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400 transition-colors"
-                          title="Arkadaşı sil"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {inviteSentBanner && (
+            <div className="p-3 rounded-xl bg-emerald-950/90 border border-emerald-400/60 text-emerald-200 text-xs font-bold flex items-center justify-between animate-in fade-in">
+              <span>{inviteSentBanner}</span>
             </div>
-          ) : lobbyRole === 'none' ? (
-            /* SIMPLE & MODERN INITIAL CHOICE (CREATE OR JOIN) */
-            <div className="space-y-4">
-              {/* Profile Card & Game Mode Switcher */}
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <AvatarBadge
-                    avatarId={localAvatarId}
-                    customAvatarUrl={localCustomAvatarUrl}
-                    fallbackEmoji={localAvatar}
-                    size="md"
-                  />
-                  <div>
-                    <span className="text-xs font-black text-white block">
-                      {localName}
-                    </span>
-                    <span className="text-[10px] text-emerald-400 font-mono font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                      Çevrimiçi
-                    </span>
-                  </div>
-                </div>
+          )}
 
-                {/* Game Type Segmented Pill */}
-                <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-white/15">
+          {lobbyRole === 'none' ? (
+            /* SIMPLE & MODERN LOBBY ENTRY VIEW */
+            <div className="space-y-4">
+              {/* Game Selector Bar */}
+              <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Gamepad2 className="w-4 h-4 text-cyan-400" />
+                  <span>Oyun Modu:</span>
+                </span>
+                <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-white/10">
                   <button
                     onClick={() => {
                       sound.playClick();
                       setGameType('pisti');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                       gameType === 'pisti'
                         ? 'bg-amber-400 text-slate-950 shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -727,7 +726,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                       sound.playClick();
                       setGameType('uno');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                       gameType === 'uno'
                         ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -741,25 +740,27 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               {/* 1. Create Lobby Card */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300">
-                    Kişi Sayısı:
-                  </span>
+                  <span className="text-xs font-bold text-slate-300">Kişi Sayısı:</span>
                   <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
                     <button
                       onClick={() => handleSelectPlayerCount(2)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        playerCount === 2 ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        playerCount === 2
+                          ? 'bg-cyan-500 text-slate-950'
+                          : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       👥 2 Kişilik
                     </button>
                     <button
                       onClick={() => handleSelectPlayerCount(4)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        playerCount === 4 ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        playerCount === 4
+                          ? 'bg-cyan-500 text-slate-950'
+                          : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      👨‍👩‍👧‍👦 4 Kişilik (Eşli)
+                      👨‍👩‍👧‍👦 4 Kişilik
                     </button>
                   </div>
                 </div>
@@ -767,14 +768,17 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 <button
                   onClick={handleCreateRoom}
                   disabled={isConnecting}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black font-cyber text-sm tracking-wide transition-transform active:scale-98 shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-sm font-cyber tracking-wide shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
                 >
                   {isConnecting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>ODA KURULUYOR...</span>
+                    </>
                   ) : (
                     <>
-                      <Gamepad2 className="w-4 h-4" />
-                      <span>{playerCount === 4 ? '4 Kişilik Masa Kur' : '2 Kişilik Düello Kur'}</span>
+                      <Play className="w-4 h-4 fill-slate-950" />
+                      <span>YENİ ODA OLUŞTUR</span>
                     </>
                   )}
                 </button>
@@ -783,17 +787,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               {/* 2. Join Lobby Card */}
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 space-y-2.5">
                 <span className="text-xs font-bold text-slate-300 block">
-                  Arkadaşının Masasına Katıl
+                  Arkadaşının Odasına Katıl:
                 </span>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Oda Kodu (örn: PST-1234 veya 1234)"
                     value={joinCodeInput}
                     onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleJoinRoomWithCode(joinCodeInput);
-                    }}
+                    placeholder="Örn: PST-4821 veya 4821"
                     className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs uppercase tracking-wider focus:outline-none focus:border-cyan-400"
                   />
                   <button
@@ -810,7 +811,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             /* SIMPLE & MODERN ACTIVE LOBBY VIEW */
             <div className="space-y-3.5">
               {/* Minimal Room Code Header */}
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 flex items-center justify-between gap-3">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-mono block">
                     {gameType === 'uno' ? '🔥 UNO ODASI' : '🎴 PİŞTİ ODASI'} • {playerCount} KİŞİLİK
@@ -825,14 +826,22 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     onClick={handleCopyCode}
                     className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/40 flex items-center gap-1 cursor-pointer"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
                     <span>{copied ? 'Kopyalandı' : 'Kodu Al'}</span>
                   </button>
                   <button
                     onClick={handleCopyLink}
                     className="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 flex items-center gap-1 cursor-pointer"
                   >
-                    {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Link className="w-3.5 h-3.5" />}
+                    {copiedLink ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Link className="w-3.5 h-3.5" />
+                    )}
                     <span>{copiedLink ? 'Link Alındı' : 'Linki Al'}</span>
                   </button>
                   <button
@@ -844,64 +853,105 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   </button>
                   <button
                     onClick={handleResetLobby}
-                    className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold"
+                    className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold cursor-pointer"
                   >
                     Çık
                   </button>
                 </div>
               </div>
 
+              {/* Quick 1-Click Friend Invite Bar inside Active Lobby */}
+              {profile.friends && profile.friends.length > 0 && (
+                <div className="p-3 rounded-2xl bg-slate-950/70 border border-white/10 space-y-2">
+                  <span className="text-[11px] font-bold text-slate-400 block">
+                    Arkadaşlarını Tek Tıkla Bu Odaya Çağır:
+                  </span>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {profile.friends.map(fr => (
+                      <button
+                        key={fr.id}
+                        onClick={() =>
+                          handleQuickPingFriend({
+                            friendCode: fr.friendCode,
+                            name: fr.name
+                          })
+                        }
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-950/80 border border-white/10 hover:border-emerald-400/50 flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
+                        title={`${fr.name} oyuncusuna canlı oda daveti gönder`}
+                      >
+                        <AvatarBadge
+                          avatarId={fr.avatarId}
+                          customAvatarUrl={fr.customAvatarDataUrl}
+                          size="xs"
+                        />
+                        <span className="text-xs font-bold text-white">{fr.name}</span>
+                        <Send className="w-3 h-3 text-emerald-400" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Minimalist Player Slots Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {slots.map(slot => {
                   const isHostSlot = slot.seatIndex === 0;
                   const isOccupied = Boolean(slot.peerId && slot.peerId !== '');
-                  const isMe = slot.peerId === multiplayerManager.instanceId || (isHostSlot && isHost);
+                  const isMe =
+                    slot.peerId === multiplayerManager.instanceId || (isHostSlot && isHost);
 
                   return (
                     <div
                       key={slot.seatIndex}
                       className={`p-3 rounded-2xl border flex items-center justify-between gap-2.5 transition-all ${
                         isOccupied
-                          ? 'bg-slate-950/80 border-cyan-500/40'
-                          : 'bg-black/30 border-dashed border-white/15'
+                          ? isMe
+                            ? 'bg-cyan-950/30 border-cyan-400/60'
+                            : 'bg-emerald-950/25 border-emerald-400/50'
+                          : 'bg-slate-950/60 border-white/10 border-dashed'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <AvatarBadge
-                          avatarId={slot.avatarId}
-                          customAvatarUrl={slot.customAvatarUrl}
-                          fallbackEmoji={isOccupied ? slot.avatar : '⏳'}
-                          size="md"
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold text-xs text-white truncate block">
-                              {slot.name}
-                            </span>
-                            {isMe && (
-                              <span className="text-[9px] bg-cyan-500/30 text-cyan-300 px-1 rounded font-black">
-                                SEN
-                              </span>
-                            )}
+                        {isOccupied ? (
+                          <AvatarBadge
+                            avatarId={slot.avatarId || 'wolf'}
+                            customAvatarUrl={slot.customAvatarUrl}
+                            size="sm"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-sm">
+                            ⏳
                           </div>
-                          <span className="text-[10px] text-slate-400">
-                            {isHostSlot
-                              ? 'Oda Sahibi'
-                              : playerCount === 4 && slot.seatIndex === 2
-                              ? 'Ortağın'
+                        )}
+
+                        <div className="min-w-0">
+                          <div className="text-xs font-black text-white truncate">
+                            {slot.name} {isMe ? '(Sen)' : ''}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {playerCount === 4
+                              ? slot.seatIndex === 0 || slot.seatIndex === 2
+                                ? '🟢 A Takımı'
+                                : '🟠 B Takımı'
+                              : slot.seatIndex === 0
+                              ? 'Kurucu'
                               : 'Rakip'}
-                          </span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Seat switch for 4-player team balance */}
-                      {playerCount === 4 && !isMe && isOccupied && (
+                      {/* In 4-player mode, allow switching seats */}
+                      {playerCount === 4 && !isMe && (
                         <button
-                          onClick={() => handleSwapSeats(0, slot.seatIndex)}
-                          className="text-[10px] px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 font-bold"
+                          onClick={() => {
+                            const myCurrentSeat =
+                              slots.find(s => s.peerId === multiplayerManager.instanceId)
+                                ?.seatIndex ?? 0;
+                            handleSwapSeats(myCurrentSeat, slot.seatIndex);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-cyan-300 border border-cyan-500/30 shrink-0 cursor-pointer"
                         >
-                          ⇄ Değiş
+                          Buraya Geç
                         </button>
                       )}
                     </div>
@@ -909,47 +959,24 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 })}
               </div>
 
-              {/* Rules Pill (Simplified) */}
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Hedef Puan:</span>
-                <div className="flex items-center gap-1">
-                  {[51, 101, 151].map(pts => (
-                    <button
-                      key={pts}
-                      disabled={!isHost}
-                      onClick={() => setTargetScore(pts)}
-                      className={`px-2 py-0.5 rounded-lg font-mono font-bold text-xs ${
-                        targetScore === pts ? 'bg-amber-400 text-slate-950' : 'text-slate-400'
-                      }`}
-                    >
-                      {pts}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Start Match CTA */}
+              {/* Host Launch Button or Guest Waiting Message */}
               {isHost ? (
                 <button
                   onClick={handleStartMatchAsHost}
                   disabled={connectedHumanCount < 2}
-                  className={`w-full py-3.5 rounded-2xl font-black font-cyber text-sm tracking-wider uppercase shadow-xl flex items-center justify-center gap-2 transition-all ${
-                    connectedHumanCount >= 2
-                      ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-slate-950 cursor-pointer shadow-[0_0_25px_rgba(16,185,129,0.4)]'
-                      : 'bg-slate-800 text-slate-500 border border-white/10 cursor-not-allowed'
-                  }`}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm font-cyber shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-40 cursor-pointer"
                 >
-                  <Play className="w-4 h-4 fill-current" />
+                  <Play className="w-4 h-4 fill-slate-950" />
                   <span>
-                    {connectedHumanCount >= 2
-                      ? `🔥 ${gameType.toUpperCase()} MAÇINI BAŞLAT`
-                      : '⏳ ARKADAŞININ KATILMASI BEKLENİYOR...'}
+                    {connectedHumanCount < 2
+                      ? 'ARKADAŞININ KATILMASI BEKLENİYOR...'
+                      : `MAÇI BAŞLAT (${connectedHumanCount}/${playerCount} OYUNCU)`}
                   </span>
                 </button>
               ) : (
-                <div className="w-full py-3 px-4 rounded-xl bg-cyan-950/40 border border-cyan-400/30 text-center flex items-center justify-center gap-2 text-cyan-200 font-bold text-xs">
-                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                  <span>Oda Sahibinin Maçı Başlatması Bekleniyor...</span>
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/30 text-center text-xs text-cyan-300 font-bold flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Oda sahibinin maçı başlatması bekleniyor...</span>
                 </div>
               )}
             </div>

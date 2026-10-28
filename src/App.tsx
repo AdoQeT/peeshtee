@@ -24,12 +24,14 @@ import { SettingsModal } from './components/SettingsModal';
 import { MultiplayerModal } from './components/MultiplayerModal';
 import { GameSetupModal } from './components/GameSetupModal';
 import { ProfileModal } from './components/ProfileModal';
+import { FriendsModal } from './components/FriendsModal';
 import { InGameChat, ChatMessage } from './components/InGameChat';
 import { UnoGameView } from './components/UnoGameView';
 import { getUserProfile, UserProfile } from './features/profile/profileManager';
+import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
 import confetti from 'canvas-confetti';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Bell, Play, X } from 'lucide-react';
 
 const INITIAL_SETTINGS: GameSettings = {
   soundEnabled: true,
@@ -111,6 +113,13 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [pendingFriendInvite, setPendingFriendInvite] = useState<{
+    friendCode?: string;
+    name: string;
+    gameType: 'pisti' | 'uno';
+  } | null>(null);
+  const [incomingInvite, setIncomingInvite] = useState<IncomingGameInvite | null>(null);
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false);
   const [matchAbortedInfo, setMatchAbortedInfo] = useState<{ senderName: string; reason?: string } | null>(null);
 
@@ -293,6 +302,42 @@ export default function App() {
       console.error('URL parse error:', err);
     }
   }, []);
+
+  // Initialize Global Friend & Presence Network
+  useEffect(() => {
+    friendNetwork.init();
+
+    const unsubInvite = friendNetwork.onGameInvite(inv => {
+      sound.playClick();
+      setIncomingInvite(inv);
+    });
+
+    const unsubNotice = friendNetwork.onFriendNotice(notice => {
+      sound.playClick();
+      setUserProfile(getUserProfile());
+      setDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) seni arkadaş ekledi!`);
+    });
+
+    return () => {
+      unsubInvite();
+      unsubNotice();
+    };
+  }, []);
+
+  // Sync live presence status with friendNetwork
+  useEffect(() => {
+    const status =
+      screen === 'game' || screen === 'uno'
+        ? 'playing'
+        : isMultiplayerOpen
+        ? 'lobby'
+        : 'menu';
+    friendNetwork.setStatus(
+      status,
+      multiplayerManager.roomCode || undefined,
+      screen === 'uno' ? 'uno' : 'pisti'
+    );
+  }, [screen, isMultiplayerOpen]);
 
   const triggerShake = useCallback(() => {
     if (!settings.screenShake) return;
@@ -2234,6 +2279,7 @@ export default function App() {
           onOpenRules={() => setIsRulesOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenFriends={() => setIsFriendsOpen(true)}
           onStartUnoGame={() => setScreen('uno')}
         />
       ) : screen === 'uno' ? (
@@ -2383,6 +2429,9 @@ export default function App() {
         userAvatar={players[0].avatar}
         initialJoinCode={initialJoinCode}
         initialSettings={settings}
+        pendingFriendInvite={pendingFriendInvite}
+        onClearPendingInvite={() => setPendingFriendInvite(null)}
+        onOpenFriendsModal={() => setIsFriendsOpen(true)}
         onClose={() => setIsMultiplayerOpen(false)}
         onHostLaunchMatch={(
           _roomCode,
@@ -2435,6 +2484,86 @@ export default function App() {
           });
         }}
       />
+
+      {/* Standalone Friends & Global Player Network Modal */}
+      <FriendsModal
+        isOpen={isFriendsOpen}
+        onJoinFriendRoom={(code: string) => {
+          const trimmed = code.trim().toUpperCase();
+          const formatted = trimmed.startsWith('PST-') ? trimmed : `PST-${trimmed}`;
+          setInitialJoinCode(formatted);
+          setIsFriendsOpen(false);
+          setIsMultiplayerOpen(true);
+        }}
+        onInviteFriendToMatch={friend => {
+          setPendingFriendInvite({
+            friendCode: friend.friendCode,
+            name: friend.name,
+            gameType: friend.gameType
+          });
+          setIsFriendsOpen(false);
+          setIsMultiplayerOpen(true);
+        }}
+        onClose={() => {
+          setUserProfile(getUserProfile());
+          setIsFriendsOpen(false);
+        }}
+      />
+
+      {/* Real-Time Incoming Friend Game Invite Banner */}
+      {incomingInvite && (
+        <div className="fixed top-4 right-4 z-[60] max-w-sm w-full animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="p-4 rounded-2xl bg-slate-900/95 border-2 border-emerald-400/90 shadow-[0_15px_45px_rgba(16,185,129,0.45)] backdrop-blur-xl flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-300 shrink-0">
+                  <Bell className="w-5 h-5 animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-white">
+                      {incomingInvite.fromName}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
+                      #{incomingInvite.fromFriendCode}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-300 font-bold mt-0.5">
+                    Seni {incomingInvite.gameType === 'uno' ? 'UNO!' : 'PİŞTİ'} masasına davet ediyor!
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIncomingInvite(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setIncomingInvite(null)}
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold cursor-pointer"
+              >
+                Reddet
+              </button>
+              <button
+                onClick={() => {
+                  const code = incomingInvite.roomCode.trim().toUpperCase();
+                  const formatted = code.startsWith('PST-') ? code : `PST-${code}`;
+                  setIncomingInvite(null);
+                  setInitialJoinCode(formatted);
+                  setIsMultiplayerOpen(true);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                Odaya Katıl ({incomingInvite.roomCode})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Player Profile & Preset PP Selector Modal */}
       <ProfileModal

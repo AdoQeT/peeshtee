@@ -32,7 +32,10 @@ import {
   AlertTriangle,
   Flame,
   Zap,
-  ShieldAlert
+  ShieldAlert,
+  Hand,
+  SkipForward,
+  History
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -54,6 +57,14 @@ const COLOR_NAMES: Record<UnoColor, string> = {
   wild: 'Joker'
 };
 
+const COLOR_DOT_CLASSES: Record<UnoColor, string> = {
+  red: 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)]',
+  blue: 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.9)]',
+  green: 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.9)]',
+  yellow: 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.9)]',
+  wild: 'bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.9)]'
+};
+
 const COLOR_THEMES: Record<
   UnoColor,
   {
@@ -62,6 +73,7 @@ const COLOR_THEMES: Record<
     bgRing: string;
     border: string;
     tableAura: string;
+    strokeHex: string;
   }
 > = {
   red: {
@@ -69,43 +81,62 @@ const COLOR_THEMES: Record<
     text: 'text-red-400',
     bgRing: 'ring-red-500/70',
     border: 'border-red-500/80',
-    tableAura: 'from-red-950/40 via-red-900/10 to-transparent'
+    tableAura: 'from-red-950/45 via-red-900/15 to-transparent',
+    strokeHex: '#ef4444'
   },
   blue: {
     glow: 'rgba(59, 130, 246, 0.45)',
     text: 'text-blue-400',
     bgRing: 'ring-blue-500/70',
     border: 'border-blue-500/80',
-    tableAura: 'from-blue-950/40 via-blue-900/10 to-transparent'
+    tableAura: 'from-blue-950/45 via-blue-900/15 to-transparent',
+    strokeHex: '#3b82f6'
   },
   green: {
     glow: 'rgba(16, 185, 129, 0.45)',
     text: 'text-emerald-400',
     bgRing: 'ring-emerald-500/70',
     border: 'border-emerald-500/80',
-    tableAura: 'from-emerald-950/40 via-emerald-900/10 to-transparent'
+    tableAura: 'from-emerald-950/45 via-emerald-900/15 to-transparent',
+    strokeHex: '#10b981'
   },
   yellow: {
     glow: 'rgba(245, 158, 11, 0.45)',
     text: 'text-amber-400',
     bgRing: 'ring-amber-400/70',
     border: 'border-amber-400/80',
-    tableAura: 'from-amber-950/40 via-amber-900/10 to-transparent'
+    tableAura: 'from-amber-950/45 via-amber-900/15 to-transparent',
+    strokeHex: '#f59e0b'
   },
   wild: {
     glow: 'rgba(168, 85, 247, 0.45)',
     text: 'text-purple-400',
     bgRing: 'ring-purple-500/70',
     border: 'border-purple-500/80',
-    tableAura: 'from-purple-950/40 via-purple-900/10 to-transparent'
+    tableAura: 'from-purple-950/45 via-purple-900/15 to-transparent',
+    strokeHex: '#a855f7'
   }
 };
+
+function formatCardName(card: UnoCard): string {
+  const valMap: Record<string, string> = {
+    skip: '🚫 Pas',
+    reverse: '⇄ Yön Değiştir',
+    draw2: '+2 Kart',
+    wild: '🌈 Joker',
+    wild_draw4: '🌈 +4 Joker'
+  };
+  const v = valMap[card.value] || card.value;
+  if (card.color === 'wild') return v;
+  return `${COLOR_NAMES[card.color]} ${v}`;
+}
 
 interface DiscardStackItem {
   card: UnoCard;
   rotation: number;
   offsetX: number;
   offsetY: number;
+  playedBy?: string;
 }
 
 export const UnoGameView: React.FC<UnoGameViewProps> = ({
@@ -189,12 +220,30 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     lastActionMessage: 'UNO Masasına Hoş Geldiniz!'
   }));
 
-  // Discard pile physical 3D history stack
+  // Synchronous mirrors to prevent React 18 batching closure bugs
+  const deckSyncRef = useRef<UnoCard[]>([]);
+  const discardSyncRef = useRef<UnoCard[]>([]);
+  const playersSyncRef = useRef<UnoPlayer[]>(players);
+  playersSyncRef.current = players;
+  const gameStateSyncRef = useRef<UnoGameState>(gameState);
+  gameStateSyncRef.current = gameState;
+
+  // Discard pile physical fanned history stack (last 5 played cards)
   const [discardStack, setDiscardStack] = useState<DiscardStackItem[]>([]);
+
+  // Live Action Log (Last 3 moves so user always understands what happened)
+  const [actionLog, setActionLog] = useState<string[]>([]);
+  // Per-player floating action speech bubble
+  const [seatBubbles, setSeatBubbles] = useState<Record<number, string>>({});
 
   // Interactive Card Hand States
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+  const [newlyDrawnCardId, setNewlyDrawnCardId] = useState<string | null>(null);
+  const [hasDrawnPlayableThisTurn, setHasDrawnPlayableThisTurn] = useState(false);
+  const [isAnimatingAction, setIsAnimatingAction] = useState(false);
+
   const [wildPickerCard, setWildPickerCard] = useState<UnoCard | null>(null);
+  const [wildPickerRect, setWildPickerRect] = useState<DOMRect | undefined>(undefined);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // FX & Banner States
@@ -219,6 +268,22 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   const playerHandRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
   const botTurnTimerRef = useRef<number | null>(null);
 
+  const pushActionLog = useCallback((entry: string) => {
+    setActionLog(prev => [entry, ...prev.slice(0, 2)]);
+  }, []);
+
+  const showSeatBubble = useCallback((seatIdx: number, text: string, duration = 2200) => {
+    setSeatBubbles(prev => ({ ...prev, [seatIdx]: text }));
+    window.setTimeout(() => {
+      setSeatBubbles(prev => {
+        if (prev[seatIdx] !== text) return prev;
+        const copy = { ...prev };
+        delete copy[seatIdx];
+        return copy;
+      });
+    }, duration);
+  }, []);
+
   // Spawn Flying Card helper
   const spawnFlyingUnoCard = useCallback(
     (
@@ -239,10 +304,22 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       const targetW = targetRect.width || 96;
       const targetH = targetRect.height || 140;
 
-      const startX = 'x' in startRect ? startRect.x + startW / 2 : (startRect as DOMRect).left + startW / 2;
-      const startY = 'y' in startRect ? startRect.y + startH / 2 : (startRect as DOMRect).top + startH / 2;
-      const targetX = 'x' in targetRect ? targetRect.x + targetW / 2 : (targetRect as DOMRect).left + targetW / 2;
-      const targetY = 'y' in targetRect ? targetRect.y + targetH / 2 : (targetRect as DOMRect).top + targetH / 2;
+      const startX =
+        'x' in startRect
+          ? startRect.x + startW / 2
+          : (startRect as DOMRect).left + startW / 2;
+      const startY =
+        'y' in startRect
+          ? startRect.y + startH / 2
+          : (startRect as DOMRect).top + startH / 2;
+      const targetX =
+        'x' in targetRect
+          ? targetRect.x + targetW / 2
+          : (targetRect as DOMRect).left + targetW / 2;
+      const targetY =
+        'y' in targetRect
+          ? targetRect.y + targetH / 2
+          : (targetRect as DOMRect).top + targetH / 2;
 
       const animId = `uno-fly-${Date.now()}-${Math.random()}`;
 
@@ -255,12 +332,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         startY,
         targetX,
         targetY,
-        startRotation: options.startRotation ?? 0,
-        targetRotation: options.targetRotation ?? (Math.random() * 20 - 10),
+        startRotation: options.startRotation ?? -8,
+        targetRotation: options.targetRotation ?? (Math.random() * 14 - 7),
         startFaceUp: options.startFaceUp ?? false,
         endFaceUp: options.endFaceUp ?? true,
-        duration: options.duration ?? 380,
-        arcHeight: 55,
+        duration: options.duration ?? 430,
+        arcHeight: 62,
         size: 'md',
         onComplete: () => {
           setFlyingCards(prev => prev.filter(c => c.id !== animId));
@@ -279,32 +356,38 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   );
 
   // Trigger Action Banner
-  const triggerBanner = (
-    text: string,
-    type?: 'reverse' | 'skip' | 'draw' | 'uno' | 'wild',
-    duration = 2400
-  ) => {
-    setActionBanner({ text, type });
-    const timer = window.setTimeout(() => setActionBanner(null), duration);
-    return () => window.clearTimeout(timer);
-  };
+  const triggerBanner = useCallback(
+    (
+      text: string,
+      type?: 'reverse' | 'skip' | 'draw' | 'uno' | 'wild',
+      duration = 2400
+    ) => {
+      setActionBanner({ text, type });
+      const timer = window.setTimeout(() => setActionBanner(null), duration);
+      return () => window.clearTimeout(timer);
+    },
+    []
+  );
 
-  // Start / Reset Round with full deals
+  // Start / Reset Round with animated initial deal
   const startNewRound = useCallback(() => {
     const fullDeck = shuffleUnoDeck(createUnoDeck());
-    const dealt = dealUnoGame(fullDeck, players.length);
+    const dealt = dealUnoGame(fullDeck, playersSyncRef.current.length);
 
-    setPlayers(prev =>
-      prev.map((p, idx) => ({
-        ...p,
-        hand: dealt.hands[idx],
-        hasCalledUno: false
-      }))
-    );
+    deckSyncRef.current = [...dealt.remainingDeck];
+    discardSyncRef.current = [dealt.initialDiscard];
+
+    const updatedPlayers = playersSyncRef.current.map((p, idx) => ({
+      ...p,
+      hand: dealt.hands[idx],
+      hasCalledUno: false
+    }));
+    playersSyncRef.current = updatedPlayers;
+    setPlayers(updatedPlayers);
 
     const initialCard = dealt.initialDiscard;
-    setGameState(prev => ({
-      ...prev,
+    const nextGameState: UnoGameState = {
+      ...gameStateSyncRef.current,
       deck: dealt.remainingDeck,
       discardPile: [initialCard],
       currentColor: dealt.initialColor,
@@ -312,18 +395,27 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       direction: 1,
       roundWinner: null,
       isRoundOver: false,
-      lastActionMessage: 'Yeni el dağıtıldı!'
-    }));
+      lastActionMessage: `Başlangıç Kartı: ${formatCardName(initialCard)}`
+    };
+    gameStateSyncRef.current = nextGameState;
+    setGameState(nextGameState);
+
+    setNewlyDrawnCardId(null);
+    setHasDrawnPlayableThisTurn(false);
+    setIsAnimatingAction(false);
+    setActionLog([`🎴 Yeni el başladı! Ortadaki kart: ${formatCardName(initialCard)}`]);
+    setSeatBubbles({});
 
     setDiscardStack([
       {
         card: initialCard,
-        rotation: Math.random() * 8 - 4,
+        rotation: 2,
         offsetX: 0,
-        offsetY: 0
+        offsetY: 0,
+        playedBy: 'Başlangıç'
       }
     ]);
-  }, [players.length]);
+  }, []);
 
   // Initial Deal
   useEffect(() => {
@@ -332,85 +424,132 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Advance turn according to direction and step
   const advanceTurn = useCallback(
-    (step: number = 1) => {
+    (step: number = 1, customDirection?: 1 | -1) => {
+      setHasDrawnPlayableThisTurn(false);
+      setNewlyDrawnCardId(null);
       setGameState(prev => {
-        const N = players.length;
-        const nextTurn = (prev.currentTurn + prev.direction * step + N * 10) % N;
-        return {
+        const N = playersSyncRef.current.length;
+        const dir = customDirection ?? prev.direction;
+        const nextTurn = (prev.currentTurn + dir * step + N * 10) % N;
+        const updated = {
           ...prev,
+          direction: dir,
           currentTurn: nextTurn
         };
+        gameStateSyncRef.current = updated;
+        return updated;
       });
     },
-    [players.length]
+    []
   );
 
-  // Draw card helper from draw pile with flying animation
+  // SYNCHRONOUS Draw card helper from draw pile with guaranteed 3D flying animation!
   const drawCardsForPlayer = useCallback(
-    (playerIdx: number, count: number): UnoCard[] => {
-      let drawnCards: UnoCard[] = [];
+    (playerIdx: number, count: number, onAllLanded?: (drawn: UnoCard[]) => void): UnoCard[] => {
+      let currentDeck = [...deckSyncRef.current];
+      let currentDiscard = [...discardSyncRef.current];
+
+      if (currentDeck.length < count && currentDiscard.length > 1) {
+        const topCard = currentDiscard[0];
+        const recycled = shuffleUnoDeck(currentDiscard.slice(1));
+        currentDeck = [...currentDeck, ...recycled];
+        currentDiscard = [topCard];
+      }
+
+      const drawnCards = currentDeck.splice(0, count);
+      deckSyncRef.current = currentDeck;
+      discardSyncRef.current = currentDiscard;
+
       setGameState(prev => {
-        let currentDeck = [...prev.deck];
-        let currentDiscard = [...prev.discardPile];
-
-        if (currentDeck.length < count) {
-          const topCard = currentDiscard.pop()!;
-          const recycled = shuffleUnoDeck(currentDiscard);
-          currentDeck = [...currentDeck, ...recycled];
-          currentDiscard = [topCard];
-        }
-
-        drawnCards = currentDeck.splice(0, count);
-
-        return {
+        const updated = {
           ...prev,
           deck: currentDeck,
           discardPile: currentDiscard
         };
+        gameStateSyncRef.current = updated;
+        return updated;
       });
 
-      // Animate card flying from Deck to Player Hand
-      const deckEl = deckRef.current;
-      const handEl = playerHandRefs.current[playerIdx];
+      // Add cards to player's hand immediately (hidden while in flight via hiddenCardIds!)
+      const nextPlayers = playersSyncRef.current.map((p, idx) => {
+        if (idx === playerIdx) {
+          const nextHand = [...p.hand, ...drawnCards];
+          return {
+            ...p,
+            hand: nextHand,
+            hasCalledUno: nextHand.length === 1 ? p.hasCalledUno : false
+          };
+        }
+        return p;
+      });
+      playersSyncRef.current = nextPlayers;
+      setPlayers(nextPlayers);
 
-      if (deckEl && handEl && drawnCards.length > 0) {
-        sound.playCardDeal();
-        const dRect = deckEl.getBoundingClientRect();
-        const hRect = handEl.getBoundingClientRect();
-
-        drawnCards.forEach((c, i) => {
-          window.setTimeout(() => {
-            spawnFlyingUnoCard(c, dRect, hRect, {
-              startFaceUp: false,
-              endFaceUp: playerIdx === 0,
-              duration: 360
-            });
-          }, i * 90);
+      // Hide all drawn cards until their flight starts/completes
+      if (drawnCards.length > 0) {
+        setHiddenCardIds(prev => {
+          const next = new Set(prev);
+          drawnCards.forEach(c => next.add(c.id));
+          return next;
         });
       }
 
-      setPlayers(prev =>
-        prev.map((p, idx) => {
-          if (idx === playerIdx) {
-            return {
-              ...p,
-              hand: [...p.hand, ...drawnCards],
-              hasCalledUno: p.hand.length + drawnCards.length === 1 ? p.hasCalledUno : false
-            };
-          }
-          return p;
-        })
-      );
+      // Animate each drawn card flying from Deck to Player Hand!
+      const deckEl = deckRef.current;
+      const handEl = playerHandRefs.current[playerIdx];
+
+      const dRect = deckEl
+        ? deckEl.getBoundingClientRect()
+        : { x: window.innerWidth / 2 - 70, y: window.innerHeight / 2, width: 88, height: 128 };
+      const hRect = handEl
+        ? handEl.getBoundingClientRect()
+        : {
+            x: window.innerWidth / 2,
+            y: playerIdx === 0 ? window.innerHeight - 90 : 90,
+            width: 120,
+            height: 120
+          };
+
+      if (drawnCards.length > 0) {
+        let completedCount = 0;
+        drawnCards.forEach((c, i) => {
+          window.setTimeout(() => {
+            sound.playCardDeal();
+            spawnFlyingUnoCard(c, dRect, hRect, {
+              startFaceUp: false,
+              endFaceUp: playerIdx === 0,
+              startRotation: -12,
+              targetRotation: 0,
+              duration: 430,
+              onFinish: () => {
+                completedCount++;
+                if (completedCount === drawnCards.length) {
+                  onAllLanded?.(drawnCards);
+                }
+              }
+            });
+          }, i * 130);
+        });
+      } else {
+        onAllLanded?.([]);
+      }
 
       return drawnCards;
     },
     [spawnFlyingUnoCard]
   );
 
-  // Handle Play Card with flying 3D arc animation & tactile stack physics!
+  // Handle Play Card with flying 3D arc animation & fanned discard stack physics!
   const executePlayCard = useCallback(
     (playerIdx: number, card: UnoCard, chosenColor?: UnoColor, sourceRect?: DOMRect) => {
-      const actingPlayer = players[playerIdx];
+      const currentPlayers = playersSyncRef.current;
+      const actingPlayer = currentPlayers[playerIdx];
+      if (!actingPlayer) return;
+
+      setIsAnimatingAction(true);
+      setHasDrawnPlayableThisTurn(false);
+      setNewlyDrawnCardId(null);
+
       const discardEl = discardRef.current;
       const handEl = playerHandRefs.current[playerIdx];
 
@@ -421,160 +560,188 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           : { x: window.innerWidth / 2, y: window.innerHeight - 100 });
       const targetRect = discardEl
         ? discardEl.getBoundingClientRect()
-        : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        : { x: window.innerWidth / 2 + 40, y: window.innerHeight / 2 };
 
-      const finalRotation = Math.random() * 22 - 11;
-      const finalOffsetX = Math.random() * 10 - 5;
-      const finalOffsetY = Math.random() * 10 - 5;
+      const finalRotation = Math.random() * 14 - 7;
 
       sound.playCardPlay();
+
+      // Remove card from player hand immediately
+      const nextPlayers = currentPlayers.map((p, idx) => {
+        if (idx === playerIdx) {
+          const nextHand = p.hand.filter(c => c.id !== card.id);
+          return {
+            ...p,
+            hand: nextHand,
+            hasCalledUno: nextHand.length === 1 ? p.hasCalledUno : false
+          };
+        }
+        return p;
+      });
+      playersSyncRef.current = nextPlayers;
+      setPlayers(nextPlayers);
+
+      // Determine next active color
+      const newActiveColor: UnoColor =
+        card.color === 'wild' ? chosenColor || 'red' : card.color;
+
+      const cardReadable = formatCardName(card);
+      showSeatBubble(
+        playerIdx,
+        card.color === 'wild'
+          ? `${cardReadable} (${COLOR_NAMES[newActiveColor]})`
+          : `${cardReadable} attı!`
+      );
 
       spawnFlyingUnoCard(card, startRect, targetRect, {
         startFaceUp: true,
         endFaceUp: true,
         targetRotation: finalRotation,
-        duration: 360,
+        duration: 400,
         onFinish: () => {
           sound.playClick();
           setTablePulseKey(k => k + 1);
 
-          setDiscardStack(prev => {
-            const next = [
-              {
-                card,
-                rotation: finalRotation,
-                offsetX: finalOffsetX,
-                offsetY: finalOffsetY
-              },
-              ...prev.slice(0, 4)
-            ];
-            return next;
+          // Update Fanned Discard Stack (Keep last 5 cards so history is clearly visible!)
+          setDiscardStack(prev => [
+            {
+              card,
+              rotation: finalRotation,
+              offsetX: 0,
+              offsetY: 0,
+              playedBy: actingPlayer.name
+            },
+            ...prev.slice(0, 4)
+          ]);
+
+          const nextDiscardPile = [card, ...discardSyncRef.current];
+          discardSyncRef.current = nextDiscardPile;
+
+          // Check for round win (empty hand)
+          const remainingHandCount = actingPlayer.hand.length - 1;
+
+          if (remainingHandCount === 0) {
+            setIsAnimatingAction(false);
+            sound.playUnoShout();
+            confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+
+            const totalRoundPoints = nextPlayers.reduce((sum, p, idx) => {
+              if (idx === playerIdx) return sum;
+              return sum + calculateUnoHandPoints(p.hand);
+            }, 0);
+
+            const newPlayerScore = actingPlayer.score + totalRoundPoints;
+            const isGameEnd = newPlayerScore >= targetScore;
+
+            if (playerIdx === 0) {
+              recordMatchStats(true, totalRoundPoints, 0, 0, true);
+            } else {
+              recordMatchStats(false, 0, 0, 0, true);
+            }
+
+            const scoredPlayers = nextPlayers.map((p, idx) =>
+              idx === playerIdx ? { ...p, score: newPlayerScore } : p
+            );
+            playersSyncRef.current = scoredPlayers;
+            setPlayers(scoredPlayers);
+
+            setGameState(prev => {
+              const updated: UnoGameState = {
+                ...prev,
+                discardPile: nextDiscardPile,
+                currentColor: newActiveColor,
+                isRoundOver: true,
+                isGameOver: isGameEnd,
+                roundWinner: { ...actingPlayer, score: newPlayerScore },
+                winner: isGameEnd ? { ...actingPlayer, score: newPlayerScore } : null,
+                lastActionMessage: `🏆 ${actingPlayer.name} eli bitirdi ve +${totalRoundPoints} PUAN kazandı!`
+              };
+              gameStateSyncRef.current = updated;
+              return updated;
+            });
+            return;
+          }
+
+          // Special UNO Card Action Mechanics
+          let nextStep = 1;
+          let activeDir = gameStateSyncRef.current.direction;
+          let actionMsg = `${actingPlayer.name}: ${cardReadable}`;
+
+          if (card.value === 'reverse') {
+            activeDir = (activeDir * -1) as 1 | -1;
+            sound.playUnoReverse();
+
+            if (nextPlayers.length === 2) {
+              nextStep = 2;
+              actionMsg = `🔄 ${actingPlayer.name} YÖN DEĞİŞTİRDİ! (Sıra tekrar onda)`;
+            } else {
+              actionMsg = `🔄 ${actingPlayer.name} YÖNÜ DEĞİŞTİRDİ! (${
+                activeDir === 1 ? 'Saat Yönü ⟳' : 'Ters Yön ⟲'
+              })`;
+            }
+            triggerBanner(actionMsg, 'reverse');
+          } else if (card.value === 'skip') {
+            nextStep = 2;
+            const skippedIdx =
+              (playerIdx + activeDir + nextPlayers.length) % nextPlayers.length;
+            sound.playUnoSkip();
+            setSkippedPlayerIdx(skippedIdx);
+            showSeatBubble(skippedIdx, '🚫 PAS GEÇTİ!', 2000);
+            window.setTimeout(() => setSkippedPlayerIdx(null), 1900);
+            actionMsg = `🚫 ${actingPlayer.name} -> ${nextPlayers[skippedIdx].name} PAS GEÇTİ!`;
+            triggerBanner(actionMsg, 'skip');
+          } else if (card.value === 'draw2') {
+            const nextVictimIdx =
+              (playerIdx + activeDir + nextPlayers.length) % nextPlayers.length;
+            sound.playUnoDrawPenalty();
+            drawCardsForPlayer(nextVictimIdx, 2);
+            showSeatBubble(nextVictimIdx, '💥 +2 Kart Çekti!', 2200);
+            nextStep = 2;
+            actionMsg = `💥 ${actingPlayer.name} +2 attı! ${nextPlayers[nextVictimIdx].name} 2 kart çekti!`;
+            triggerBanner(actionMsg, 'draw');
+          } else if (card.value === 'wild_draw4') {
+            const nextVictimIdx =
+              (playerIdx + activeDir + nextPlayers.length) % nextPlayers.length;
+            sound.playUnoDrawPenalty();
+            sound.playUnoWild();
+            drawCardsForPlayer(nextVictimIdx, 4);
+            showSeatBubble(nextVictimIdx, '🌈💥 +4 Kart Çekti!', 2400);
+            nextStep = 2;
+            actionMsg = `🌈💥 +4 JOKER! ${nextPlayers[nextVictimIdx].name} 4 kart çekti! Yeni Renk: ${COLOR_NAMES[newActiveColor]}`;
+            triggerBanner(actionMsg, 'wild');
+          } else if (card.value === 'wild') {
+            sound.playUnoWild();
+            actionMsg = `🌈 ${actingPlayer.name} JOKER attı! Yeni Renk: ${COLOR_NAMES[newActiveColor]}`;
+            triggerBanner(actionMsg, 'wild');
+          }
+
+          pushActionLog(actionMsg);
+
+          setGameState(prev => {
+            const updated: UnoGameState = {
+              ...prev,
+              direction: activeDir,
+              discardPile: nextDiscardPile,
+              currentColor: newActiveColor,
+              lastActionMessage: actionMsg
+            };
+            gameStateSyncRef.current = updated;
+            return updated;
           });
+
+          advanceTurn(nextStep, activeDir);
+          setIsAnimatingAction(false);
         }
       });
-
-      // Remove card from player hand
-      setPlayers(prev =>
-        prev.map((p, idx) => {
-          if (idx === playerIdx) {
-            const nextHand = p.hand.filter(c => c.id !== card.id);
-            return {
-              ...p,
-              hand: nextHand,
-              hasCalledUno: nextHand.length === 1 ? p.hasCalledUno : false
-            };
-          }
-          return p;
-        })
-      );
-
-      // Determine next color
-      const newActiveColor =
-        card.color === 'wild' ? chosenColor || 'red' : card.color;
-
-      // Check for round win (empty hand)
-      const remainingHandCount = actingPlayer.hand.length - 1;
-
-      if (remainingHandCount === 0) {
-        sound.playUnoShout();
-        confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
-
-        const totalRoundPoints = players.reduce((sum, p, idx) => {
-          if (idx === playerIdx) return sum;
-          return sum + calculateUnoHandPoints(p.hand);
-        }, 0);
-
-        const newPlayerScore = actingPlayer.score + totalRoundPoints;
-        const isGameEnd = newPlayerScore >= targetScore;
-
-        if (playerIdx === 0) {
-          recordMatchStats(true, totalRoundPoints, 0, 0, true);
-        } else {
-          recordMatchStats(false, 0, 0, 0, true);
-        }
-
-        setPlayers(prev =>
-          prev.map((p, idx) => (idx === playerIdx ? { ...p, score: newPlayerScore } : p))
-        );
-
-        setGameState(prev => ({
-          ...prev,
-          discardPile: [card, ...prev.discardPile],
-          currentColor: newActiveColor,
-          isRoundOver: true,
-          isGameOver: isGameEnd,
-          roundWinner: { ...actingPlayer, score: newPlayerScore },
-          winner: isGameEnd ? { ...actingPlayer, score: newPlayerScore } : null,
-          lastActionMessage: `🏆 ${actingPlayer.name} eli bitirdi ve +${totalRoundPoints} PUAN kazandı!`
-        }));
-        return;
-      }
-
-      // Special UNO Card Action Mechanics
-      let nextStep = 1;
-      let actionMsg = `${actingPlayer.name} ${card.value.toUpperCase()} kartı attı.`;
-
-      if (card.value === 'reverse') {
-        const newDirection = (gameState.direction * -1) as 1 | -1;
-        setGameState(prev => ({ ...prev, direction: newDirection }));
-        sound.playUnoReverse();
-
-        if (players.length === 2) {
-          // In 2 players, reverse acts like a skip
-          nextStep = 2;
-          actionMsg = `🔄 YÖN DEĞİŞTİ! (2 Kişide Pas Geçti)`;
-        } else {
-          actionMsg = `🔄 YÖN DEĞİŞTİ! (${newDirection === 1 ? 'Saat Yönü' : 'Ters Yön'})`;
-        }
-        triggerBanner(actionMsg, 'reverse');
-      } else if (card.value === 'skip') {
-        nextStep = 2;
-        const skippedIdx =
-          (playerIdx + gameState.direction + players.length) % players.length;
-        sound.playUnoSkip();
-        setSkippedPlayerIdx(skippedIdx);
-        window.setTimeout(() => setSkippedPlayerIdx(null), 1800);
-        actionMsg = `🚫 ${players[skippedIdx].name} PAS GEÇTİ!`;
-        triggerBanner(actionMsg, 'skip');
-      } else if (card.value === 'draw2') {
-        const nextVictimIdx =
-          (playerIdx + gameState.direction + players.length) % players.length;
-        sound.playUnoDrawPenalty();
-        drawCardsForPlayer(nextVictimIdx, 2);
-        nextStep = 2;
-        actionMsg = `💥 ${players[nextVictimIdx].name} 2 KART ÇEKTİ!`;
-        triggerBanner(actionMsg, 'draw');
-      } else if (card.value === 'wild_draw4') {
-        const nextVictimIdx =
-          (playerIdx + gameState.direction + players.length) % players.length;
-        sound.playUnoDrawPenalty();
-        sound.playUnoWild();
-        drawCardsForPlayer(nextVictimIdx, 4);
-        nextStep = 2;
-        actionMsg = `🌈💥 +4 JOKER! ${players[nextVictimIdx].name} 4 Kart Çekti! Renk: ${COLOR_NAMES[newActiveColor]}`;
-        triggerBanner(actionMsg, 'wild');
-      } else if (card.value === 'wild') {
-        sound.playUnoWild();
-        actionMsg = `🌈 JOKER! Yeni Renk: ${COLOR_NAMES[newActiveColor]}`;
-        triggerBanner(actionMsg, 'wild');
-      }
-
-      setGameState(prev => ({
-        ...prev,
-        discardPile: [card, ...prev.discardPile],
-        currentColor: newActiveColor,
-        lastActionMessage: actionMsg
-      }));
-
-      advanceTurn(nextStep);
     },
     [
-      players,
-      gameState.direction,
       targetScore,
       drawCardsForPlayer,
       advanceTurn,
-      spawnFlyingUnoCard
+      spawnFlyingUnoCard,
+      triggerBanner,
+      pushActionLog,
+      showSeatBubble
     ]
   );
 
@@ -586,9 +753,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       if (event.type === 'MP_UNO_PLAY_CARD') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
 
-        const N = players.length;
+        const currentPlayers = playersSyncRef.current;
+        const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
-        const targetP = players[targetLocalIdx];
+        const targetP = currentPlayers[targetLocalIdx];
         if (!targetP) return;
 
         const foundCard = targetP.hand.find(c => c.id === event.cardId) || targetP.hand[0];
@@ -597,18 +765,23 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         }
       } else if (event.type === 'MP_UNO_DRAW_CARD') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
-        const N = players.length;
+        const currentPlayers = playersSyncRef.current;
+        const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
         drawCardsForPlayer(targetLocalIdx, event.count || 1);
+        showSeatBubble(targetLocalIdx, `📥 ${event.count || 1} Kart Çekti`);
+        pushActionLog(`📥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} desteden kart çekti.`);
       } else if (event.type === 'MP_UNO_CALL_UNO') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
-        const N = players.length;
+        const currentPlayers = playersSyncRef.current;
+        const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
         setPlayers(prev =>
           prev.map((p, idx) => (idx === targetLocalIdx ? { ...p, hasCalledUno: true } : p))
         );
         sound.playUnoShout();
-        triggerBanner(`🔥 ${players[targetLocalIdx]?.name || 'Rakip'} "UNO!" DEDİ!`, 'uno');
+        showSeatBubble(targetLocalIdx, '🔥 UNO DEDİ!', 2500);
+        triggerBanner(`🔥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} "UNO!" DEDİ!`, 'uno');
       } else if (event.type === 'MP_MATCH_ABORTED') {
         setMatchAbortedReason(
           event.reason === 'surrender'
@@ -621,7 +794,15 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     });
 
     return unsubscribe;
-  }, [isMultiplayer, mySeatIndex, players, executePlayCard, drawCardsForPlayer]);
+  }, [
+    isMultiplayer,
+    mySeatIndex,
+    executePlayCard,
+    drawCardsForPlayer,
+    triggerBanner,
+    showSeatBubble,
+    pushActionLog
+  ]);
 
   // Handle Tab Close / Unload in multiplayer
   useEffect(() => {
@@ -644,7 +825,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Human card click
   const handleHumanCardClick = (card: UnoCard, e?: React.MouseEvent) => {
-    if (gameState.currentTurn !== 0 || gameState.isRoundOver) return;
+    if (gameState.currentTurn !== 0 || gameState.isRoundOver || isAnimatingAction) return;
 
     const topDiscard = gameState.discardPile[0];
     if (!canPlayUnoCard(card, topDiscard, gameState.currentColor)) return;
@@ -652,6 +833,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     const sourceRect = e ? (e.currentTarget as HTMLElement).getBoundingClientRect() : undefined;
 
     if (card.color === 'wild') {
+      setWildPickerRect(sourceRect);
       setWildPickerCard(card);
     } else {
       executePlayCard(0, card, undefined, sourceRect);
@@ -666,12 +848,20 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     }
   };
 
-  // Human draws a card
+  // Human draws a card from the Deck with full 3D flight & clear feedback!
   const handleHumanDraw = () => {
-    if (gameState.currentTurn !== 0 || gameState.isRoundOver) return;
-    sound.playClick();
-    const drawn = drawCardsForPlayer(0, 1);
-    const topDiscard = gameState.discardPile[0];
+    if (
+      gameState.currentTurn !== 0 ||
+      gameState.isRoundOver ||
+      isAnimatingAction ||
+      hasDrawnPlayableThisTurn
+    ) {
+      return;
+    }
+
+    setIsAnimatingAction(true);
+    const topDiscard = gameStateSyncRef.current.discardPile[0];
+    const activeColor = gameStateSyncRef.current.currentColor;
 
     if (isMultiplayer) {
       multiplayerManager.send({
@@ -682,19 +872,53 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       });
     }
 
-    if (drawn.length > 0 && canPlayUnoCard(drawn[0], topDiscard, gameState.currentColor)) {
-      triggerBanner('Çektiğiniz kart oynanabilir!', 'wild', 1800);
-    } else {
-      advanceTurn(1);
-    }
+    drawCardsForPlayer(0, 1, drawn => {
+      if (drawn.length > 0) {
+        const drawnCard = drawn[0];
+        const cardTitle = formatCardName(drawnCard);
+        setNewlyDrawnCardId(drawnCard.id);
+
+        if (canPlayUnoCard(drawnCard, topDiscard, activeColor)) {
+          setIsAnimatingAction(false);
+          setHasDrawnPlayableThisTurn(true);
+          showSeatBubble(0, `✨ ${cardTitle} Çekildi (Oynanabilir!)`, 2600);
+          pushActionLog(`🃏 Desteden ${cardTitle} çektin — hemen oynayabilir veya pas geçebilirsin!`);
+          triggerBanner(`✨ Çektiğin kart (${cardTitle}) oynanabilir! Tıkla veya Pas Geç.`, 'wild', 2800);
+        } else {
+          showSeatBubble(0, `📥 ${cardTitle} Çekildi (Uymuyor)`, 2000);
+          pushActionLog(`📥 Desteden ${cardTitle} çektin (Uyumlu değil, sıra geçiyor).`);
+          triggerBanner(`🃏 Çekilen Kart: ${cardTitle} — Uyumlu değil, sıra geçiyor...`, undefined, 1600);
+          window.setTimeout(() => {
+            setIsAnimatingAction(false);
+            advanceTurn(1);
+          }, 950);
+        }
+      } else {
+        setIsAnimatingAction(false);
+        advanceTurn(1);
+      }
+    });
+  };
+
+  // Human chooses to pass after drawing a playable card
+  const handleHumanPassAfterDraw = () => {
+    if (!hasDrawnPlayableThisTurn || gameState.currentTurn !== 0) return;
+    sound.playClick();
+    setHasDrawnPlayableThisTurn(false);
+    setNewlyDrawnCardId(null);
+    showSeatBubble(0, '⏭️ Pas Geçti');
+    pushActionLog(`${user.name} çektiği kartı oynamadı ve pas geçti.`);
+    advanceTurn(1);
   };
 
   // Human calls "UNO!"
   const handleCallUno = () => {
     sound.playUnoShout();
-    setPlayers(prev =>
-      prev.map((p, idx) => (idx === 0 ? { ...p, hasCalledUno: true } : p))
-    );
+    setPlayers(prev => {
+      const updated = prev.map((p, idx) => (idx === 0 ? { ...p, hasCalledUno: true } : p));
+      playersSyncRef.current = updated;
+      return updated;
+    });
     if (isMultiplayer) {
       multiplayerManager.send({
         type: 'MP_UNO_CALL_UNO',
@@ -702,49 +926,66 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         senderPeerId: multiplayerManager.instanceId
       });
     }
+    showSeatBubble(0, '🔥 UNO DEDİ!', 2500);
     triggerBanner('🔥 "UNO!" DEDİNİZ!', 'uno');
     confetti({ particleCount: 75, spread: 70, origin: { y: 0.8 } });
   };
 
-  // Bot Turn Automation (AI plays with realistic flying cards)
+  // Bot Turn Automation (AI plays with clear pacing, speech bubbles & flying cards)
   useEffect(() => {
-    if (gameState.isRoundOver) return;
+    if (gameState.isRoundOver || isAnimatingAction) return;
 
     const botIdx = gameState.currentTurn;
     const bot = players[botIdx];
     if (!bot || !bot.isAI) return;
 
     botTurnTimerRef.current = window.setTimeout(() => {
-      const topDiscard = gameState.discardPile[0];
-      const botDecision = getBotUnoPlay(bot.hand, topDiscard, gameState.currentColor);
+      const topDiscard = gameStateSyncRef.current.discardPile[0];
+      const currentColor = gameStateSyncRef.current.currentColor;
+      const currentBot = playersSyncRef.current[botIdx];
+      if (!currentBot) return;
+
+      const botDecision = getBotUnoPlay(currentBot.hand, topDiscard, currentColor);
 
       // Bot calls UNO if about to have 1 card
-      if (bot.hand.length === 2 && !bot.hasCalledUno) {
+      if (currentBot.hand.length === 2 && !currentBot.hasCalledUno && botDecision.cardToPlay) {
         sound.playUnoShout();
-        setPlayers(prev =>
-          prev.map((p, idx) => (idx === botIdx ? { ...p, hasCalledUno: true } : p))
-        );
-        triggerBanner(`🔥 ${bot.name} "UNO!" DEDİ!`, 'uno');
+        setPlayers(prev => {
+          const updated = prev.map((p, idx) =>
+            idx === botIdx ? { ...p, hasCalledUno: true } : p
+          );
+          playersSyncRef.current = updated;
+          return updated;
+        });
+        showSeatBubble(botIdx, '🔥 UNO!', 2400);
+        triggerBanner(`🔥 ${currentBot.name} "UNO!" DEDİ!`, 'uno');
       }
 
       if (botDecision.cardToPlay) {
-        executePlayCard(
-          botIdx,
-          botDecision.cardToPlay,
-          botDecision.chosenWildColor
-        );
+        executePlayCard(botIdx, botDecision.cardToPlay, botDecision.chosenWildColor);
       } else {
-        const drawn = drawCardsForPlayer(botIdx, 1);
-        if (
-          drawn.length > 0 &&
-          canPlayUnoCard(drawn[0], topDiscard, gameState.currentColor)
-        ) {
-          executePlayCard(botIdx, drawn[0]);
-        } else {
-          advanceTurn(1);
-        }
+        setIsAnimatingAction(true);
+        showSeatBubble(botIdx, '📥 Kart Çekiyor...', 1800);
+        drawCardsForPlayer(botIdx, 1, drawn => {
+          if (
+            drawn.length > 0 &&
+            canPlayUnoCard(drawn[0], topDiscard, currentColor)
+          ) {
+            window.setTimeout(() => {
+              const chosenWild =
+                drawn[0].color === 'wild' ? ('red' as UnoColor) : undefined;
+              executePlayCard(botIdx, drawn[0], chosenWild);
+            }, 450);
+          } else {
+            pushActionLog(`📥 ${currentBot.name} desteden 1 kart çekti ve sıra geçti.`);
+            window.setTimeout(() => {
+              setIsAnimatingAction(false);
+              advanceTurn(1);
+            }, 500);
+          }
+        });
       }
-    }, 1150);
+    }, 1050);
 
     return () => {
       if (botTurnTimerRef.current) window.clearTimeout(botTurnTimerRef.current);
@@ -752,12 +993,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   }, [
     gameState.currentTurn,
     gameState.isRoundOver,
-    gameState.discardPile,
-    gameState.currentColor,
+    isAnimatingAction,
     players,
     drawCardsForPlayer,
     executePlayCard,
-    advanceTurn
+    advanceTurn,
+    triggerBanner,
+    showSeatBubble,
+    pushActionLog
   ]);
 
   // Exit button click handler (Surrender confirmation in multiplayer)
@@ -793,42 +1036,146 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   const isUserTurn = gameState.currentTurn === 0 && !gameState.isRoundOver;
   const currentTheme = COLOR_THEMES[gameState.currentColor];
 
+  // Count how many playable cards the user currently has
+  const playableCardsInHand = user.hand.filter(
+    c => topDiscardCard && canPlayUnoCard(c, topDiscardCard, gameState.currentColor)
+  );
+  const hasAnyPlayableCard = playableCardsInHand.length > 0;
 
+  // Render an Opponent Seat Widget (supports 'top', 'left', 'right' positions)
+  const renderOpponentSeat = (playerIdx: number, position: 'top' | 'left' | 'right') => {
+    const opp = players[playerIdx];
+    if (!opp) return null;
+
+    const isTurn = gameState.currentTurn === playerIdx && !gameState.isRoundOver;
+    const isSkipped = skippedPlayerIdx === playerIdx;
+    const bubbleText = seatBubbles[playerIdx];
+    const visibleCardsCount = Math.min(opp.hand.length, 8);
+
+    return (
+      <div
+        ref={el => {
+          playerHandRefs.current[playerIdx] = el;
+        }}
+        className={`relative flex flex-col items-center transition-all duration-300 ${
+          isTurn ? 'scale-105 z-20' : 'opacity-90 z-10'
+        }`}
+      >
+        {/* Live Speech / Action Bubble */}
+        {bubbleText && (
+          <div className="absolute -top-9 z-40 px-3 py-1 rounded-2xl bg-slate-900/95 border-2 border-cyan-400 text-cyan-200 font-black text-[11px] whitespace-nowrap shadow-[0_6px_20px_rgba(0,0,0,0.75)] animate-bounce">
+            {bubbleText}
+          </div>
+        )}
+
+        {/* Skipped Laser Barrier Stamp */}
+        {isSkipped && (
+          <div className="absolute -top-3 z-30 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs border-2 border-white shadow-[0_0_25px_rgba(239,68,68,0.95)] animate-bounce flex items-center gap-1">
+            <ShieldAlert className="w-3.5 h-3.5" />
+            PAS GEÇTİ!
+          </div>
+        )}
+
+        {/* Opponent Badge Card */}
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition-all ${
+            isTurn
+              ? 'bg-amber-500/25 border-amber-400 shadow-[0_0_28px_rgba(245,158,11,0.55)] ring-2 ring-amber-400/60'
+              : 'bg-slate-950/80 border-white/15'
+          }`}
+        >
+          <div className="relative">
+            <AvatarBadge
+              avatarId={opp.avatarId}
+              customAvatarUrl={opp.customAvatarUrl}
+              size="sm"
+            />
+            {isTurn && (
+              <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-ping" />
+            )}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black text-white max-w-[105px] truncate">
+                {opp.name}
+              </span>
+              {opp.hasCalledUno && (
+                <span className="px-1.5 py-0.5 rounded bg-gradient-to-r from-red-600 to-amber-500 text-[9px] font-black text-white animate-pulse">
+                  🔥 UNO!
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono">
+              <span className="text-amber-300 font-bold">{opp.score}P</span>
+              <span className="text-slate-400">•</span>
+              <span
+                className={`font-black ${
+                  opp.hand.length === 1 ? 'text-red-400 animate-pulse' : 'text-cyan-300'
+                }`}
+              >
+                {opp.hand.length} Kart
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Opponent's Fanned Card Backs */}
+        <div
+          className={`flex items-center justify-center ${
+            position === 'top' ? '-space-x-8 mt-1.5 min-h-[74px]' : '-space-x-9 mt-1 min-h-[68px]'
+          }`}
+        >
+          {Array.from({ length: visibleCardsCount }).map((_, i) => {
+            const tilt = (i - (visibleCardsCount - 1) / 2) * 5;
+            return (
+              <div
+                key={i}
+                style={{
+                  transform: `rotate(${tilt}deg) translateY(${Math.abs(tilt) * 0.35}px)`
+                }}
+                className="transition-transform duration-200"
+              >
+                <UnoCardBack size="sm" />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4 perspective-[1200px]">
+    <div className="relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4 perspective-[1200px]">
       {/* Dynamic 3D Felt Stadium & Lighting Atmosphere */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Felt Texture Pattern */}
         <div
-          className="absolute inset-0 opacity-[0.035]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
             backgroundImage:
               'radial-gradient(circle at 50% 50%, #ffffff 1px, transparent 1px)',
-            backgroundSize: '20px 20px'
+            backgroundSize: '22px 22px'
           }}
         />
 
-        {/* Dynamic Stadium Color Ambient Wave */}
         <div
           key={tablePulseKey}
-          className={`absolute inset-0 transition-all duration-700 opacity-25 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] ${currentTheme.tableAura} animate-in fade-in`}
+          className={`absolute inset-0 transition-all duration-700 opacity-35 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] ${currentTheme.tableAura}`}
         />
 
-        {/* Outer Table Rim Glow */}
+        {/* Outer Table Neon Rim */}
         <div
-          className="absolute inset-4 sm:inset-10 rounded-[48px] border border-white/5 shadow-2xl pointer-events-none transition-colors duration-500"
+          className="absolute inset-3 sm:inset-7 rounded-[44px] border border-white/10 shadow-2xl pointer-events-none transition-all duration-500"
           style={{
-            boxShadow: `inset 0 0 100px ${currentTheme.glow}`
+            boxShadow: `inset 0 0 110px ${currentTheme.glow}`
           }}
         />
       </div>
 
-      {/* Zero-Teleportation Flying Uno Card Layer */}
+      {/* Zero-Teleportation 3D Flipping Flying Uno Card Layer */}
       <UnoCardAnimationLayer flyingCards={flyingCards} />
 
       {/* HEADER HUD BAR */}
-      <header className="relative z-30 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-black/50 backdrop-blur-md border border-white/10 shadow-xl">
+      <header className="relative z-30 flex items-center justify-between px-3 sm:px-4 py-2 rounded-2xl bg-slate-950/80 backdrop-blur-md border border-white/15 shadow-xl">
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={handleExitClick}
@@ -843,13 +1190,19 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               UNO
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
-              {isMultiplayer ? 'Online Çok Oyunculu' : 'Klasik 108 Kart'}
+              {isMultiplayer ? 'Online Çok Oyunculu' : '3D İnteraktif Masa'}
             </span>
           </div>
         </div>
 
-        {/* Direction Indicator & Target Score */}
+        {/* Active Color Indicator, Direction & Target Score */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Active Color Pill */}
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-white/15 text-xs font-black text-white">
+            <span className={`w-3 h-3 rounded-full ${COLOR_DOT_CLASSES[gameState.currentColor]}`} />
+            <span>Renk: {COLOR_NAMES[gameState.currentColor]}</span>
+          </div>
+
           <div
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
               gameState.direction === 1
@@ -860,17 +1213,17 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             {gameState.direction === 1 ? (
               <>
                 <RotateCw className="w-3.5 h-3.5 animate-spin-slow" />
-                <span className="hidden sm:inline">Saat Yönü</span>
+                <span className="hidden sm:inline">Saat Yönü ⟳</span>
               </>
             ) : (
               <>
                 <RotateCcw className="w-3.5 h-3.5 animate-spin-slow" />
-                <span className="hidden sm:inline">Ters Yön</span>
+                <span className="hidden sm:inline">Ters Yön ⟲</span>
               </>
             )}
           </div>
 
-          <div className="text-xs font-bold text-slate-300 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10">
+          <div className="hidden md:block text-xs font-bold text-slate-300 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10">
             Hedef: <strong className="text-amber-300">{gameState.targetScore}P</strong>
           </div>
 
@@ -890,9 +1243,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
       {/* CINEMATIC ACTION BANNER / TOAST */}
       {actionBanner && (
-        <div className="fixed top-18 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-200">
           <div
-            className={`px-6 py-2.5 rounded-full text-xs sm:text-sm font-black border-2 shadow-2xl flex items-center gap-2.5 ${
+            className={`px-5 py-2 rounded-full text-xs sm:text-sm font-black border-2 shadow-2xl flex items-center gap-2 ${
               actionBanner.type === 'reverse'
                 ? 'bg-blue-950/95 border-sky-400 text-sky-200 shadow-[0_0_35px_rgba(56,189,248,0.6)]'
                 : actionBanner.type === 'skip'
@@ -904,193 +1257,202 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 : 'bg-slate-900/95 border-emerald-400 text-emerald-200 shadow-[0_0_35px_rgba(16,185,129,0.6)]'
             }`}
           >
-            <Sparkles className="w-4 h-4 animate-spin" />
+            <Sparkles className="w-4 h-4 animate-spin shrink-0" />
             <span>{actionBanner.text}</span>
           </div>
         </div>
       )}
 
-      {/* 3D CIRCULAR STADIUM ARENA */}
-      <div className="relative z-10 flex-1 w-full max-w-6xl mx-auto flex flex-col justify-between items-center py-2 sm:py-4">
-        {/* TOP OPPONENT(S) */}
-        <div className="w-full flex items-center justify-around px-2">
-          {players.slice(1).map((bot, idx) => {
-            const actualPlayerIdx = idx + 1;
-            const isTurn = gameState.currentTurn === actualPlayerIdx;
-            const isSkipped = skippedPlayerIdx === actualPlayerIdx;
+      {/* =========================================================
+          4-SIDED CIRCULAR STADIUM ARENA (Top, Left, Center, Right, Bottom)
+         ========================================================= */}
+      <div className="relative z-10 flex-1 w-full max-w-6xl mx-auto flex flex-col justify-between items-center py-1">
+        {/* 1. TOP SEAT (Seat 2 in 4P mode, or Seat 1 in 2P mode) */}
+        <div className="w-full flex items-center justify-center pt-1">
+          {players.length === 2 ? renderOpponentSeat(1, 'top') : renderOpponentSeat(2, 'top')}
+        </div>
 
-            return (
-              <div
-                key={bot.id}
-                ref={el => {
-                  playerHandRefs.current[actualPlayerIdx] = el;
-                }}
-                className={`relative flex flex-col items-center transition-all duration-300 ${
-                  isTurn ? 'scale-105 z-20' : 'opacity-85 z-10'
-                }`}
+        {/* 2. MIDDLE ROW: LEFT SEAT + CENTER FELT PILES + RIGHT SEAT */}
+        <div className="w-full flex items-center justify-between gap-2 sm:gap-6 my-auto px-1 sm:px-4">
+          {/* LEFT SEAT (Seat 1 in 4P mode) */}
+          <div className="hidden sm:flex items-center justify-center min-w-[140px]">
+            {players.length >= 4 && renderOpponentSeat(1, 'left')}
+          </div>
+
+          {/* CENTER FELT: DIRECTION RING + DRAW DECK + FANNED DISCARD HISTORY */}
+          <div className="relative flex-1 flex flex-col items-center justify-center">
+            {/* Mobile compact row for Seat 1 & Seat 3 on very small screens */}
+            {players.length >= 4 && (
+              <div className="flex sm:hidden items-center justify-between w-full mb-2 px-2">
+                {renderOpponentSeat(1, 'left')}
+                {renderOpponentSeat(3, 'right')}
+              </div>
+            )}
+
+            {/* Animated SVG Direction Orbit Ring behind Center Piles */}
+            <div className="relative flex items-center justify-center py-3 px-6 sm:px-12 rounded-[36px] bg-slate-950/60 border border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]">
+              <svg
+                viewBox="0 0 360 190"
+                className="absolute inset-0 w-full h-full pointer-events-none opacity-35"
               >
-                {/* Skipped Laser Barrier Stamp */}
-                {isSkipped && (
-                  <div className="absolute -top-3 z-30 px-3 py-1 rounded-full bg-red-600/90 text-white font-black text-xs border border-white shadow-[0_0_20px_rgba(239,68,68,0.9)] animate-bounce flex items-center gap-1">
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    PAS GEÇTİ!
-                  </div>
-                )}
+                <rect
+                  x="12"
+                  y="12"
+                  width="336"
+                  height="166"
+                  rx="80"
+                  fill="none"
+                  stroke={currentTheme.strokeHex}
+                  strokeWidth="2.5"
+                  strokeDasharray="10 8"
+                />
+              </svg>
 
-                {/* Player Profile & Turn Spotlight */}
-                <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition-all ${
-                    isTurn
-                      ? 'bg-amber-500/20 border-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.5)] ring-2 ring-amber-400/50'
-                      : 'bg-black/40 border-white/10'
-                  }`}
-                >
-                  <div className="relative">
-                    <AvatarBadge
-                      avatarId={bot.avatarId}
-                      customAvatarUrl={bot.customAvatarUrl}
-                      size="sm"
-                    />
-                    {isTurn && (
-                      <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-ping" />
-                    )}
-                  </div>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-white max-w-[110px] truncate">
-                        {bot.name}
-                      </span>
-                      {bot.hasCalledUno && (
-                        <span className="px-1.5 py-0.2 rounded bg-red-600 text-[9px] font-black text-white animate-pulse">
-                          UNO
-                        </span>
-                      )}
+              <div className="relative z-10 flex items-center justify-center gap-8 sm:gap-16">
+                {/* DRAW PILE (DESTE) */}
+                <div ref={deckRef} className="relative flex flex-col items-center">
+                  {/* Bouncing Callout when User has NO Playable Cards! */}
+                  {isUserTurn && !hasAnyPlayableCard && !hasDrawnPlayableThisTurn && (
+                    <div className="absolute -top-11 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-[11px] whitespace-nowrap shadow-[0_0_25px_rgba(245,158,11,0.9)] animate-bounce flex items-center gap-1">
+                      <Hand className="w-3.5 h-3.5" />
+                      <span>KART ÇEK!</span>
                     </div>
-                    <span className="text-[10px] text-amber-300/80 font-mono">
-                      {bot.score} Puan • {bot.hand.length} Kart
+                  )}
+
+                  <button
+                    onClick={handleHumanDraw}
+                    disabled={!isUserTurn || isAnimatingAction || hasDrawnPlayableThisTurn}
+                    className={`relative group transition-all duration-200 active:scale-95 ${
+                      isUserTurn && !hasDrawnPlayableThisTurn
+                        ? 'cursor-pointer hover:scale-108 hover:-translate-y-1'
+                        : 'cursor-not-allowed opacity-80'
+                    }`}
+                    title={
+                      isUserTurn
+                        ? 'Desteden 1 Kart Çek (Tıkla)'
+                        : 'Sıranız geldiğinde kart çekebilirsiniz'
+                    }
+                  >
+                    {/* 3D Physical Deck Layers */}
+                    <div className="absolute inset-0 translate-y-2 translate-x-2 rounded-xl bg-black/80 shadow-xl pointer-events-none" />
+                    <div className="absolute inset-0 translate-y-1 translate-x-1 rounded-xl bg-zinc-800 border border-white/20 pointer-events-none" />
+                    <UnoCardBack size="md" />
+
+                    {isUserTurn && !hasDrawnPlayableThisTurn && (
+                      <div
+                        className={`absolute inset-0 rounded-xl pointer-events-none ${
+                          !hasAnyPlayableCard
+                            ? 'ring-4 ring-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.85)] animate-pulse'
+                            : 'ring-2 ring-emerald-400/80 group-hover:ring-4'
+                        }`}
+                      />
+                    )}
+                  </button>
+
+                  <span className="text-[11px] font-black text-slate-200 mt-2 bg-slate-900/90 px-3 py-0.5 rounded-full border border-white/15">
+                    Deste ({gameState.deck.length})
+                  </span>
+                </div>
+
+                {/* FANNED DISCARD HISTORY PILE (SON ATILAN KARTLAR YELPAZESİ) */}
+                <div className="relative flex flex-col items-center">
+                  {/* Fanned Container: shows last 5 played cards spread horizontally so old cards are visible! */}
+                  <div
+                    ref={discardRef}
+                    className="relative w-36 sm:w-48 h-[120px] sm:h-[144px] flex items-center justify-center"
+                  >
+                    {discardStack
+                      .slice()
+                      .reverse()
+                      .map((item, idx, arr) => {
+                        const isTop = idx === arr.length - 1;
+                        const ageFromTop = arr.length - 1 - idx; // 0 = newest, 1 = prev, 2 = older...
+                        // Spread older cards clearly to the left so their numbers & colors remain visible!
+                        const fanOffsetX = isTop ? 18 : 18 - ageFromTop * 22;
+                        const fanOffsetY = isTop ? 0 : ageFromTop * 3;
+                        const fanScale = isTop ? 1.04 : Math.max(0.84, 1 - ageFromTop * 0.04);
+                        const fanRot = isTop ? item.rotation : -ageFromTop * 7;
+
+                        return (
+                          <div
+                            key={`${item.card.id}-hist-${idx}`}
+                            style={{
+                              transform: `translateX(${fanOffsetX}px) translateY(${fanOffsetY}px) rotate(${fanRot}deg) scale(${fanScale})`,
+                              zIndex: 10 + idx,
+                              filter: isTop ? 'none' : 'brightness(0.82)'
+                            }}
+                            className="absolute transition-all duration-300 ease-out"
+                            title={
+                              item.playedBy
+                                ? `${item.playedBy}: ${formatCardName(item.card)}`
+                                : formatCardName(item.card)
+                            }
+                          >
+                            <UnoCardView
+                              card={item.card}
+                              size="md"
+                              className={
+                                isTop
+                                  ? `ring-2 ${currentTheme.bgRing} shadow-[0_10px_30px_rgba(0,0,0,0.75)]`
+                                  : 'shadow-md'
+                              }
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mt-2 bg-slate-900/90 px-3 py-0.5 rounded-full border border-white/15">
+                    <History className="w-3 h-3 text-amber-400" />
+                    <span className="text-[11px] font-black text-amber-300">
+                      {topDiscardCard ? formatCardName(topDiscardCard) : 'Ortadaki Kart'}
                     </span>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {/* Opponent's 3D Angled Card Fan (Backs) */}
-                <div className="flex items-center justify-center -space-x-8 sm:-space-x-9 mt-1.5 min-h-[76px]">
-                  {Array.from({ length: Math.min(bot.hand.length, 9) }).map((_, i) => {
-                    const tilt = (i - (Math.min(bot.hand.length, 9) - 1) / 2) * 4;
-                    return (
-                      <div
-                        key={i}
-                        style={{
-                          transform: `rotate(${tilt}deg) translateY(${Math.abs(tilt) * 0.4}px)`
-                        }}
-                        className="transition-transform duration-200"
-                      >
-                        <UnoCardBack size="sm" />
-                      </div>
-                    );
-                  })}
+            {/* LIVE MOVE HISTORY FEED (Shows last 2-3 actions clearly below the center table) */}
+            {actionLog.length > 0 && (
+              <div className="mt-2 px-4 py-1.5 rounded-2xl bg-slate-950/85 border border-white/10 max-w-md w-full text-center space-y-0.5 shadow-md">
+                <div className="text-xs font-bold text-amber-200 truncate">
+                  {actionLog[0]}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* CENTER TABLE FELT: DRAW DECK & PHYSICAL DISCARD STACK */}
-        <div className="relative z-10 flex flex-col items-center justify-center my-auto py-2">
-          {/* Active Color Aura Header Pill */}
-          <div
-            className={`mb-4 px-5 py-1.5 rounded-full text-xs font-black border flex items-center gap-2 uppercase tracking-wider backdrop-blur-md transition-all duration-300 ${
-              gameState.currentColor === 'red'
-                ? 'bg-red-500/20 text-red-300 border-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                : gameState.currentColor === 'blue'
-                ? 'bg-blue-500/20 text-blue-300 border-blue-500/80 shadow-[0_0_20px_rgba(59,130,246,0.5)]'
-                : gameState.currentColor === 'green'
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
-                : 'bg-amber-400/20 text-amber-300 border-amber-400/80 shadow-[0_0_20px_rgba(245,158,11,0.5)]'
-            }`}
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-current animate-ping" />
-            <span>Aktif Renk: {COLOR_NAMES[gameState.currentColor]}</span>
-          </div>
-
-          {/* Stacks Container */}
-          <div className="flex items-center justify-center gap-8 sm:gap-14">
-            {/* Çekme Destesi (Draw Pile) */}
-            <div ref={deckRef} className="flex flex-col items-center">
-              <button
-                onClick={handleHumanDraw}
-                disabled={!isUserTurn}
-                className={`relative group transition-all duration-200 active:scale-95 ${
-                  isUserTurn
-                    ? 'cursor-pointer hover:scale-105'
-                    : 'cursor-not-allowed opacity-75'
-                }`}
-                title="Desteden Kart Çek"
-              >
-                {/* 3D Stack Depth (Simulating thick card pack) */}
-                <div className="absolute inset-0 translate-y-1.5 translate-x-1.5 rounded-xl bg-black/60 shadow-lg pointer-events-none" />
-                <div className="absolute inset-0 translate-y-1 translate-x-1 rounded-xl bg-zinc-800 border border-white/10 pointer-events-none" />
-                <UnoCardBack size="md" />
-
-                {isUserTurn && (
-                  <div className="absolute inset-0 rounded-xl ring-2 ring-amber-400/80 animate-pulse pointer-events-none" />
-                )}
-              </button>
-              <span className="text-[10px] font-bold text-slate-300 mt-2 bg-black/60 px-2.5 py-0.5 rounded-full border border-white/10">
-                Deste: {gameState.deck.length}
-              </span>
-            </div>
-
-            {/* Atılan Kartlar (3D Physical Discard Pile Stack) */}
-            <div ref={discardRef} className="relative flex flex-col items-center">
-              <div className="relative w-20 h-[116px] sm:w-24 sm:h-[140px] flex items-center justify-center">
-                {/* Render lower stack layers for true physical depth */}
-                {discardStack.slice(1).map((item, idx) => (
-                  <div
-                    key={`${item.card.id}-sub-${idx}`}
-                    style={{
-                      transform: `rotate(${item.rotation}deg) translate(${item.offsetX}px, ${item.offsetY}px)`,
-                      opacity: 0.85 - idx * 0.18
-                    }}
-                    className="absolute inset-0 pointer-events-none transition-transform"
-                  >
-                    <UnoCardView card={item.card} size="md" />
-                  </div>
-                ))}
-
-                {/* Top active discard card */}
-                {topDiscardCard ? (
-                  <div
-                    style={{
-                      transform: `rotate(${discardStack[0]?.rotation ?? 0}deg)`
-                    }}
-                    className="relative z-10 transition-transform duration-200"
-                  >
-                    <UnoCardView card={topDiscardCard} size="md" />
-                  </div>
-                ) : (
-                  <div className="w-full h-full rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center text-xs text-white/30">
-                    Boş
+                {actionLog[1] && (
+                  <div className="text-[10px] text-slate-400 truncate opacity-80">
+                    Önceki: {actionLog[1]}
                   </div>
                 )}
               </div>
-              <span className="text-[10px] font-bold text-slate-300 mt-2 bg-black/60 px-2.5 py-0.5 rounded-full border border-white/10">
-                Ortadaki Kart
-              </span>
-            </div>
+            )}
+          </div>
+
+          {/* RIGHT SEAT (Seat 3 in 4P mode) */}
+          <div className="hidden sm:flex items-center justify-center min-w-[140px]">
+            {players.length >= 4 && renderOpponentSeat(3, 'right')}
           </div>
         </div>
 
-        {/* HUMAN PLAYER AREA (Dynamic Arc Curved Hand & Interactive Physics) */}
+        {/* =========================================================
+            3. BOTTOM HUMAN PLAYER HAND AREA (Auto-Pop Playable Cards & 3D Arc)
+           ========================================================= */}
         <div
           ref={el => {
             playerHandRefs.current[0] = el;
           }}
-          className="relative z-20 flex flex-col items-center w-full max-w-4xl mx-auto"
+          className="relative z-20 flex flex-col items-center w-full max-w-5xl mx-auto pt-1"
         >
-          {/* Turn Status & UNO Shout Flame Button */}
-          <div className="flex items-center justify-between w-full px-3 mb-2">
+          {/* Floating Speech Bubble for Human Player */}
+          {seatBubbles[0] && (
+            <div className="mb-1 px-4 py-1 rounded-full bg-emerald-950/95 border border-emerald-400 text-emerald-200 text-xs font-black shadow-lg animate-bounce">
+              {seatBubbles[0]}
+            </div>
+          )}
+
+          {/* Turn Status Bar & Action Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-2 w-full px-3 mb-2">
             {/* Player Info Badge */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-950/85 px-3 py-1 rounded-2xl border border-white/10">
               <AvatarBadge
                 avatarId={user.avatarId}
                 customAvatarUrl={user.customAvatarUrl}
@@ -1100,23 +1462,48 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 <span className="text-xs font-black text-white font-cyber">
                   {user.name} (Sen)
                 </span>
-                <span className="text-[10px] text-amber-300 ml-2 font-mono">
-                  {user.score} Puan
+                <span className="text-[11px] text-amber-300 ml-2 font-mono font-bold">
+                  {user.score} Puan • {user.hand.length} Kart
                 </span>
               </div>
             </div>
 
-            {/* Turn Status Pill */}
-            {isUserTurn ? (
-              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/80 animate-pulse flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Senin Sıran — Kartını Seç veya Çek
-              </span>
-            ) : (
-              <span className="text-xs font-medium text-slate-400">
-                {players[gameState.currentTurn]?.name || 'Rakip'} oynuyor...
-              </span>
-            )}
+            {/* Interactive Turn Status & Pass Button */}
+            <div className="flex items-center gap-2">
+              {isUserTurn ? (
+                hasDrawnPlayableThisTurn ? (
+                  <div className="flex items-center gap-2">
+                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-200 border border-amber-400 animate-pulse">
+                      ✨ Çektiğin kartı oynayabilir veya pas geçebilirsin!
+                    </span>
+                    <button
+                      onClick={handleHumanPassAfterDraw}
+                      className="px-4 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-white border border-white/25 text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer transition-transform active:scale-95"
+                    >
+                      <SkipForward className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Pas Geç</span>
+                    </button>
+                  </div>
+                ) : hasAnyPlayableCard ? (
+                  <span className="px-4 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/80 flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    Senin Sıran — Yukarı Çıkan ({playableCardsInHand.length}) Uygun Karttan Birini At!
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleHumanDraw}
+                    className="px-4 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-bounce flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Hand className="w-3.5 h-3.5" />
+                    <span>Elinde Uygun Kart Yok — Kart Çekmek İçin Tıkla!</span>
+                  </button>
+                )
+              ) : (
+                <span className="px-3.5 py-1 rounded-full bg-slate-900/90 border border-white/10 text-xs font-bold text-slate-300">
+                  ⏳ {players[gameState.currentTurn]?.name || 'Rakip'} hamlesini yapıyor...
+                </span>
+              )}
+            </div>
 
             {/* Fiery UNO Shout Button */}
             {user.hand.length <= 2 && (
@@ -1134,38 +1521,61 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             )}
           </div>
 
-          {/* DYNAMIC 3D CURVED HAND FAN WITH TACTILE HOVER PHYSICS */}
-          <div className="relative w-full flex items-center justify-center min-h-[145px] sm:min-h-[165px] px-2 py-1 overflow-visible">
+          {/* DYNAMIC 3D CURVED HAND FAN WITH AUTO-LIFTED PLAYABLE CARDS */}
+          <div className="relative w-full flex items-center justify-center min-h-[155px] sm:min-h-[180px] px-4 pt-8 pb-2 overflow-visible">
             {(() => {
               const N = user.hand.length;
-              const maxAngle = Math.min(50, Math.max(16, N * 4.5));
+              const maxAngle = Math.min(44, Math.max(12, N * 3.8));
               const angleStep = N > 1 ? (maxAngle * 2) / (N - 1) : 0;
-              const spacingStep = Math.min(42, Math.max(20, 520 / Math.max(1, N)));
+              const spacingStep = Math.min(46, Math.max(22, 560 / Math.max(1, N)));
 
               return user.hand.map((card, idx) => {
                 const isPlayable =
-                  isUserTurn && canPlayUnoCard(card, topDiscardCard, gameState.currentColor);
+                  isUserTurn &&
+                  !isAnimatingAction &&
+                  Boolean(topDiscardCard && canPlayUnoCard(card, topDiscardCard, gameState.currentColor));
                 const isHidden = hiddenCardIds.has(card.id);
                 const isHovered = hoveredCardId === card.id;
+                const isNewlyDrawn = newlyDrawnCardId === card.id;
 
                 // Base Fan Arc Calculations
-                const normalizedDist = (idx - (N - 1) / 2);
+                const normalizedDist = idx - (N - 1) / 2;
                 const baseRot = normalizedDist * angleStep;
                 const baseOffsetNorm = N > 1 ? normalizedDist / ((N - 1) / 2) : 0;
-                const arcLiftY = Math.abs(baseOffsetNorm) * 14;
+                const arcDropY = Math.abs(baseOffsetNorm) * 12;
 
                 // Dynamic spreading when neighbor is hovered
                 let hoverDisplaceX = 0;
                 if (hoveredCardId && !isHovered) {
                   const hoveredIdx = user.hand.findIndex(c => c.id === hoveredCardId);
                   if (hoveredIdx !== -1) {
-                    if (idx < hoveredIdx) hoverDisplaceX = -14;
-                    else if (idx > hoveredIdx) hoverDisplaceX = 14;
+                    if (idx < hoveredIdx) hoverDisplaceX = -18;
+                    else if (idx > hoveredIdx) hoverDisplaceX = 18;
                   }
                 }
 
-                const finalRot = isHovered ? 0 : baseRot;
-                const finalLiftY = isHovered ? -38 : arcLiftY;
+                // AUTO-POP PLAYABLE CARDS UPWARDS ON USER'S TURN!
+                // Playable cards step up -28px automatically (-52px when hovered).
+                // Non-playable cards on user's turn sink down +12px and dim soplayable cards stand out!
+                let finalLiftY = arcDropY;
+                let finalScale = 1;
+                let finalRot = baseRot;
+
+                if (isHovered && isPlayable) {
+                  finalLiftY = -52;
+                  finalScale = 1.2;
+                  finalRot = 0;
+                } else if (isHovered) {
+                  finalLiftY = -18;
+                  finalScale = 1.05;
+                  finalRot = baseRot * 0.5;
+                } else if (isPlayable) {
+                  finalLiftY = -28 + arcDropY * 0.35;
+                  finalScale = 1.06;
+                } else if (isUserTurn) {
+                  finalLiftY = 12 + arcDropY * 0.5;
+                  finalScale = 0.93;
+                }
 
                 return (
                   <div
@@ -1173,15 +1583,32 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                     onMouseEnter={() => setHoveredCardId(card.id)}
                     onMouseLeave={() => setHoveredCardId(null)}
                     style={{
-                      transform: `translateX(${hoverDisplaceX}px) translateY(${finalLiftY}px) rotate(${finalRot}deg) scale(${
-                        isHovered ? 1.15 : 1
-                      })`,
-                      zIndex: isHovered ? 40 : idx,
-                      marginLeft: idx === 0 ? 0 : `-${Math.max(16, 46 - spacingStep)}px`,
-                      opacity: isHidden ? 0 : 1
+                      transform: `translateX(${hoverDisplaceX}px) translateY(${finalLiftY}px) rotate(${finalRot}deg) scale(${finalScale})`,
+                      zIndex: isHovered ? 50 : isPlayable ? 25 + idx : idx,
+                      marginLeft: idx === 0 ? 0 : `-${Math.max(14, 48 - spacingStep)}px`,
+                      opacity: isHidden ? 0 : isUserTurn && !isPlayable && !isHovered ? 0.48 : 1,
+                      filter:
+                        isUserTurn && !isPlayable && !isHovered
+                          ? 'brightness(0.7) saturate(0.75)'
+                          : 'none'
                     }}
                     className="relative transition-all duration-200 ease-out origin-bottom shrink-0"
                   >
+                    {/* Floating Playable Callout Pill on Playable Cards */}
+                    {isPlayable && !isHidden && (
+                      <div
+                        className={`absolute -top-6 left-1/2 -translate-x-1/2 z-30 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap pointer-events-none transition-all ${
+                          isHovered
+                            ? 'bg-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.9)] scale-110'
+                            : isNewlyDrawn
+                            ? 'bg-amber-400 text-slate-950 shadow-md animate-bounce'
+                            : 'bg-emerald-950/90 text-emerald-300 border border-emerald-400/60'
+                        }`}
+                      >
+                        {isHovered ? '🚀 OYNA' : isNewlyDrawn ? '✨ YENİ' : '⚡ UYGUN'}
+                      </div>
+                    )}
+
                     <UnoCardView
                       card={card}
                       isPlayable={isPlayable && !isHidden}
@@ -1217,8 +1644,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   key={color}
                   onClick={() => {
                     const c = wildPickerCard;
+                    const rect = wildPickerRect;
                     setWildPickerCard(null);
-                    executePlayCard(0, c, color);
+                    setWildPickerRect(undefined);
+                    executePlayCard(0, c, color, rect);
                     if (isMultiplayer) {
                       multiplayerManager.send({
                         type: 'MP_UNO_PLAY_CARD',

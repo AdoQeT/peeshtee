@@ -286,6 +286,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   onToggleReady
 }) => {
   const [showEmotePicker, setShowEmotePicker] = React.useState(false);
+  const [hoveredHandCardId, setHoveredHandCardId] = React.useState<string | null>(null);
   const isFourPlayers = players.length === 4;
   const user = players[0];
   const isCountingActive = Boolean(onTableCountState?.isActive);
@@ -295,6 +296,21 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   const visibleTableCards = useMemo(
     () => tableCards.filter(c => !hiddenCardIds?.has(c.id)),
     [tableCards, hiddenCardIds]
+  );
+
+  const topVisibleTableCard =
+    visibleTableCards.length > 0 ? visibleTableCards[visibleTableCards.length - 1] : null;
+
+  const hoveredHandCard = useMemo(
+    () => user.hand.find(c => c.id === hoveredHandCardId) || null,
+    [user.hand, hoveredHandCardId]
+  );
+
+  const isHoveredCardCapturing = Boolean(
+    isPlayerTurn &&
+      topVisibleTableCard &&
+      hoveredHandCard &&
+      (hoveredHandCard.value === topVisibleTableCard.value || hoveredHandCard.value === 11)
   );
 
   const isSingleCardPistiChance =
@@ -990,7 +1006,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   tableRefs.current.potEl = el;
                 }}
                 className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-2xl border-2 transition-all duration-300 ${
-                  isSingleCardPistiChance
+                  isHoveredCardCapturing
+                    ? 'border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/50 shadow-[0_0_40px_rgba(16,185,129,0.65)] scale-105'
+                    : isSingleCardPistiChance
                     ? 'border-amber-400/80 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
                     : 'border-dashed border-white/20 bg-black/20'
                 }`}
@@ -1211,32 +1229,102 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             )}
           </div>
 
-          {/* Cards Hand */}
+          {/* Cards Hand with Tactical Auto-Lift & Hover Physics */}
           <div
             ref={el => {
               tableRefs.current.handEls[0] = el;
             }}
-            className="flex justify-center items-center min-h-[128px] sm:min-h-[144px] min-w-[230px] -space-x-2.5 sm:-space-x-3.5 pb-1"
+            className="flex justify-center items-center min-h-[140px] sm:min-h-[160px] min-w-[240px] -space-x-2.5 sm:-space-x-3.5 pt-5 pb-1"
           >
             {user.hand.map((card, idx) => {
-              const tilt = (idx - (user.hand.length - 1) / 2) * 5;
+              const baseTilt = (idx - (user.hand.length - 1) / 2) * 5;
               const isHidden = hiddenCardIds?.has(card.id) ?? false;
+              const isHovered = hoveredHandCardId === card.id;
+
+              const isPistiMatch = Boolean(
+                isPlayerTurn &&
+                  !isHidden &&
+                  topVisibleTableCard &&
+                  visibleTableCards.length === 1 &&
+                  card.value === topVisibleTableCard.value
+              );
+              const isCaptureMatch = Boolean(
+                isPlayerTurn &&
+                  !isHidden &&
+                  topVisibleTableCard &&
+                  visibleTableCards.length > 1 &&
+                  card.value === topVisibleTableCard.value
+              );
+              const isJackSweep = Boolean(
+                isPlayerTurn &&
+                  !isHidden &&
+                  topVisibleTableCard &&
+                  card.value === 11 &&
+                  card.value !== topVisibleTableCard.value
+              );
+
+              // Neighbor parting when hovering a card
+              let displaceX = 0;
+              if (hoveredHandCardId && !isHovered) {
+                const hovIdx = user.hand.findIndex(c => c.id === hoveredHandCardId);
+                if (hovIdx !== -1) {
+                  displaceX = idx < hovIdx ? -12 : 12;
+                }
+              }
+
+              // Auto-elevation for matching / tactical cards
+              let liftY = 0;
+              if (isPistiMatch) liftY = -22;
+              else if (isCaptureMatch) liftY = -16;
+              else if (isJackSweep) liftY = -12;
+
+              const activeTilt = isHovered ? 0 : baseTilt;
 
               return (
                 <div
                   key={card.id}
                   data-card-id={card.id}
-                  className="transition-transform duration-200 ease-out"
+                  onMouseEnter={() => setHoveredHandCardId(card.id)}
+                  onMouseLeave={() => setHoveredHandCardId(null)}
+                  style={{
+                    transform: `translate3d(${displaceX}px, ${liftY}px, 0)`,
+                    zIndex: isHovered ? 40 : isPistiMatch || isCaptureMatch ? 20 + idx : idx + 1
+                  }}
+                  className="relative transition-all duration-200 ease-out"
                 >
+                  {/* Tactical Callout Pill above Card */}
+                  {!isHidden && (isPistiMatch || isCaptureMatch || isJackSweep) && (
+                    <div
+                      className={`absolute -top-6 left-1/2 -translate-x-1/2 z-30 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap pointer-events-none shadow-lg ${
+                        isPistiMatch
+                          ? 'bg-gradient-to-r from-amber-400 to-rose-500 text-slate-950 animate-bounce shadow-[0_0_15px_rgba(245,158,11,0.9)]'
+                          : isCaptureMatch
+                          ? 'bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
+                          : 'bg-indigo-500 text-white border border-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.8)]'
+                      }`}
+                    >
+                      {isPistiMatch ? '🔥 PİŞTİ!' : isCaptureMatch ? '⚡ TOPLA' : '🃏 SÜPÜR'}
+                    </div>
+                  )}
+
                   <CardView
                     card={card}
                     isPlayable={isPlayerTurn && !isHidden}
                     isHiddenInFlight={isHidden}
-                    onClick={e => handleCardClick(card, tilt, e)}
-                    tiltAngle={tilt}
+                    onClick={e => handleCardClick(card, activeTilt, e)}
+                    tiltAngle={activeTilt}
                     cardBack={cardBack}
                     theme={theme}
                     size="md"
+                    className={
+                      isPistiMatch
+                        ? 'ring-2 ring-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.75)]'
+                        : isCaptureMatch
+                        ? 'ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.65)]'
+                        : isJackSweep
+                        ? 'ring-2 ring-indigo-400 shadow-[0_0_18px_rgba(99,102,241,0.6)]'
+                        : ''
+                    }
                   />
                 </div>
               );

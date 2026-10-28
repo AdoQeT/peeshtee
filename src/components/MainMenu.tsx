@@ -13,7 +13,8 @@ import {
   SlidersHorizontal,
   Flame,
   Trophy,
-  Globe
+  Globe,
+  UserPlus
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { Card, GameSetupConfig, TableTheme } from '../types/game';
@@ -32,6 +33,7 @@ interface MainMenuProps {
   onQuickStartGame: (config: GameSetupConfig) => void;
   onStartSinglePlayer: () => void;
   onOpenMultiplayer: () => void;
+  onOpenFriends: () => void;
   onOpenRules: () => void;
   onOpenSettings: () => void;
   onOpenProfile: () => void;
@@ -69,6 +71,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onQuickStartGame,
   onStartSinglePlayer,
   onOpenMultiplayer,
+  onOpenFriends,
   onOpenRules,
   onOpenSettings,
   onOpenProfile,
@@ -156,13 +159,32 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-amber-400/40 hover:border-amber-400 text-xs font-bold text-slate-200 transition-all shadow-md group cursor-pointer"
             title="Oyuncu Profilini ve Sabit PP'yi Düzenle"
           >
-            <AvatarBadge avatarId={userProfile.avatarId} size="xs" />
+            <AvatarBadge
+              avatarId={userProfile.avatarId}
+              customAvatarUrl={userProfile.customAvatarDataUrl}
+              size="xs"
+            />
             <span className="text-amber-300 font-cyber font-black max-w-[90px] sm:max-w-[120px] truncate">
               {userProfile.name}
             </span>
-            <span className="hidden sm:inline text-[10px] text-slate-400 group-hover:text-white">
-              Profil
+            <span className="hidden sm:inline text-[10px] font-mono text-cyan-400">
+              #{userProfile.friendCode}
             </span>
+          </button>
+
+          {/* Standalone Friends & Player ID Menu Button */}
+          <button
+            onClick={() => handleClick(onOpenFriends)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/50 hover:border-emerald-300 text-xs font-black text-emerald-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer"
+            title="Arkadaşlar Menüsü — ID veya İsim ile Arkadaş Ekle & Davet Et"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Arkadaşlar</span>
+            {userProfile.friends && userProfile.friends.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
+                {userProfile.friends.length}
+              </span>
+            )}
           </button>
 
           <button

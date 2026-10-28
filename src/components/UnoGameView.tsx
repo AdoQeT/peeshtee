@@ -20,6 +20,8 @@ import { AvatarBadge } from './AvatarBadge';
 import { getUserProfile, recordMatchStats } from '../features/profile/profileManager';
 import { sound } from '../core/audio/soundEngine';
 import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLayer';
+import { UnoGrandShuffleLayer } from './UnoGrandShuffleLayer';
+import { AmbientParticles } from './AmbientParticles';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
 import {
   ArrowLeft,
@@ -256,7 +258,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // Flying Card Animation State
   const [flyingCards, setFlyingCards] = useState<FlyingUnoCardData[]>([]);
   const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
-  const [isTableShaking, setIsTableShaking] = useState(false);
+
+  // Penalty Pool (Ceza Havuzu) - Physical waiting cards on the table
+  const [penaltyPoolCount, setPenaltyPoolCount] = useState(0);
 
   // Surrender & Online Abort Confirmation Modals
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false);
@@ -265,9 +269,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // DOM Refs
   const deckRef = useRef<HTMLButtonElement | null>(null);
   const discardRef = useRef<HTMLDivElement | null>(null);
+  const penaltyPoolRef = useRef<HTMLDivElement | null>(null);
   const userHandContainerRef = useRef<HTMLDivElement | null>(null);
   const playerHandRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
   const botTurnTimerRef = useRef<number | null>(null);
+  const dealtCacheRef = useRef<ReturnType<typeof dealUnoGame> | null>(null);
   const actionLogRef = useRef<string[]>([]);
 
   const pushActionLog = useCallback((entry: string) => {
@@ -285,6 +291,51 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       });
     }, duration);
   }, []);
+
+  const getDeckTargetPos = useCallback(() => {
+    const el = deckRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 20 && r.height > 20) {
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+    }
+    return { x: window.innerWidth / 2 - 70, y: window.innerHeight / 2 };
+  }, []);
+
+  const getSafeSeatRect = useCallback(
+    (playerIdx: number): { x: number; y: number; width: number; height: number } => {
+      if (playerIdx === 0) {
+        const el = userHandContainerRef.current;
+        if (el) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 20 && r.height > 20) return r;
+        }
+        return { x: window.innerWidth / 2 - 40, y: window.innerHeight - 130, width: 80, height: 116 };
+      }
+
+      const el = playerHandRefs.current[playerIdx];
+      if (el) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 20 && r.height > 20) return r;
+      }
+
+      if (players.length === 2) {
+        return { x: window.innerWidth / 2 - 35, y: 70, width: 70, height: 90 };
+      }
+      if (playerIdx === 1) {
+        return { x: 75, y: window.innerHeight / 2 - 45, width: 70, height: 90 };
+      }
+      if (playerIdx === 2) {
+        return { x: window.innerWidth / 2 - 35, y: 70, width: 70, height: 90 };
+      }
+      if (playerIdx === 3) {
+        return { x: window.innerWidth - 145, y: window.innerHeight / 2 - 45, width: 70, height: 90 };
+      }
+      return { x: window.innerWidth / 2 - 35, y: 80, width: 70, height: 90 };
+    },
+    [players.length]
+  );
 
   // Spawn Flying Card helper
   const spawnFlyingUnoCard = useCallback(
@@ -375,7 +426,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     []
   );
 
-  // Start / Reset Round with animated initial deal & 3D shuffle
+  // Start / Reset Round with animated 108-card 3D shuffle
   const startNewRound = useCallback(() => {
     // Instantly dismiss round summary modal with 0ms delay
     setGameState(prev => ({
@@ -390,10 +441,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
     setIsAnimatingAction(true);
     setIsUnoShuffling(true);
-    sound.playRiffleShuffle();
 
     const fullDeck = shuffleUnoDeck(createUnoDeck());
     const dealt = dealUnoGame(fullDeck, playersSyncRef.current.length);
+    dealtCacheRef.current = dealt;
 
     deckSyncRef.current = [...dealt.remainingDeck];
     discardSyncRef.current = [dealt.initialDiscard];
@@ -413,127 +464,125 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     setPlayers(updatedPlayers);
 
     setDiscardStack([]);
+    setPenaltyPoolCount(0);
     setNewlyDrawnCardId(null);
     setHasDrawnPlayableThisTurn(false);
     setSeatBubbles({});
+  }, []);
 
-    // After shuffle finishes (~1600ms), deal cards round-robin 1 by 1
-    window.setTimeout(() => {
-      setIsUnoShuffling(false);
-      setIsInitialDealing(true);
+  // Callback when 108-card 3D shuffle finishes cleanly at the draw deck:
+  const handleShuffleFinish = useCallback(() => {
+    setIsUnoShuffling(false);
+    setIsInitialDealing(true);
 
-      const totalP = playersSyncRef.current.length;
-      const initialCard = dealt.initialDiscard;
+    const dealt = dealtCacheRef.current;
+    if (!dealt) {
+      setIsInitialDealing(false);
+      setIsAnimatingAction(false);
+      return;
+    }
 
-      // 7 cards per player
-      const dealSteps: { playerIdx: number; card: UnoCard; delay: number }[] = [];
-      let delay = 60;
-      const stepInterval = 55;
+    const totalP = playersSyncRef.current.length;
+    const initialCard = dealt.initialDiscard;
 
-      for (let c = 0; c < 7; c++) {
-        for (let p = 0; p < totalP; p++) {
-          const card = dealt.hands[p]?.[c];
-          if (!card) continue;
-          dealSteps.push({ playerIdx: p, card, delay });
-          delay += stepInterval;
-        }
+    // 7 cards per player dealt round-robin
+    const dealSteps: { playerIdx: number; card: UnoCard; delay: number }[] = [];
+    let delay = 60;
+    const stepInterval = 55;
+
+    for (let c = 0; c < 7; c++) {
+      for (let p = 0; p < totalP; p++) {
+        const card = dealt.hands[p]?.[c];
+        if (!card) continue;
+        dealSteps.push({ playerIdx: p, card, delay });
+        delay += stepInterval;
       }
+    }
 
-      dealSteps.forEach(step => {
-        window.setTimeout(() => {
-          sound.playCardDeal();
-          const targetHandEl = playerHandRefs.current[step.playerIdx];
-          const deckEl = deckRef.current;
-          const fallbackDeckRect = {
-            x: window.innerWidth / 2 - 80,
-            y: window.innerHeight / 2 - 50,
-            width: 80,
-            height: 116
-          };
-          const deckRect = deckEl?.getBoundingClientRect() || fallbackDeckRect;
-
-          const handRect = targetHandEl?.getBoundingClientRect() || {
-            x: window.innerWidth / 2,
-            y: step.playerIdx === 0 ? window.innerHeight - 120 : 100,
-            width: 80,
-            height: 116
-          };
-
-          spawnFlyingUnoCard(step.card, deckRect, handRect, {
-            startFaceUp: false,
-            endFaceUp: step.playerIdx === 0,
-            duration: 330,
-            onFinish: () => {
-              setHiddenCardIds(prev => {
-                const next = new Set(prev);
-                next.delete(step.card.id);
-                return next;
-              });
-            }
-          });
-        }, step.delay);
-      });
-
-      // After all player cards dealt, deal the 1st discard card
-      const finishDealDelay = delay + 120;
+    dealSteps.forEach(step => {
       window.setTimeout(() => {
         sound.playCardDeal();
-        const deckEl = deckRef.current;
-        const discardEl = discardRef.current;
-        const deckRect = deckEl?.getBoundingClientRect() || {
+        const deckRect = deckRef.current?.getBoundingClientRect() || {
           x: window.innerWidth / 2 - 80,
           y: window.innerHeight / 2 - 50,
           width: 80,
           height: 116
         };
-        const discardRect = discardEl?.getBoundingClientRect() || {
-          x: window.innerWidth / 2 + 30,
-          y: window.innerHeight / 2 - 50,
-          width: 88,
-          height: 128
-        };
+        const handRect = getSafeSeatRect(step.playerIdx);
 
-        spawnFlyingUnoCard(initialCard, deckRect, discardRect, {
+        spawnFlyingUnoCard(step.card, deckRect, handRect, {
           startFaceUp: false,
-          endFaceUp: true,
-          duration: 380,
-          targetRotation: 3,
+          endFaceUp: step.playerIdx === 0,
+          duration: 330,
           onFinish: () => {
-            setHiddenCardIds(new Set());
-            setDiscardStack([
-              {
-                card: initialCard,
-                rotation: 3,
-                offsetX: 0,
-                offsetY: 0,
-                playedBy: 'Başlangıç'
-              }
-            ]);
-
-            const nextGameState: UnoGameState = {
-              ...gameStateSyncRef.current,
-              deck: dealt.remainingDeck,
-              discardPile: [initialCard],
-              currentColor: dealt.initialColor,
-              currentTurn: 0,
-              direction: 1,
-              roundWinner: null,
-              isRoundOver: false,
-              lastActionMessage: `Başlangıç Kartı: ${formatCardName(initialCard)}`
-            };
-            gameStateSyncRef.current = nextGameState;
-            setGameState(nextGameState);
-
-            setIsInitialDealing(false);
-            setIsAnimatingAction(false);
-            setTablePulseKey(k => k + 1);
-            pushActionLog(`🎴 Yeni el başladı! Ortadaki kart: ${formatCardName(initialCard)}`);
-            triggerBanner(`Ortadaki Kart: ${formatCardName(initialCard)}!`, 'wild', 2000);
+            setHiddenCardIds(prev => {
+              const next = new Set(prev);
+              next.delete(step.card.id);
+              return next;
+            });
           }
         });
-      }, finishDealDelay);
-    }, 1650);
-  }, [spawnFlyingUnoCard, triggerBanner]);
+      }, step.delay);
+    });
+
+    // After all player cards dealt, deal the 1st discard card
+    const finishDealDelay = delay + 120;
+    window.setTimeout(() => {
+      sound.playCardDeal();
+      const deckRect = deckRef.current?.getBoundingClientRect() || {
+        x: window.innerWidth / 2 - 80,
+        y: window.innerHeight / 2 - 50,
+        width: 80,
+        height: 116
+      };
+      const discardRect = discardRef.current?.getBoundingClientRect() || {
+        x: window.innerWidth / 2 + 30,
+        y: window.innerHeight / 2 - 50,
+        width: 88,
+        height: 128
+      };
+
+      spawnFlyingUnoCard(initialCard, deckRect, discardRect, {
+        startFaceUp: false,
+        endFaceUp: true,
+        duration: 380,
+        targetRotation: 3,
+        onFinish: () => {
+          setHiddenCardIds(new Set());
+          setDiscardStack([
+            {
+              card: initialCard,
+              rotation: 3,
+              offsetX: 0,
+              offsetY: 0,
+              playedBy: 'Başlangıç'
+            }
+          ]);
+
+          const nextGameState: UnoGameState = {
+            ...gameStateSyncRef.current,
+            deck: dealt.remainingDeck,
+            discardPile: [initialCard],
+            currentColor: dealt.initialColor,
+            currentTurn: 0,
+            direction: 1,
+            roundWinner: null,
+            isRoundOver: false,
+            lastActionMessage: `Başlangıç Kartı: ${formatCardName(initialCard)}`,
+            pendingDrawPenalty: 0
+          };
+          gameStateSyncRef.current = nextGameState;
+          setGameState(nextGameState);
+
+          setIsInitialDealing(false);
+          setIsAnimatingAction(false);
+          setTablePulseKey(k => k + 1);
+          pushActionLog(`🎴 Yeni el başladı! Ortadaki kart: ${formatCardName(initialCard)}`);
+          triggerBanner(`Ortadaki Kart: ${formatCardName(initialCard)}!`, 'wild', 2000);
+        }
+      });
+    }, finishDealDelay);
+  }, [getSafeSeatRect, spawnFlyingUnoCard, triggerBanner, pushActionLog]);
 
   // Initial Deal
   useEffect(() => {
@@ -618,20 +667,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         ? deckEl.getBoundingClientRect()
         : { x: window.innerWidth / 2 - 80, y: window.innerHeight / 2 - 50, width: 80, height: 116 };
 
-      const hRect =
-        playerIdx === 0
-          ? (userHandContainerRef.current?.getBoundingClientRect() || {
-              x: window.innerWidth / 2 - 40,
-              y: window.innerHeight - 130,
-              width: 80,
-              height: 116
-            })
-          : (playerHandRefs.current[playerIdx]?.getBoundingClientRect() || {
-              x: window.innerWidth / 2 - 35,
-              y: 80,
-              width: 70,
-              height: 90
-            });
+      const hRect = getSafeSeatRect(playerIdx);
 
       if (drawnCards.length > 0) {
         let completedCount = 0;
@@ -659,7 +695,82 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
       return drawnCards;
     },
-    [spawnFlyingUnoCard]
+    [getSafeSeatRect, spawnFlyingUnoCard]
+  );
+
+  // Deliver Penalty Stack Cards directly from the Center Waiting Pool to Player's hand
+  const deliverPenaltyCardsToPlayer = useCallback(
+    (playerIdx: number, penaltyCount: number) => {
+      setIsAnimatingAction(true);
+      const targetRect = getSafeSeatRect(playerIdx);
+      const poolEl = penaltyPoolRef.current;
+      const startRect = poolEl
+        ? poolEl.getBoundingClientRect()
+        : { x: window.innerWidth / 2 - 10, y: window.innerHeight / 2 - 50, width: 75, height: 105 };
+
+      const currentDeck = [...deckSyncRef.current];
+      let drawnCards: UnoCard[] = [];
+      if (currentDeck.length >= penaltyCount) {
+        drawnCards = currentDeck.splice(0, penaltyCount);
+        deckSyncRef.current = currentDeck;
+      } else {
+        const recycled = shuffleUnoDeck(discardSyncRef.current.slice(1));
+        const combined = [...currentDeck, ...recycled];
+        drawnCards = combined.splice(0, penaltyCount);
+        deckSyncRef.current = combined;
+      }
+
+      const targetPlayer = playersSyncRef.current[playerIdx];
+      const updatedHand = [...targetPlayer.hand, ...drawnCards];
+      const nextPlayers = playersSyncRef.current.map((p, idx) =>
+        idx === playerIdx ? { ...p, hand: updatedHand } : p
+      );
+      playersSyncRef.current = nextPlayers;
+
+      setHiddenCardIds(prev => {
+        const next = new Set(prev);
+        drawnCards.forEach(c => next.add(c.id));
+        return next;
+      });
+
+      setPenaltyPoolCount(0);
+      sound.playUnoDrawPenalty();
+
+      drawnCards.forEach((c, idx) => {
+        window.setTimeout(() => {
+          sound.playCardDeal();
+          spawnFlyingUnoCard(c, startRect, targetRect, {
+            startFaceUp: false,
+            endFaceUp: playerIdx === 0,
+            startRotation: -6,
+            targetRotation: 0,
+            duration: 380,
+            onFinish: () => {
+              setHiddenCardIds(prev => {
+                const next = new Set(prev);
+                next.delete(c.id);
+                return next;
+              });
+              if (idx === drawnCards.length - 1) {
+                setPlayers(nextPlayers);
+                setGameState(prev => {
+                  const updated: UnoGameState = {
+                    ...prev,
+                    deck: deckSyncRef.current,
+                    pendingDrawPenalty: 0
+                  };
+                  gameStateSyncRef.current = updated;
+                  return updated;
+                });
+                setIsAnimatingAction(false);
+                advanceTurn(1, gameStateSyncRef.current.direction);
+              }
+            }
+          });
+        }, idx * 130);
+      });
+    },
+    [getSafeSeatRect, spawnFlyingUnoCard, advanceTurn]
   );
 
   // Handle Play Card with flying 3D arc animation & fanned discard stack physics!
@@ -674,20 +785,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       setNewlyDrawnCardId(null);
 
       const discardEl = discardRef.current;
-      const handEl = playerHandRefs.current[playerIdx];
-
-      const startRect =
-        sourceRect ||
-        (playerIdx === 0
-          ? (userHandContainerRef.current?.getBoundingClientRect() || {
-              x: window.innerWidth / 2 - 40,
-              y: window.innerHeight - 120,
-              width: 80,
-              height: 116
-            })
-          : (handEl
-            ? handEl.getBoundingClientRect()
-            : { x: window.innerWidth / 2 - 35, y: 90, width: 70, height: 90 }));
+      const startRect = sourceRect || getSafeSeatRect(playerIdx);
       const targetRect = discardEl
         ? discardEl.getBoundingClientRect()
         : { x: window.innerWidth / 2 + 40, y: window.innerHeight / 2, width: 88, height: 128 };
@@ -799,8 +897,6 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               if (!hadCalled) {
                 // User forgot to declare UNO! Auto +2 penalty!
                 sound.playUnoDrawPenalty();
-                setIsTableShaking(true);
-                window.setTimeout(() => setIsTableShaking(false), 520);
                 drawCardsForPlayer(0, 2);
                 showSeatBubble(0, '⚠️ UNO Demedin! (+2 Kart)', 2600);
                 triggerBanner('⚠️ "UNO!" demeyi unuttun! Ceza olarak 2 kart çektin!', 'draw', 3000);
@@ -824,6 +920,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           let activeDir = gameStateSyncRef.current.direction;
           let actionMsg = `${actingPlayer.name}: ${cardReadable}`;
           let newPendingPenalty = gameStateSyncRef.current.pendingDrawPenalty || 0;
+          let addedPenalty = 0;
 
           if (card.value === 'reverse') {
             activeDir = (activeDir * -1) as 1 | -1;
@@ -850,29 +947,59 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             triggerBanner(actionMsg, 'skip');
           } else if (card.value === 'draw2') {
             sound.playUnoDrawPenalty();
-            setIsTableShaking(true);
-            window.setTimeout(() => setIsTableShaking(false), 520);
+            addedPenalty = 2;
             newPendingPenalty += 2;
             nextStep = 1; // Passes turn to next player to allow stacking!
             actionMsg = newPendingPenalty > 2
-              ? `💥 ${actingPlayer.name} +2 İLE KATLADI! (Toplam ${newPendingPenalty} Kart)`
-              : `💥 ${actingPlayer.name} +2 attı! (Toplam ${newPendingPenalty} Kart)`;
+              ? `💥 ${actingPlayer.name} +2 İLE KATLADI! (Havuz: ${newPendingPenalty} Kart)`
+              : `💥 ${actingPlayer.name} +2 attı! (Havuz: ${newPendingPenalty} Kart)`;
             triggerBanner(actionMsg, 'draw');
           } else if (card.value === 'wild_draw4') {
             sound.playUnoDrawPenalty();
             sound.playUnoWild();
-            setIsTableShaking(true);
-            window.setTimeout(() => setIsTableShaking(false), 520);
+            addedPenalty = 4;
             newPendingPenalty += 4;
             nextStep = 1; // Passes turn to next player to allow stacking!
             actionMsg = newPendingPenalty > 4
-              ? `🌈💥 ${actingPlayer.name} +4 İLE KATLADI! (Toplam ${newPendingPenalty} Kart)`
-              : `🌈💥 +4 JOKER BOMBASI! (Toplam ${newPendingPenalty} Kart)`;
+              ? `🌈💥 ${actingPlayer.name} +4 İLE KATLADI! (Havuz: ${newPendingPenalty} Kart)`
+              : `🌈💥 +4 JOKER BOMBASI! (Havuz: ${newPendingPenalty} Kart)`;
             triggerBanner(actionMsg, 'wild');
           } else if (card.value === 'wild') {
             sound.playUnoWild();
             actionMsg = `🌈 ${actingPlayer.name} JOKER attı! Yeni Renk: ${COLOR_NAMES[newActiveColor]}`;
             triggerBanner(actionMsg, 'wild');
+          }
+
+          // If penalty was added, fly cards from Draw Deck into the Central Penalty Pool waiting zone!
+          if (addedPenalty > 0) {
+            const deckEl = deckRef.current;
+            const poolEl = penaltyPoolRef.current;
+            const dRect = deckEl
+              ? deckEl.getBoundingClientRect()
+              : { x: window.innerWidth / 2 - 80, y: window.innerHeight / 2 - 50, width: 80, height: 116 };
+            const pRect = poolEl
+              ? poolEl.getBoundingClientRect()
+              : { x: window.innerWidth / 2 - 10, y: window.innerHeight / 2 - 50, width: 75, height: 105 };
+
+            for (let i = 0; i < addedPenalty; i++) {
+              window.setTimeout(() => {
+                sound.playCardDeal();
+                const tempCard: UnoCard = {
+                  id: `penalty-fly-${Date.now()}-${i}`,
+                  color: 'wild',
+                  value: 'draw2',
+                  scoreValue: 20
+                };
+                spawnFlyingUnoCard(tempCard, dRect, pRect, {
+                  startFaceUp: false,
+                  endFaceUp: false,
+                  startRotation: -10,
+                  targetRotation: (i - 1) * 8,
+                  duration: 380
+                });
+              }, i * 110);
+            }
+            setPenaltyPoolCount(newPendingPenalty);
           }
 
           pushActionLog(actionMsg);
@@ -1021,7 +1148,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     }
 
     const penalty = gameStateSyncRef.current.pendingDrawPenalty || 0;
-    const countToDraw = penalty > 0 ? penalty : 1;
+    if (penalty > 0) {
+      showSeatBubble(0, `💥 ${penalty} Ceza Kartı Çekildi`, 2400);
+      triggerBanner(`💥 Ceza olarak ${penalty} kart çektin ve sıran geçti!`, 'draw', 2600);
+      deliverPenaltyCardsToPlayer(0, penalty);
+      return;
+    }
 
     setIsAnimatingAction(true);
     const topDiscard = gameStateSyncRef.current.discardPile[0];
@@ -1031,46 +1163,32 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       multiplayerManager.send({
         type: 'MP_UNO_DRAW_CARD',
         seatIndex: mySeatIndex,
-        count: countToDraw,
+        count: 1,
         senderPeerId: multiplayerManager.instanceId
       });
     }
 
-    drawCardsForPlayer(0, countToDraw, drawn => {
-      if (penalty > 0) {
-        sound.playUnoDrawPenalty();
-        setIsTableShaking(true);
-        window.setTimeout(() => setIsTableShaking(false), 520);
-        showSeatBubble(0, `💥 ${penalty} Ceza Kartı Çekildi`, 2400);
-        triggerBanner(`💥 Ceza olarak ${penalty} kart çektin ve sıran geçti!`, 'draw', 2600);
-        setGameState(prev => ({ ...prev, pendingDrawPenalty: 0 }));
-        gameStateSyncRef.current.pendingDrawPenalty = 0;
-        window.setTimeout(() => {
-          setIsAnimatingAction(false);
-          advanceTurn(1);
-        }, 700);
-      } else {
-        if (drawn.length > 0) {
-          const drawnCard = drawn[0];
-          const cardTitle = formatCardName(drawnCard);
-          setNewlyDrawnCardId(drawnCard.id);
+    drawCardsForPlayer(0, 1, drawn => {
+      if (drawn.length > 0) {
+        const drawnCard = drawn[0];
+        const cardTitle = formatCardName(drawnCard);
+        setNewlyDrawnCardId(drawnCard.id);
 
-          if (canPlayUnoCard(drawnCard, topDiscard, activeColor, 0)) {
-            setIsAnimatingAction(false);
-            setHasDrawnPlayableThisTurn(true);
-            showSeatBubble(0, `✨ ${cardTitle} Çekildi (Oynanabilir!)`, 2600);
-            triggerBanner(`✨ Çektiğin kart (${cardTitle}) oynanabilir! Tıkla veya Pas Geç.`, 'wild', 2800);
-          } else {
-            showSeatBubble(0, `📥 ${cardTitle} Çekildi`, 1800);
-            window.setTimeout(() => {
-              setIsAnimatingAction(false);
-              advanceTurn(1);
-            }, 700);
-          }
-        } else {
+        if (canPlayUnoCard(drawnCard, topDiscard, activeColor, 0)) {
           setIsAnimatingAction(false);
-          advanceTurn(1);
+          setHasDrawnPlayableThisTurn(true);
+          showSeatBubble(0, `✨ ${cardTitle} Çekildi (Oynanabilir!)`, 2600);
+          triggerBanner(`✨ Çektiğin kart (${cardTitle}) oynanabilir! Tıkla veya Pas Geç.`, 'wild', 2800);
+        } else {
+          showSeatBubble(0, `📥 ${cardTitle} Çekildi`, 1800);
+          window.setTimeout(() => {
+            setIsAnimatingAction(false);
+            advanceTurn(1);
+          }, 700);
         }
+      } else {
+        setIsAnimatingAction(false);
+        advanceTurn(1);
       }
     });
   };
@@ -1142,22 +1260,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       if (botDecision.cardToPlay) {
         executePlayCard(botIdx, botDecision.cardToPlay, botDecision.chosenWildColor);
       } else {
-        setIsAnimatingAction(true);
-        const drawCount = pendingPenalty > 0 ? pendingPenalty : 1;
-        showSeatBubble(botIdx, pendingPenalty > 0 ? `💥 ${pendingPenalty} Ceza Çekiyor!` : '📥 Kart Çekiyor...', 1800);
-        drawCardsForPlayer(botIdx, drawCount, drawn => {
-          if (pendingPenalty > 0) {
-            sound.playUnoDrawPenalty();
-            setIsTableShaking(true);
-            window.setTimeout(() => setIsTableShaking(false), 520);
-            triggerBanner(`💥 ${currentBot.name} katlanan ${pendingPenalty} ceza kartını çekti!`, 'draw');
-            setGameState(prev => ({ ...prev, pendingDrawPenalty: 0 }));
-            gameStateSyncRef.current.pendingDrawPenalty = 0;
-            window.setTimeout(() => {
-              setIsAnimatingAction(false);
-              advanceTurn(1);
-            }, 650);
-          } else {
+        if (pendingPenalty > 0) {
+          showSeatBubble(botIdx, `💥 ${pendingPenalty} Ceza Çekiyor!`, 2200);
+          triggerBanner(`💥 ${currentBot.name} katlanan ${pendingPenalty} ceza kartını çekti!`, 'draw');
+          deliverPenaltyCardsToPlayer(botIdx, pendingPenalty);
+        } else {
+          setIsAnimatingAction(true);
+          showSeatBubble(botIdx, '📥 Kart Çekiyor...', 1800);
+          drawCardsForPlayer(botIdx, 1, drawn => {
             if (
               drawn.length > 0 &&
               canPlayUnoCard(drawn[0], topDiscard, currentColor, 0)
@@ -1173,8 +1283,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 advanceTurn(1);
               }, 500);
             }
-          }
-        });
+          });
+        }
       }
     }, 1050);
 
@@ -1187,11 +1297,51 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     isAnimatingAction,
     players,
     drawCardsForPlayer,
+    deliverPenaltyCardsToPlayer,
     executePlayCard,
     advanceTurn,
     triggerBanner,
     showSeatBubble,
     pushActionLog
+  ]);
+
+  // Auto-deliver penalty to human player if they have NO cards to counter (+2 / +4)
+  useEffect(() => {
+    if (gameState.isRoundOver || isAnimatingAction || gameState.currentTurn !== 0) return;
+    const pendingPenalty = gameState.pendingDrawPenalty || 0;
+    if (pendingPenalty <= 0) return;
+
+    const topDiscard = gameState.discardPile[0];
+    const currentColor = gameState.currentColor;
+    const user = players[0];
+    if (!user || !topDiscard) return;
+
+    const canCounter = user.hand.some(c => canPlayUnoCard(c, topDiscard, currentColor, pendingPenalty));
+    if (!canCounter) {
+      const timer = window.setTimeout(() => {
+        if (
+          gameStateSyncRef.current.currentTurn === 0 &&
+          (gameStateSyncRef.current.pendingDrawPenalty || 0) > 0 &&
+          !gameStateSyncRef.current.isRoundOver
+        ) {
+          showSeatBubble(0, `💥 ${pendingPenalty} Ceza Çekiyorsun!`, 2200);
+          triggerBanner(`⚠️ Karşılayacak kartın yok! +${pendingPenalty} ceza kartını çekiyorsun!`, 'draw');
+          deliverPenaltyCardsToPlayer(0, pendingPenalty);
+        }
+      }, 750);
+      return () => window.clearTimeout(timer);
+    }
+  }, [
+    gameState.currentTurn,
+    gameState.pendingDrawPenalty,
+    gameState.isRoundOver,
+    isAnimatingAction,
+    players,
+    gameState.discardPile,
+    gameState.currentColor,
+    deliverPenaltyCardsToPlayer,
+    showSeatBubble,
+    triggerBanner
   ]);
 
   // Exit button click handler (Surrender confirmation)
@@ -1344,10 +1494,15 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   return (
     <div
-      className={`relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4 transition-transform duration-100 ${
-        isTableShaking ? 'animate-shake' : ''
-      }`}
+      className="relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4"
     >
+      {/* 60/120 FPS Ambient Particles Motor matching active Uno Color */}
+      <AmbientParticles
+        theme="uno"
+        unoColor={gameState.currentColor === 'wild' ? undefined : gameState.currentColor}
+        intensity="dense"
+      />
+
       {/* Dynamic 3D Felt Stadium & Lighting Atmosphere */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
@@ -1375,6 +1530,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
       {/* Zero-Teleportation 3D Flipping Flying Uno Card Layer */}
       <UnoCardAnimationLayer flyingCards={flyingCards} />
+
+      {/* 108-Card Grand Deck Shuffle Layer */}
+      {isUnoShuffling && (
+        <UnoGrandShuffleLayer
+          getTargetPos={getDeckTargetPos}
+          onComplete={handleShuffleFinish}
+        />
+      )}
 
       {/* HEADER HUD BAR */}
       <header className="relative z-30 flex items-center justify-between px-3 sm:px-4 py-2 rounded-2xl bg-slate-950/80 backdrop-blur-md border border-white/15 shadow-xl">
@@ -1475,49 +1638,17 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         </div>
 
         {/* 2. MIDDLE ROW: LEFT SEAT + CENTER FELT PILES + RIGHT SEAT */}
-        <div className="w-full flex items-center justify-between gap-2 sm:gap-6 my-auto px-1 sm:px-4">
+        <div className="w-full flex items-center justify-between gap-1 sm:gap-4 my-auto px-1 sm:px-4">
           {/* LEFT SEAT (Seat 1 in 4P mode) */}
-          <div className="hidden sm:flex items-center justify-center min-w-[140px]">
+          <div className="flex items-center justify-center min-w-[90px] sm:min-w-[130px]">
             {players.length >= 4 && renderOpponentSeat(1, 'left')}
           </div>
 
           {/* CENTER FELT: DIRECTION RING + DRAW DECK + FANNED DISCARD HISTORY */}
           <div className="relative flex-1 flex flex-col items-center justify-center">
-            {/* Mobile compact row for Seat 1 & Seat 3 on very small screens */}
-            {players.length >= 4 && (
-              <div className="flex sm:hidden items-center justify-between w-full mb-2 px-2">
-                {renderOpponentSeat(1, 'left')}
-                {renderOpponentSeat(3, 'right')}
-              </div>
-            )}
 
             {/* Animated SVG Direction Orbit Ring behind Center Piles */}
             <div className="relative flex items-center justify-center py-3 px-6 sm:px-12 rounded-[36px] bg-slate-950/60 border border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]">
-              {/* Dynamic 3D Animated UNO Deck Shuffle Overlay */}
-              {isUnoShuffling && (
-                <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md rounded-[36px] p-4 animate-in fade-in">
-                  <div className="relative w-44 h-28 flex items-center justify-center">
-                    {['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7'].map((c, i) => (
-                      <div
-                        key={c}
-                        style={{
-                          transform: `translate3d(${(i - 2) * 16}px, ${i % 2 === 0 ? -4 : 4}px, 0) rotate(${(i - 2) * 9}deg)`,
-                          boxShadow: `0 8px 24px ${c}77`
-                        }}
-                        className="w-14 h-20 rounded-xl border-2 border-white/80 flex items-center justify-center font-cyber font-black text-white text-xs shadow-2xl transition-transform animate-pulse"
-                      >
-                        <div className="w-full h-full rounded-lg flex items-center justify-center" style={{ backgroundColor: c }}>
-                          UNO
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2.5 px-3.5 py-1 rounded-full bg-slate-900 border border-amber-400 text-amber-300 font-cyber text-[11px] font-black tracking-wider flex items-center gap-1.5 animate-bounce shadow-lg">
-                    <Sparkles className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                    <span>UNO DESTESİ KARILIYOR...</span>
-                  </div>
-                </div>
-              )}
 
               {/* Dealing in progress indicator */}
               {isInitialDealing && (
@@ -1591,6 +1722,38 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   </span>
                 </div>
 
+                {/* PENALTY POOL (Ceza Havuzu) - Physical waiting cards on the table */}
+                {(() => {
+                  const poolCount = Math.max(penaltyPoolCount, gameState.pendingDrawPenalty || 0);
+                  if (poolCount <= 0) return null;
+                  return (
+                    <div
+                      ref={penaltyPoolRef}
+                      className="relative flex flex-col items-center animate-in zoom-in-95 duration-200"
+                    >
+                      <div className="absolute -top-11 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white font-cyber text-[10px] font-black whitespace-nowrap shadow-[0_0_25px_rgba(239,68,68,0.95)] animate-bounce flex items-center gap-1.5 border border-white/60">
+                        <Flame className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+                        <span>+{poolCount} CEZA HAVUZU</span>
+                      </div>
+
+                      <div className="relative w-14 sm:w-18 h-20 sm:h-24 flex items-center justify-center">
+                        {Array.from({ length: Math.min(poolCount, 6) }).map((_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              position: 'absolute',
+                              transform: `translate3d(${(i - 1) * 3}px, ${(i - 1) * -3}px, 0) rotate(${(i - 1) * 4}deg)`
+                            }}
+                            className="shadow-xl"
+                          >
+                            <UnoCardBack size="sm" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* FANNED DISCARD HISTORY PILE (SON ATILAN KARTLAR YELPAZESİ) */}
                 <div className="relative flex flex-col items-center">
                   {/* Fanned Container: shows last 5 played cards spread horizontally so old cards are visible! */}
@@ -1652,7 +1815,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           </div>
 
           {/* RIGHT SEAT (Seat 3 in 4P mode) */}
-          <div className="hidden sm:flex items-center justify-center min-w-[140px]">
+          <div className="flex items-center justify-center min-w-[90px] sm:min-w-[130px]">
             {players.length >= 4 && renderOpponentSeat(3, 'right')}
           </div>
         </div>

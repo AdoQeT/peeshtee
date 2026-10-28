@@ -214,6 +214,13 @@ export function getAvatarPreset(avatarId: string): AvatarPreset {
   return found || PRESET_AVATARS[0];
 }
 
+export function isOwnerUser(profile?: { name?: string; isOwner?: boolean } | null): boolean {
+  if (!profile || typeof profile.name !== 'string') return false;
+  const cleanName = profile.name.trim().toLowerCase();
+  // ONLY Ado (the game creator) is granted Creator/Owner status!
+  return cleanName === 'ado' || cleanName === 'ado (kurucu)' || cleanName === 'oyun kurucusu';
+}
+
 export function getUserProfile(): UserProfile {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -225,14 +232,18 @@ export function getUserProfile(): UserProfile {
             ? parsed.friendCode
             : generateFriendCode();
 
+        const isOwner = isOwnerUser(parsed);
+
         const profile: UserProfile = {
           id: parsed.id || `player-${Math.random().toString(36).substring(2, 9)}`,
           friendCode,
           name: parsed.name,
           avatarId: parsed.avatarId || 'wolf',
           customAvatarDataUrl: parsed.customAvatarDataUrl,
-          customTitle: parsed.customTitle || '👑 Oyun Kurucusu',
-          isOwner: parsed.isOwner ?? true,
+          customTitle: isOwner
+            ? parsed.customTitle || '👑 Oyun Kurucusu & Yapımcı'
+            : parsed.customTitle || '🃏 Kart Ustası',
+          isOwner,
           friends: parsed.friends || [],
           stats: {
             matchesPlayed: parsed.stats?.matchesPlayed || 0,
@@ -256,13 +267,13 @@ export function getUserProfile(): UserProfile {
     console.warn('Profile read error:', e);
   }
 
-  // Default guest profile
+  // Default creator profile for Ado
   const defaultProfile: UserProfile = {
     id: `player-${Math.random().toString(36).substring(2, 9)}`,
     friendCode: generateFriendCode(),
-    name: 'Oyun Kurucusu',
+    name: 'Ado',
     avatarId: 'lion',
-    customTitle: '👑 Kurucu & Geliştirici',
+    customTitle: '👑 Oyun Kurucusu & Yapımcı',
     isOwner: true,
     friends: [],
     stats: {

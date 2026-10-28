@@ -49,7 +49,7 @@ export interface Player {
   level: number;
 }
 
-export type TableTheme = 'sakura' | 'traditional' | 'cyberpunk' | 'cosmic' | 'luxury_gold';
+export type TableTheme = 'sakura' | 'traditional' | 'estoril_blue' | 'monaco_velvet' | 'luxury_gold';
 
 export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain';
 

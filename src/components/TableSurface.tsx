@@ -4,6 +4,7 @@ import { CardView, CardBackSurface, CardFrontSurface, CARD_DIMENSIONS } from './
 import { AvatarBadge } from './AvatarBadge';
 import { Flame, Clock, Sparkles, RotateCcw } from 'lucide-react';
 import { DetailedRoundScore } from '../core/rules';
+import { AmbientParticles } from './AmbientParticles';
 
 export interface TableDomRefs {
   deckEl: HTMLDivElement | null;
@@ -92,41 +93,37 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
         </div>
       );
 
-    case 'cyberpunk':
+    case 'estoril_blue':
       return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
-          {/* Perspective Matrix Grid */}
+          {/* M-Sport Carbon Vector Grid */}
           <div
-            className="absolute inset-0 opacity-[0.04]"
+            className="absolute inset-0 opacity-[0.05]"
             style={{
               backgroundImage:
-                'linear-gradient(rgba(6,182,212,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.5) 1px, transparent 1px)',
-              backgroundSize: '28px 28px'
+                'repeating-linear-gradient(45deg, #38bdf8 0, #38bdf8 1px, transparent 1px, transparent 8px), repeating-linear-gradient(-45deg, #0284c7 0, #0284c7 1px, transparent 1px, transparent 8px)'
             }}
           />
-          {/* Neon Vector Rail with Chamfered Corners */}
-          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border border-cyan-400/35 shadow-[0_0_15px_rgba(6,182,212,0.15)]" />
-          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-cyan-400/20" />
-          {/* Tech Corner Accent Brackets */}
-          <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-cyan-400/60" />
-          <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-cyan-400/60" />
-          <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-cyan-400/60" />
-          <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-cyan-400/60" />
-          {/* Central Hex Cyber Seal */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
-            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <polygon points="100,15 175,58 175,142 100,185 25,142 25,58" strokeDasharray="6 4" />
-              <polygon points="100,28 162,64 162,136 100,172 38,136 38,64" />
-              <circle cx="100" cy="100" r="45" strokeDasharray="3 3" />
-              <circle cx="100" cy="100" r="20" />
-              <line x1="100" y1="5" x2="100" y2="35" />
-              <line x1="100" y1="165" x2="100" y2="195" />
-              <line x1="15" y1="100" x2="45" y2="100" />
-              <line x1="155" y1="100" x2="185" y2="100" />
+          {/* Aerodynamic Dual Metallic Blue Pinstripe Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-sky-400/50 shadow-[0_0_22px_rgba(56,189,248,0.22)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-sky-300/30" />
+          {/* Corner Aerodynamic Speed Fins */}
+          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-sky-400/80 rounded-tl-md" />
+          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-sky-400/80 rounded-tr-md" />
+          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-sky-400/80 rounded-bl-md" />
+          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-sky-400/80 rounded-br-md" />
+          {/* Central Estoril M-Sport Racing Crest */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-sky-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <polygon points="100,18 175,55 175,145 100,182 25,145 25,55" strokeWidth="2" strokeDasharray="6 3" />
+              <polygon points="100,32 160,62 160,138 100,168 40,138 40,62" />
+              <circle cx="100" cy="100" r="42" strokeDasharray="4 2" />
+              <path d="M78 100 L122 100 M100 78 L100 122" strokeWidth="2" />
+              <circle cx="100" cy="100" r="16" />
             </svg>
           </div>
-          {/* Dark Abyss Edge Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(2,4,10,0.8)_100%)]" />
+          {/* Deep Sapphire Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(1,5,15,0.85)_100%)]" />
         </div>
       );
 
@@ -168,35 +165,31 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
         </div>
       );
 
-    case 'cosmic':
+    case 'monaco_velvet':
       return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
-          {/* Star Field Stardust Dots */}
+          {/* Royal Emerald Damask Weave Texture */}
           <div
-            className="absolute inset-0 opacity-[0.06]"
+            className="absolute inset-0 opacity-[0.045]"
             style={{
               backgroundImage:
-                'radial-gradient(circle at 20% 30%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 70%, #fff 1.5px, transparent 1.5px), radial-gradient(circle at 40% 80%, #fff 1px, transparent 1px), radial-gradient(circle at 70% 20%, #fff 1px, transparent 1px)',
-              backgroundSize: '120px 120px'
+                'radial-gradient(circle at 50% 50%, #10b981 1px, transparent 1px), repeating-linear-gradient(45deg, #059669 0, #059669 1px, transparent 1px, transparent 10px)'
             }}
           />
-          {/* Orbital Neon Vector Rail */}
-          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border border-indigo-400/35 shadow-[0_0_20px_rgba(99,102,241,0.15)]" />
-          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-indigo-400/20" />
-          {/* Central Celestial Orbital Compass */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
-            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-indigo-300" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <ellipse cx="100" cy="100" rx="90" ry="42" transform="rotate(-25 100 100)" strokeDasharray="5 3" />
-              <ellipse cx="100" cy="100" rx="90" ry="42" transform="rotate(35 100 100)" strokeDasharray="5 3" />
-              <circle cx="100" cy="100" r="76" />
-              <circle cx="100" cy="100" r="32" strokeDasharray="3 3" />
-              <circle cx="100" cy="100" r="14" fill="currentColor" opacity="0.6" />
-              <line x1="100" y1="18" x2="100" y2="182" strokeDasharray="2 4" />
-              <line x1="18" y1="100" x2="182" y2="100" strokeDasharray="2 4" />
+          {/* French Casino Mahogany & Polished Emerald Inlay Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-emerald-400/45 shadow-[inset_0_0_25px_rgba(16,185,129,0.2)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-emerald-300/25" />
+          {/* Central Casino Royale Fleur-de-Lis Medallion */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="100" cy="100" r="90" strokeDasharray="4 3" strokeWidth="2" />
+              <circle cx="100" cy="100" r="74" />
+              <polygon points="100,35 118,80 165,80 126,108 142,155 100,126 58,155 74,108 35,80 82,80" fill="currentColor" opacity="0.4" />
+              <circle cx="100" cy="100" r="22" strokeWidth="2" />
             </svg>
           </div>
-          {/* Deep Space Blackness Edge Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_40%,_rgba(1,2,6,0.85)_100%)]" />
+          {/* Deep Royal Noir Emerald Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_42%,_rgba(1,8,4,0.88)_100%)]" />
         </div>
       );
   }
@@ -323,10 +316,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     switch (theme) {
       case 'sakura':
         return 'bg-[#120414] bg-[radial-gradient(ellipse_at_center,_#360c29_0%,_#1a051d_58%,_#0a010c_100%)] border-pink-900/80 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
-      case 'cyberpunk':
-        return 'bg-[#050811] bg-[radial-gradient(circle_at_center,_#161938_0%,_#080c18_60%,_#02040a_100%)] border-cyan-500/40 shadow-[inset_0_0_90px_rgba(6,182,212,0.18),0_25px_60px_rgba(0,0,0,0.85)]';
-      case 'cosmic':
-        return 'bg-[#04040e] bg-[radial-gradient(ellipse_at_top,_#2c0b4d_0%,_#080b18_60%,_#010206_100%)] border-indigo-500/40 shadow-[inset_0_0_90px_rgba(99,102,241,0.18),0_25px_60px_rgba(0,0,0,0.85)]';
+      case 'estoril_blue':
+        return 'bg-[#030d1c] bg-[radial-gradient(ellipse_at_center,_#0b3159_0%,_#051c38_50%,_#010711_100%)] border-sky-500/50 shadow-[inset_0_0_100px_rgba(14,165,233,0.22),0_25px_60px_rgba(0,0,0,0.88)]';
+      case 'monaco_velvet':
+        return 'bg-[#03170e] bg-[radial-gradient(ellipse_at_center,_#0a3d28_0%,_#042114_55%,_#010b06_100%)] border-emerald-500/50 shadow-[inset_0_0_100px_rgba(16,185,129,0.25),0_25px_60px_rgba(0,0,0,0.9)]';
       case 'luxury_gold':
         return 'bg-[#140608] bg-[radial-gradient(ellipse_at_center,_#38150c_0%,_#1a090d_60%,_#070204_100%)] border-amber-600/50 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
       case 'traditional':
@@ -532,6 +525,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
       {/* Enriched Theme Atmosphere, Felt Textures & Ambient Watermarks */}
       <TableAtmosphere theme={theme} />
+
+      {/* Dynamic 60/120 FPS Ambient Particles Motor */}
+      <AmbientParticles theme={theme} intensity="dense" />
 
       {/* =========================================================
           1. TOP OPPONENT / 2v2 PARTNER AREA (Fixed 3-Column Lock)

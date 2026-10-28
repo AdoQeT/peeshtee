@@ -20,6 +20,8 @@ import { CardView } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
 import { UserProfile } from '../features/profile/profileManager';
 
+import { AmbientParticles } from './AmbientParticles';
+
 interface MainMenuProps {
   theme: TableTheme;
   cardBack: string;
@@ -82,18 +84,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const bgGradient =
     theme === 'sakura'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#4a0e36_0%,_#190520_52%,_#07020a_100%)]'
-      : theme === 'cyberpunk'
-      ? 'bg-[radial-gradient(circle_at_50%_20%,_#1e1b4b_0%,_#090d16_55%,_#020408_100%)]'
+      : theme === 'estoril_blue'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0b3159_0%,_#051c38_55%,_#010711_100%)]'
+      : theme === 'monaco_velvet'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0a3d28_0%,_#042114_55%,_#010b06_100%)]'
       : theme === 'traditional'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#064e3b_0%,_#041f17_55%,_#020c09_100%)]'
-      : theme === 'luxury_gold'
-      ? 'bg-[radial-gradient(circle_at_50%_20%,_#451a03_0%,_#1c1917_55%,_#090807_100%)]'
-      : 'bg-[radial-gradient(circle_at_50%_20%,_#3b0764_0%,_#0f172a_55%,_#030712_100%)]';
+      : 'bg-[radial-gradient(circle_at_50%_20%,_#451a03_0%,_#1c1917_55%,_#090807_100%)]';
 
   return (
     <div
       className={`relative min-h-screen w-full flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden select-none ${bgGradient}`}
     >
+      {/* High-Performance Theme Particle Engine */}
+      <AmbientParticles theme={theme} intensity="normal" />
       {/* Pure CSS GPU Ambient Glow */}
       <div
         className="absolute inset-0 pointer-events-none"

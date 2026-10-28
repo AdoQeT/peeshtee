@@ -60,18 +60,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       badge: 'VIP'
     },
     {
-      id: 'cyberpunk',
-      name: 'Siber Neon',
-      subtitle: 'Karanlık Sentetik Izgara & Turkuaz',
-      preview: 'from-[#1e1b4b] via-[#0f172a] to-[#030712] border-cyan-400/60',
-      badge: 'NEON'
+      id: 'estoril_blue',
+      name: 'Estoril Blue',
+      subtitle: 'M-Sport Safir Metalik & Karbon Dokulu',
+      preview: 'from-[#0b3159] via-[#051c38] to-[#010711] border-sky-400/80',
+      badge: 'M-SPORT'
     },
     {
-      id: 'cosmic',
-      name: 'Kozmik Derinlik',
-      subtitle: 'Derin Uzay Bulutsusu & Yıldız Tozu',
-      preview: 'from-[#2e1065] via-[#0f172a] to-[#020617] border-indigo-400/60',
-      badge: 'UZAY'
+      id: 'monaco_velvet',
+      name: 'Monaco Velvet',
+      subtitle: 'Casino Royale & Zümrüt Kadife',
+      preview: 'from-[#0a3d28] via-[#042114] to-[#010b06] border-emerald-400/80',
+      badge: 'ROYALE'
     }
   ];
 
@@ -95,10 +95,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       bg: 'bg-gradient-to-br from-amber-800 via-stone-900 to-black border-amber-400'
     },
     {
-      id: 'cyber_neon',
-      name: 'Siber Neon',
-      desc: 'Yüksek Frekanslı Devre',
-      bg: 'bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-950 border-cyan-400'
+      id: 'estoril_sport',
+      name: 'Estoril M-Sport',
+      desc: 'Safir Çift Yarış Çizgisi',
+      bg: 'bg-gradient-to-br from-sky-600 via-blue-950 to-slate-950 border-sky-400'
     }
   ];
 

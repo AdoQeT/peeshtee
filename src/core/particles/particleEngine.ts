@@ -166,10 +166,10 @@ export class ParticleEngine {
       }
     } else {
       const moteColor =
-        this.currentTheme === 'cyberpunk'
-          ? '#22d3ee'
-          : this.currentTheme === 'cosmic'
-          ? '#a855f7'
+        this.currentTheme === 'estoril_blue'
+          ? '#38bdf8'
+          : this.currentTheme === 'monaco_velvet'
+          ? '#10b981'
           : '#fbbf24';
 
       for (let i = 0; i < 14; i++) {
@@ -338,19 +338,19 @@ export class ParticleEngine {
     if (!this.enabled) return;
     const theme = this.currentTheme;
     const isSakura = theme === 'sakura';
-    const isCyber = theme === 'cyberpunk';
+    const isEstoril = theme === 'estoril_blue';
     const isGold = theme === 'luxury_gold';
-    const isCosmic = theme === 'cosmic';
+    const isMonaco = theme === 'monaco_velvet';
     const count = isSakura ? 12 : 10;
 
     const themeColors = isSakura
       ? SAKURA_COLORS
-      : isCyber
-      ? ['#06b6d4', '#22d3ee', '#ec4899', '#f43f5e']
+      : isEstoril
+      ? ['#38bdf8', '#0ea5e9', '#67e8f9', '#bae6fd']
       : isGold
       ? ['#fbbf24', '#f59e0b', '#fde047', '#ffd700']
-      : isCosmic
-      ? ['#818cf8', '#a855f7', '#c084fc', '#e0e7ff']
+      : isMonaco
+      ? ['#10b981', '#34d399', '#f59e0b', '#a7f3d0']
       : ['#ef4444', '#3b82f6', '#f8fafc', '#fbbf24'];
 
     for (let i = 0; i < count; i++) {

@@ -30,57 +30,31 @@ export const CARD_DIMENSIONS = {
 
 function getCardThemeConfig(theme: TableTheme = 'traditional') {
   switch (theme) {
-    case 'cyberpunk':
+    case 'estoril_blue':
       return {
-        bg: 'bg-gradient-to-b from-[#0b1122] via-[#060914] to-[#02040a] border-2 border-cyan-400/65 shadow-[0_0_18px_rgba(6,182,212,0.3)]',
-        innerFrame: 'border-cyan-400/40 bg-cyan-950/20',
-        fontClass: 'font-cyber',
-        watermarkColor: 'text-cyan-400/[0.06]',
+        bg: 'bg-gradient-to-b from-[#0a2342] via-[#051528] to-[#010812] border-2 border-sky-400/80 shadow-[0_0_20px_rgba(56,189,248,0.35)]',
+        innerFrame: 'border-sky-400/40 bg-sky-950/25',
+        fontClass: 'font-mono font-bold',
+        watermarkColor: 'text-sky-400/[0.08]',
         getSuitColor: (suit: Suit) =>
           suit === 'hearts' || suit === 'diamonds'
-            ? 'text-pink-500 drop-shadow-[0_0_8px_rgba(236,72,153,0.9)]'
-            : 'text-cyan-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.9)]',
+            ? 'text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]'
+            : 'text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.9)]',
         courtBg:
-          'border-cyan-400/70 bg-gradient-to-b from-indigo-950 via-slate-900 to-black text-cyan-300 shadow-[inset_0_0_12px_rgba(6,182,212,0.3)]'
+          'border-sky-400/70 bg-gradient-to-b from-sky-950 via-slate-900 to-black text-sky-200 shadow-[inset_0_0_12px_rgba(56,189,248,0.3)]'
       };
-    case 'sakura':
+    case 'monaco_velvet':
       return {
-        bg: 'bg-gradient-to-b from-[#fffafd] via-[#fdeef6] to-[#f7dced] border-2 border-pink-300/90 shadow-md',
-        innerFrame: 'border-pink-300/60 bg-pink-100/20',
+        bg: 'bg-gradient-to-b from-[#092a1c] via-[#041910] to-[#010b06] border-2 border-emerald-400/80 shadow-[0_0_20px_rgba(16,185,129,0.35)]',
+        innerFrame: 'border-emerald-400/40 bg-emerald-950/30',
         fontClass: 'font-serif',
-        watermarkColor: 'text-pink-500/[0.08]',
+        watermarkColor: 'text-emerald-400/[0.08]',
         getSuitColor: (suit: Suit) =>
           suit === 'hearts' || suit === 'diamonds'
-            ? 'text-rose-600 drop-shadow-[0_1px_2px_rgba(225,29,72,0.2)]'
-            : 'text-purple-950',
-        courtBg:
-          'border-pink-400/70 bg-gradient-to-b from-pink-100 via-rose-50 to-pink-200 text-rose-900 shadow-inner'
-      };
-    case 'luxury_gold':
-      return {
-        bg: 'bg-gradient-to-b from-[#1f140b] via-[#120b06] to-[#080402] border-2 border-amber-400/80 shadow-[0_0_18px_rgba(245,158,11,0.3)]',
-        innerFrame: 'border-amber-400/45 bg-amber-950/25',
-        fontClass: 'font-serif',
-        watermarkColor: 'text-amber-400/[0.07]',
-        getSuitColor: (suit: Suit) =>
-          suit === 'hearts' || suit === 'diamonds'
-            ? 'text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]'
+            ? 'text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.85)]'
             : 'text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.85)]',
         courtBg:
-          'border-amber-400/75 bg-gradient-to-b from-amber-900/60 via-stone-900 to-black text-amber-300 shadow-[inset_0_0_12px_rgba(245,158,11,0.3)]'
-      };
-    case 'cosmic':
-      return {
-        bg: 'bg-gradient-to-b from-[#110e2e] via-[#08061a] to-[#03020a] border-2 border-indigo-400/70 shadow-[0_0_18px_rgba(99,102,241,0.3)]',
-        innerFrame: 'border-indigo-400/45 bg-indigo-950/25',
-        fontClass: 'font-mono',
-        watermarkColor: 'text-indigo-400/[0.08]',
-        getSuitColor: (suit: Suit) =>
-          suit === 'hearts' || suit === 'diamonds'
-            ? 'text-fuchsia-400 drop-shadow-[0_0_8px_rgba(217,70,239,0.85)]'
-            : 'text-indigo-200 drop-shadow-[0_0_8px_rgba(129,140,248,0.85)]',
-        courtBg:
-          'border-indigo-400/70 bg-gradient-to-b from-purple-950 via-slate-900 to-black text-indigo-200 shadow-[inset_0_0_12px_rgba(99,102,241,0.3)]'
+          'border-emerald-400/70 bg-gradient-to-b from-emerald-950 via-stone-900 to-black text-emerald-200 shadow-[inset_0_0_12px_rgba(16,185,129,0.3)]'
       };
     default:
       return {

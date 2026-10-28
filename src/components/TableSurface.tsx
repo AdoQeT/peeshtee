@@ -1,0 +1,1271 @@
+import React, { useMemo } from 'react';
+import { Card, TableTheme, Player, OnTableCountState } from '../types/game';
+import { CardView, CardBackSurface, CardFrontSurface, CARD_DIMENSIONS } from './CardView';
+import { Flame, Clock, Sparkles, RotateCcw } from 'lucide-react';
+import { DetailedRoundScore } from '../core/rules';
+
+export interface TableDomRefs {
+  deckEl: HTMLDivElement | null;
+  potEl: HTMLDivElement | null;
+  handEls: (HTMLDivElement | null)[];
+  collectedEls: (HTMLDivElement | null)[];
+  pistiEls: (HTMLDivElement | null)[];
+}
+
+export interface ActiveEmote {
+  playerIdx: number;
+  emoji: string;
+  id: string;
+}
+
+export interface RecentCaptureFeedback {
+  id: string;
+  playerIdx: number;
+  isPisti: boolean;
+  label: string;
+  subLabel?: string;
+}
+
+const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
+  switch (theme) {
+    case 'traditional':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Card baize felt weave pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.035]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 5px), repeating-linear-gradient(-45deg, #fff 0, #fff 1px, transparent 1px, transparent 5px)'
+            }}
+          />
+          {/* Inner Brass Inlaid Pinstripe Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border border-amber-500/25 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-amber-500/15" />
+          {/* Classical Turkish Seljuk / Ottoman 8-Point Star Medallion in Center */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-amber-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="100" cy="100" r="90" strokeDasharray="3 3" />
+              <circle cx="100" cy="100" r="78" />
+              <polygon points="100,28 116,68 158,52 142,94 182,100 142,106 158,148 116,132 100,172 84,132 42,148 58,106 18,100 58,94 42,52 84,68" />
+              <polygon points="100,42 120,80 160,100 120,120 100,160 80,120 40,100 80,80" />
+              <circle cx="100" cy="100" r="26" />
+              <circle cx="100" cy="100" r="10" fill="currentColor" opacity="0.3" />
+            </svg>
+          </div>
+          {/* Vintage Vignette Shade */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_40%,_rgba(0,0,0,0.65)_100%)]" />
+        </div>
+      );
+
+    case 'sakura':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Subtle Japanese Seigaiha / Petal Texture */}
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 50% 50%, rgba(244,114,182,0.6) 1px, transparent 1px)',
+              backgroundSize: '16px 16px'
+            }}
+          />
+          {/* Rose-Gold Inlaid Border */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border border-pink-400/30 shadow-[inset_0_0_25px_rgba(244,114,182,0.1)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-pink-400/20" />
+          {/* Central Sacred Sakura Crest Mon */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-pink-300" fill="currentColor">
+              <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
+              <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              {[0, 72, 144, 216, 288].map(deg => (
+                <g key={deg} transform={`rotate(${deg} 100 100)`}>
+                  <path d="M100 85 C80 55, 75 25, 92 12 L100 22 L108 12 C125 25, 120 55, 100 85 Z" opacity="0.8" />
+                </g>
+              ))}
+              <circle cx="100" cy="100" r="16" fill="currentColor" opacity="0.5" />
+            </svg>
+          </div>
+          {/* Deep Velvet Edge Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_45%,_rgba(10,1,12,0.75)_100%)]" />
+        </div>
+      );
+
+    case 'cyberpunk':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Perspective Matrix Grid */}
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(6,182,212,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.5) 1px, transparent 1px)',
+              backgroundSize: '28px 28px'
+            }}
+          />
+          {/* Neon Vector Rail with Chamfered Corners */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border border-cyan-400/35 shadow-[0_0_15px_rgba(6,182,212,0.15)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-cyan-400/20" />
+          {/* Tech Corner Accent Brackets */}
+          <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-cyan-400/60" />
+          <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-cyan-400/60" />
+          <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-cyan-400/60" />
+          <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-cyan-400/60" />
+          {/* Central Hex Cyber Seal */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <polygon points="100,15 175,58 175,142 100,185 25,142 25,58" strokeDasharray="6 4" />
+              <polygon points="100,28 162,64 162,136 100,172 38,136 38,64" />
+              <circle cx="100" cy="100" r="45" strokeDasharray="3 3" />
+              <circle cx="100" cy="100" r="20" />
+              <line x1="100" y1="5" x2="100" y2="35" />
+              <line x1="100" y1="165" x2="100" y2="195" />
+              <line x1="15" y1="100" x2="45" y2="100" />
+              <line x1="155" y1="100" x2="185" y2="100" />
+            </svg>
+          </div>
+          {/* Dark Abyss Edge Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(2,4,10,0.8)_100%)]" />
+        </div>
+      );
+
+    case 'luxury_gold':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Fine Damask / Leather Grain Texture */}
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(30deg, #d97706 0, #d97706 1px, transparent 1px, transparent 8px), repeating-linear-gradient(-30deg, #d97706 0, #d97706 1px, transparent 1px, transparent 8px)'
+            }}
+          />
+          {/* 24k Gold Beveled Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-amber-500/40 shadow-[inset_0_0_30px_rgba(245,158,11,0.15)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-amber-400/25" />
+          {/* Corner Baroque Flourish Accents */}
+          <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-amber-400/50 rounded-tl-lg" />
+          <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-amber-400/50 rounded-tr-lg" />
+          <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-amber-400/50 rounded-bl-lg" />
+          <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-amber-400/50 rounded-br-lg" />
+          {/* Central Casino Royale Medallion */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-amber-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="100" cy="100" r="92" strokeWidth="2.5" />
+              <circle cx="100" cy="100" r="84" strokeDasharray="4 2" />
+              <circle cx="100" cy="100" r="68" />
+              {/* Crown Emblem in center */}
+              <path d="M80 115 L74 90 L88 98 L100 84 L112 98 L126 90 L120 115 Z" fill="currentColor" opacity="0.7" />
+              <rect x="78" y="118" width="44" height="6" rx="2" fill="currentColor" opacity="0.8" />
+              <circle cx="74" cy="88" r="2.5" fill="currentColor" />
+              <circle cx="100" cy="82" r="3" fill="currentColor" />
+              <circle cx="126" cy="88" r="2.5" fill="currentColor" />
+            </svg>
+          </div>
+          {/* Warm Cognac Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_45%,_rgba(7,2,4,0.8)_100%)]" />
+        </div>
+      );
+
+    case 'cosmic':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Star Field Stardust Dots */}
+          <div
+            className="absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 20% 30%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 70%, #fff 1.5px, transparent 1.5px), radial-gradient(circle at 40% 80%, #fff 1px, transparent 1px), radial-gradient(circle at 70% 20%, #fff 1px, transparent 1px)',
+              backgroundSize: '120px 120px'
+            }}
+          />
+          {/* Orbital Neon Vector Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border border-indigo-400/35 shadow-[0_0_20px_rgba(99,102,241,0.15)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-indigo-400/20" />
+          {/* Central Celestial Orbital Compass */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-indigo-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <ellipse cx="100" cy="100" rx="90" ry="42" transform="rotate(-25 100 100)" strokeDasharray="5 3" />
+              <ellipse cx="100" cy="100" rx="90" ry="42" transform="rotate(35 100 100)" strokeDasharray="5 3" />
+              <circle cx="100" cy="100" r="76" />
+              <circle cx="100" cy="100" r="32" strokeDasharray="3 3" />
+              <circle cx="100" cy="100" r="14" fill="currentColor" opacity="0.6" />
+              <line x1="100" y1="18" x2="100" y2="182" strokeDasharray="2 4" />
+              <line x1="18" y1="100" x2="182" y2="100" strokeDasharray="2 4" />
+            </svg>
+          </div>
+          {/* Deep Space Blackness Edge Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_40%,_rgba(1,2,6,0.85)_100%)]" />
+        </div>
+      );
+  }
+};
+
+export interface SlotReadinessInfo {
+  seatIndex: number;
+  name: string;
+  isReady: boolean;
+  isAI: boolean;
+}
+
+interface TableSurfaceProps {
+  theme: TableTheme;
+  cardBack: string;
+  tableCards: Card[];
+  players: Player[];
+  currentTurn: number;
+  deckCount: number;
+  isBusy: boolean;
+  isShuffling: boolean;
+  hiddenCardIds?: Set<string>;
+  recentCapture?: RecentCaptureFeedback | null;
+  turnTimeRemaining: number; // 0 to 15 seconds (Multiplayer only)
+  isMultiplayer?: boolean;
+  activeEmotes?: ActiveEmote[];
+  onSendEmote?: (emoji: string) => void;
+  onTableCountState?: OnTableCountState | null;
+  onSkipCounting?: () => void;
+  onToggleFastCounting?: () => void;
+  onFinishCounting?: () => void;
+  tableRefs: React.MutableRefObject<TableDomRefs>;
+  onPlayCard: (card: Card, rect: DOMRect, tiltAngle: number) => void;
+
+  // Dev peek & On-table Round/Game Over controls
+  devSeeAllHands?: boolean;
+  isGameOver?: boolean;
+  gameOverWinner?: Player | null;
+  roundScores?: {
+    user: DetailedRoundScore;
+    opp: DetailedRoundScore;
+    winner: Player | null;
+    isGameOver: boolean;
+  } | null;
+  onNextRound?: () => void;
+  onRestartGame?: () => void;
+  onExitToMenu?: () => void;
+  isReadyForNextRound?: boolean;
+  readySeatsCount?: number;
+  totalHumanPlayersCount?: number;
+  slotsReadiness?: SlotReadinessInfo[];
+  onToggleReady?: () => void;
+}
+
+export const TableSurface: React.FC<TableSurfaceProps> = ({
+  theme,
+  cardBack,
+  tableCards,
+  players,
+  currentTurn,
+  deckCount,
+  isBusy,
+  isShuffling,
+  hiddenCardIds,
+  recentCapture,
+  turnTimeRemaining,
+  isMultiplayer = false,
+  activeEmotes,
+  onSendEmote,
+  onTableCountState = null,
+  onSkipCounting,
+  onToggleFastCounting,
+  onFinishCounting: _onFinishCounting,
+  tableRefs,
+  onPlayCard,
+  devSeeAllHands = false,
+  isGameOver = false,
+  gameOverWinner = null,
+  roundScores = null,
+  onNextRound,
+  onRestartGame,
+  onExitToMenu,
+  isReadyForNextRound = false,
+  readySeatsCount = 0,
+  totalHumanPlayersCount = 0,
+  slotsReadiness = [],
+  onToggleReady
+}) => {
+  const [showEmotePicker, setShowEmotePicker] = React.useState(false);
+  const isFourPlayers = players.length === 4;
+  const user = players[0];
+  const isCountingActive = Boolean(onTableCountState?.isActive);
+  const isPlayerTurn = currentTurn === 0 && !isBusy && !isCountingActive;
+
+  // Visible table cards (excluding cards currently in mid-air flight to the pot)
+  const visibleTableCards = useMemo(
+    () => tableCards.filter(c => !hiddenCardIds?.has(c.id)),
+    [tableCards, hiddenCardIds]
+  );
+
+  const isSingleCardPistiChance =
+    !isCountingActive &&
+    !isShuffling &&
+    visibleTableCards.length === 1 &&
+    visibleTableCards[0].faceUp;
+
+  const getThemeBg = () => {
+    switch (theme) {
+      case 'sakura':
+        return 'bg-[#120414] bg-[radial-gradient(ellipse_at_center,_#360c29_0%,_#1a051d_58%,_#0a010c_100%)] border-pink-900/80 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
+      case 'cyberpunk':
+        return 'bg-[#050811] bg-[radial-gradient(circle_at_center,_#161938_0%,_#080c18_60%,_#02040a_100%)] border-cyan-500/40 shadow-[inset_0_0_90px_rgba(6,182,212,0.18),0_25px_60px_rgba(0,0,0,0.85)]';
+      case 'cosmic':
+        return 'bg-[#04040e] bg-[radial-gradient(ellipse_at_top,_#2c0b4d_0%,_#080b18_60%,_#010206_100%)] border-indigo-500/40 shadow-[inset_0_0_90px_rgba(99,102,241,0.18),0_25px_60px_rgba(0,0,0,0.85)]';
+      case 'luxury_gold':
+        return 'bg-[#140608] bg-[radial-gradient(ellipse_at_center,_#38150c_0%,_#1a090d_60%,_#070204_100%)] border-amber-600/50 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
+      case 'traditional':
+      default:
+        return 'bg-[#062419] bg-[radial-gradient(ellipse_at_center,_#0d442f_0%,_#062a1d_55%,_#031710_100%)] border-amber-950/90 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
+    }
+  };
+
+  const handleCardClick = (
+    card: Card,
+    tiltAngle: number,
+    e: React.MouseEvent<HTMLDivElement>
+  ) => {
+    if (!isPlayerTurn) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    onPlayCard(card, rect, tiltAngle);
+  };
+
+  // 1. Regular Collected Cards Pile (Toplanan Normal Kartlar)
+  // During On-Table Counting: shows shrinking closed stack + 3D flipping face-up counted pile + Point Cards Showcase!
+  const renderCollectedPile = (
+    player: Player,
+    playerIdx: number,
+    labelPos: 'top' | 'bottom' = 'bottom',
+    compact: boolean = false
+  ) => {
+    const count = player.collectedCards.length;
+    const visibleLayers = Math.min(7, Math.ceil(Math.max(count, 1) / 4));
+
+    const isPrimaryTopCountPile =
+      isCountingActive &&
+      onTableCountState &&
+      ((!isFourPlayers && playerIdx === 1) || (isFourPlayers && playerIdx === 2));
+
+    const isActiveCountPile =
+      isCountingActive && onTableCountState && (playerIdx === 0 || isPrimaryTopCountPile);
+
+    const currentCard = playerIdx === 0
+      ? onTableCountState?.userCurrentCard
+      : onTableCountState?.oppCurrentCard;
+    const countedIndex = playerIdx === 0
+      ? onTableCountState?.userCountedIndex ?? 0
+      : onTableCountState?.oppCountedIndex ?? 0;
+    const totalCount = playerIdx === 0
+      ? onTableCountState?.userTotal ?? count
+      : onTableCountState?.oppTotal ?? count;
+    const remainingClosed = Math.max(0, totalCount - countedIndex);
+    const pointCards = playerIdx === 0
+      ? onTableCountState?.userPointCards ?? []
+      : onTableCountState?.oppPointCards ?? [];
+    const cardPoints = playerIdx === 0
+      ? onTableCountState?.userCardPoints ?? 0
+      : onTableCountState?.oppCardPoints ?? 0;
+
+    const hasCapturePulse =
+      recentCapture && recentCapture.playerIdx === playerIdx && !recentCapture.isPisti;
+
+    const boxSize = compact
+      ? 'w-12 h-16 sm:w-14 sm:h-20'
+      : 'w-14 h-20 sm:w-16 sm:h-24';
+
+    return (
+      <div className="relative flex items-center gap-2.5">
+        <div
+          ref={el => {
+            tableRefs.current.collectedEls[playerIdx] = el;
+          }}
+          className={`relative flex items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
+            hasCapturePulse ? 'scale-105 border-emerald-400 bg-emerald-950/40' : ''
+          } ${
+            isActiveCountPile
+              ? 'border-amber-400 bg-slate-950/75 shadow-[0_0_25px_rgba(245,158,11,0.35)] px-1'
+              : 'border-dashed border-white/15 bg-black/25'
+          }`}
+          title={`${player.name} Toplanan Kartlar: ${count}`}
+        >
+          {isActiveCountPile ? (
+            /* LIVE ON-TABLE 3D CARD FLIPPING & COUNTING */
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Background residual closed stack (shrinks as cards are counted) */}
+              {remainingClosed > 0 && (
+                <div
+                  className="absolute inset-1 rounded-lg opacity-45 pointer-events-none"
+                  style={{ transform: 'translate3d(-4px, -3px, 0) rotate(-4deg)' }}
+                >
+                  <CardBackSurface cardBack={cardBack} />
+                </div>
+              )}
+
+              {/* Active Flipped Card with key={countedIndex} for crisp 3D flip animation on every tick */}
+              {currentCard ? (
+                <div
+                  key={`${playerIdx}-count-${countedIndex}`}
+                  className="w-12 h-16 sm:w-14 sm:h-20 rounded-lg overflow-hidden shadow-xl border-2 border-amber-300 transition-transform duration-150"
+                  style={{
+                    animation: 'cardCountFlip 190ms cubic-bezier(0.22, 1, 0.36, 1) forwards'
+                  }}
+                >
+                  <CardFrontSurface card={currentCard} theme={theme} />
+                </div>
+              ) : (
+                <span className="text-[9px] text-slate-400 font-bold text-center">
+                  Kart Yok
+                </span>
+              )}
+
+              {/* Special Point Popup when currentCard has points */}
+              {currentCard && currentCard.basePoints > 0 && (
+                <div
+                  key={`pt-${countedIndex}`}
+                  className="absolute -top-6 right-0 z-30 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] font-cyber shadow-lg border border-white animate-bounce"
+                >
+                  +{currentCard.basePoints}P!
+                </div>
+              )}
+            </div>
+          ) : count === 0 ? (
+            <span className="text-[9px] text-white/30 font-semibold text-center px-1 leading-tight">
+              Toplanan
+              <br />0
+            </span>
+          ) : (
+            <div className="relative w-10 h-14 sm:w-13 sm:h-19">
+              {Array.from({ length: visibleLayers }).map((_, layerIdx) => (
+                <div
+                  key={layerIdx}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    transform: `translate3d(${layerIdx * -1.1}px, ${layerIdx * -1.4}px, 0) rotate(${
+                      (layerIdx % 2 === 0 ? 1 : -1) * 2
+                    }deg)`
+                  }}
+                  className="rounded-lg shadow-md"
+                >
+                  <CardBackSurface cardBack={cardBack} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div
+            className={`absolute ${
+              labelPos === 'bottom' ? '-bottom-4' : '-top-4'
+            } bg-slate-950/95 border border-white/20 text-slate-100 text-[9px] font-black px-2 py-0.2 rounded-full shadow-md whitespace-nowrap z-20`}
+          >
+            {isActiveCountPile
+              ? `📦 ${countedIndex} / ${totalCount}`
+              : `📦 ${count}`}
+          </div>
+        </div>
+
+        {/* On-Table Separated Point Cards Showcase Tray (♦10, ♣2, A, J) */}
+        {isActiveCountPile && (
+          <div className="flex flex-col items-start p-2 rounded-2xl bg-slate-950/90 border border-amber-400/50 shadow-xl min-w-[130px] sm:min-w-[165px]">
+            <div className="flex items-center justify-between w-full mb-1 text-[9px] font-bold text-amber-300 gap-2">
+              <span className="uppercase tracking-wider">Ayıklanan Sayılar:</span>
+              <span className="font-cyber font-black text-amber-950 bg-amber-400 px-1.5 py-0.2 rounded-full">
+                +{cardPoints}P
+              </span>
+            </div>
+            {pointCards.length === 0 ? (
+              <span className="text-[9px] text-slate-500 italic py-2">
+                Sayı kartları taranıyor...
+              </span>
+            ) : (
+              <div className="flex items-center -space-x-3.5 overflow-visible py-0.5 pl-0.5">
+                {pointCards.slice(-7).map((pc, idx) => (
+                  <div
+                    key={`${pc.id}-${idx}`}
+                    className="w-8 h-11 sm:w-9 sm:h-13 relative rounded-md shadow-md border border-amber-300/60 shrink-0 transition-transform duration-150 hover:-translate-y-1"
+                  >
+                    <CardFrontSurface card={pc} theme={theme} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 2. Separate Crossed 90-Degree Pişti Stack (Tersli Düzlü 90 Derece Pişti Yığını!)
+  // Bottom card face-down (ters, 0°), top card face-up (düz, 90° crossed facing us!)
+  const renderPistiPile = (
+    player: Player,
+    playerIdx: number,
+    labelPos: 'top' | 'bottom' = 'bottom',
+    compact: boolean = false
+  ) => {
+    const pistiCount = player.pistiCount;
+    const pairs = player.pistiPairs || [];
+    const visiblePairs = pairs.slice(-6);
+    const hasPistiPulse =
+      recentCapture && recentCapture.playerIdx === playerIdx && recentCapture.isPisti;
+
+    const boxSize = compact
+      ? 'w-14 h-16 sm:w-16 sm:h-20'
+      : 'w-16 h-20 sm:w-20 sm:h-24';
+
+    return (
+      <div
+        ref={el => {
+          tableRefs.current.pistiEls[playerIdx] = el;
+        }}
+        className={`relative flex flex-col items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
+          hasPistiPulse ? 'scale-105 border-amber-300 bg-amber-500/20' : ''
+        } ${
+          pistiCount > 0
+            ? 'border-amber-400/70 bg-amber-950/35 shadow-[0_0_18px_rgba(245,158,11,0.3)]'
+            : 'border-dashed border-white/10 bg-black/15'
+        }`}
+        title={`${player.name} Pişti Destesi: ${pistiCount} adet (90° Çapraz Tersli Düzlü)`}
+      >
+        {pistiCount === 0 ? (
+          <div className="flex flex-col items-center justify-center opacity-25">
+            <span className="text-base select-none font-sans font-light text-amber-200">✛</span>
+          </div>
+        ) : (
+          <div className="relative w-11 h-15 sm:w-13 sm:h-18 flex items-center justify-center">
+            {visiblePairs.map((pair, pairIdx) => (
+              <div
+                key={pairIdx}
+                style={{
+                  position: 'absolute',
+                  transform: `translate3d(0, ${pairIdx * -4.5}px, 0)`
+                }}
+                className="w-full h-full flex items-center justify-center pointer-events-none"
+              >
+                {/* Bottom card: 0 degrees, face-down (ters) */}
+                <div className="absolute inset-0 rounded-lg shadow-md">
+                  <CardBackSurface cardBack={cardBack} />
+                </div>
+                {/* Top card: 90 degrees crossed perpendicular, face-up (düz, bize bakıyor!) */}
+                <div
+                  style={{ transform: 'rotate(90deg) scale(0.95)' }}
+                  className="absolute inset-0 rounded-lg shadow-xl border-2 border-amber-400"
+                >
+                  <CardFrontSurface card={pair.topCard} theme={theme} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div
+          className={`absolute ${
+            labelPos === 'bottom' ? '-bottom-4' : '-top-4'
+          } bg-amber-500 border border-amber-200 text-slate-950 text-[9px] font-black px-2 py-0.2 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
+        >
+          <Flame className="w-2.5 h-2.5 fill-slate-950" />
+          <span>{pistiCount} Pişti</span>
+        </div>
+      </div>
+    );
+  };
+
+  const topOpponentIdx = isFourPlayers ? 2 : 1;
+  const topOpponent = players[topOpponentIdx] || players[1];
+
+  return (
+    <div
+      className={`relative flex-1 w-full max-w-6xl mx-auto flex flex-col justify-between items-center py-2 sm:py-3 px-2 sm:px-6 select-none overflow-hidden rounded-3xl border-4 shadow-[inset_0_0_80px_rgba(0,0,0,0.75),0_25px_60px_rgba(0,0,0,0.8)] transition-colors duration-500 ${getThemeBg()}`}
+    >
+      {/* Keyframes for On-Table 3D Card Count Flip */}
+      <style>{`
+        @keyframes cardCountFlip {
+          0% {
+            transform: perspective(600px) rotateY(150deg) translateY(-10px) scale(1.18);
+          }
+          65% {
+            transform: perspective(600px) rotateY(-10deg) translateY(-3px) scale(1.06);
+          }
+          100% {
+            transform: perspective(600px) rotateY(0deg) translateY(0) scale(1);
+          }
+        }
+      `}</style>
+
+      {/* Enriched Theme Atmosphere, Felt Textures & Ambient Watermarks */}
+      <TableAtmosphere theme={theme} />
+
+      {/* =========================================================
+          1. TOP OPPONENT / 2v2 PARTNER AREA
+         ========================================================= */}
+      <div className="relative z-10 flex items-center justify-center gap-3 sm:gap-7 w-full">
+        {/* Top Opponent Collected Pile */}
+        {renderCollectedPile(topOpponent, topOpponentIdx, 'bottom')}
+
+        {/* Top Opponent / Partner Hand */}
+        <div className="flex flex-col items-center relative">
+          {/* Floating Active Emote for Top Opponent */}
+          {activeEmotes
+            ?.filter(e => e.playerIdx === topOpponentIdx)
+            .map(e => (
+              <div
+                key={e.id}
+                className="absolute -top-12 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-bounce"
+              >
+                <div className="px-3 py-1 rounded-2xl bg-slate-900 border-2 border-amber-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                  {e.emoji}
+                </div>
+              </div>
+            ))}
+
+          <div className="mb-1 flex items-center gap-1.5">
+            <span
+              className={`text-xs font-bold px-3 py-0.5 rounded-full border transition-all flex items-center gap-1.5 ${
+                currentTurn === topOpponentIdx && !isCountingActive
+                  ? isFourPlayers
+                    ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400/70 shadow-[0_0_12px_rgba(52,211,153,0.4)]'
+                    : 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
+                  : 'bg-slate-950/80 text-slate-300 border-white/15'
+              }`}
+            >
+              <span>{topOpponent.avatar}</span>
+              <span>{topOpponent.name}</span>
+              {isFourPlayers && (
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
+                  Ortağın
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div
+            ref={el => {
+              tableRefs.current.handEls[topOpponentIdx] = el;
+            }}
+            className="flex justify-center items-center min-h-[96px] sm:min-h-[120px] min-w-[170px] -space-x-6 sm:-space-x-7"
+          >
+            {topOpponent.hand.map((card, idx) => {
+              const tilt = (idx - (topOpponent.hand.length - 1) / 2) * 5;
+              const isHidden = hiddenCardIds?.has(card.id) ?? false;
+              return (
+                <div
+                  key={card.id}
+                  data-card-id={card.id}
+                  className="transition-transform duration-200 ease-out"
+                >
+                  <CardView
+                    card={devSeeAllHands ? { ...card, faceUp: true, devForceFaceUp: true } : card}
+                    isOpponent={true}
+                    isHiddenInFlight={isHidden}
+                    tiltAngle={tilt}
+                    cardBack={cardBack}
+                    theme={theme}
+                    size={isFourPlayers ? 'sm' : 'md'}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Top Opponent Separate 90-Degree Crossed Pişti Pile */}
+        {renderPistiPile(topOpponent, topOpponentIdx, 'bottom')}
+      </div>
+
+      {/* =========================================================
+          2. MIDDLE AREA: POT/DECK OR ON-TABLE LIVE COUNTING CEREMONY
+         ========================================================= */}
+      <div className="relative z-10 w-full flex items-center justify-between px-1 sm:px-4 my-auto">
+        {/* Left Player (Seat 3 - Muhtar in 4-Player mode) */}
+        {isFourPlayers && players[3] ? (
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col items-center">
+              <span
+                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1 ${
+                  currentTurn === 3 && !isCountingActive
+                    ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
+                    : 'bg-slate-950/80 text-slate-300 border-white/15'
+                }`}
+              >
+                <span>{players[3].avatar}</span>
+                <span>{players[3].name}</span>
+              </span>
+              <div
+                ref={el => {
+                  tableRefs.current.handEls[3] = el;
+                }}
+                className="flex flex-col items-center justify-center min-h-[110px] min-w-[68px] -space-y-11"
+              >
+                {players[3].hand.map((card, idx) => {
+                  const isHidden = hiddenCardIds?.has(card.id) ?? false;
+                  const tilt = 90 + (idx - (players[3].hand.length - 1) / 2) * 4;
+                  return (
+                    <div
+                      key={card.id}
+                      data-card-id={card.id}
+                      className="transition-transform duration-200"
+                    >
+                      <CardView
+                        card={devSeeAllHands ? { ...card, faceUp: true, devForceFaceUp: true } : card}
+                        isOpponent={true}
+                        isHiddenInFlight={isHidden}
+                        tiltAngle={tilt}
+                        cardBack={cardBack}
+                        theme={theme}
+                        size="sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="hidden sm:flex flex-col gap-3">
+              {renderCollectedPile(players[3], 3, 'bottom', true)}
+              {renderPistiPile(players[3], 3, 'bottom', true)}
+            </div>
+          </div>
+        ) : (
+          <div className="w-4 sm:w-12" />
+        )}
+
+        {/* CENTER TABLE: If Counting -> On-Table Counting Felt HUD, otherwise Deck + Pot */}
+        {isCountingActive && onTableCountState ? (
+          <div className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.4)] max-w-md w-full text-center mx-auto">
+            <span className="text-[11px] font-cyber text-amber-400 uppercase tracking-widest font-black flex items-center gap-1.5 mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+              Masa Üstü Canlı Kart Sayımı
+            </span>
+            <p className="text-[10px] text-slate-400 mb-2">
+              Toplanan kapalı desteler masada tek tek çevrilip sayılıyor, sayı kartları kenara ayrılıyor!
+            </p>
+
+            {/* Counts comparison between User/Team & Opponent/Team */}
+            <div className="grid grid-cols-2 gap-3 w-full my-1.5">
+              <div
+                className={`p-2.5 rounded-2xl border transition-all ${
+                  onTableCountState.isDone && onTableCountState.userMajority
+                    ? 'border-emerald-400 bg-emerald-950/70 shadow-[0_0_18px_rgba(52,211,153,0.35)]'
+                    : 'border-white/15 bg-slate-900/80'
+                }`}
+              >
+                <div className="text-[11px] text-emerald-300 font-bold">
+                  {isFourPlayers ? 'Bizim Takım' : 'Senin Kartların'}
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-white font-cyber my-0.5">
+                  {onTableCountState.userCountedIndex}{' '}
+                  <span className="text-xs text-slate-400 font-normal">
+                    / {onTableCountState.userTotal}
+                  </span>
+                </div>
+                <div className="text-[10px] text-amber-300 font-bold">
+                  +{onTableCountState.userCardPoints}P Sayı • +{onTableCountState.userPistiPoints}P Pişti
+                </div>
+              </div>
+
+              <div
+                className={`p-2.5 rounded-2xl border transition-all ${
+                  onTableCountState.isDone && onTableCountState.oppMajority
+                    ? 'border-rose-400 bg-rose-950/70 shadow-[0_0_18px_rgba(251,113,133,0.35)]'
+                    : 'border-white/15 bg-slate-900/80'
+                }`}
+              >
+                <div className="text-[11px] text-rose-300 font-bold">
+                  {isFourPlayers ? 'Rakip Takım' : 'Rakip Kartları'}
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-white font-cyber my-0.5">
+                  {onTableCountState.oppCountedIndex}{' '}
+                  <span className="text-xs text-slate-400 font-normal">
+                    / {onTableCountState.oppTotal}
+                  </span>
+                </div>
+                <div className="text-[10px] text-amber-300 font-bold">
+                  +{onTableCountState.oppCardPoints}P Sayı • +{onTableCountState.oppPistiPoints}P Pişti
+                </div>
+              </div>
+            </div>
+
+            {/* Majority Announcement */}
+            {onTableCountState.isDone && (
+              <div className="my-1.5 px-3.5 py-1.5 rounded-xl bg-amber-950/90 border border-amber-400/70 text-xs font-black text-amber-300">
+                {onTableCountState.userMajority
+                  ? `🏆 KART ÇOĞUNLUĞU (+3 PUAN) SİZİN! (${onTableCountState.userTotal} vs ${onTableCountState.oppTotal})`
+                  : onTableCountState.oppMajority
+                  ? `KART ÇOĞUNLUĞU (+3 PUAN) RAKİPTE (${onTableCountState.oppTotal} vs ${onTableCountState.userTotal})`
+                  : 'KART ÇOĞUNLUĞU: EŞİT (26 - 26)'}
+              </div>
+            )}
+
+            {/* Score summary on table felt */}
+            {onTableCountState.isDone && (
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 my-1 text-xs">
+                <div className="px-3 py-1 rounded-xl bg-emerald-950/85 border border-emerald-500/50 text-emerald-300 font-bold flex items-center gap-1.5 shadow-md">
+                  <span>{isFourPlayers ? '🔵 Bizim Takım' : '👤 Sen'}:</span>
+                  <span className="font-cyber font-black text-white text-sm">{players[0]?.score ?? 0}</span>
+                  {roundScores?.user && (
+                    <span className="text-emerald-400 text-[11px] font-mono">
+                      (+{roundScores.user.totalRoundPoints}P)
+                    </span>
+                  )}
+                </div>
+                <div className="px-3 py-1 rounded-xl bg-rose-950/85 border border-rose-500/50 text-rose-300 font-bold flex items-center gap-1.5 shadow-md">
+                  <span>{isFourPlayers ? '🔴 Rakip Takım' : `👤 ${players[1]?.name || 'Rakip'}`}:</span>
+                  <span className="font-cyber font-black text-white text-sm">{players[1]?.score ?? 0}</span>
+                  {roundScores?.opp && (
+                    <span className="text-rose-400 text-[11px] font-mono">
+                      (+{roundScores.opp.totalRoundPoints}P)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action controls directly on the table felt */}
+            <div className="flex flex-col items-center gap-2 mt-2">
+              {!onTableCountState.isDone ? (
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={onToggleFastCounting}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/50 hover:bg-amber-500/30 transition-colors cursor-pointer"
+                  >
+                    {onTableCountState.isFast ? 'Normal Hız' : '2x Hızlandır ⏩'}
+                  </button>
+                  <button
+                    onClick={onSkipCounting}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/10 text-slate-200 border border-white/20 hover:bg-white/20 transition-colors cursor-pointer"
+                  >
+                    Anında Say ⏭️
+                  </button>
+                </div>
+              ) : isGameOver ? (
+                /* GAME OVER STATE */
+                <div className="flex flex-col items-center gap-2.5">
+                  <div className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-2 animate-bounce">
+                    <span>🏆</span>
+                    <span>
+                      {gameOverWinner ? `${gameOverWinner.name.toUpperCase()} KAZANDI!` : 'MAÇ TAMAMLANDI!'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {onRestartGame && (
+                      <button
+                        onClick={onRestartGame}
+                        className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95 flex items-center gap-2"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Yeni Maç Başlat</span>
+                      </button>
+                    )}
+                    {onExitToMenu && (
+                      <button
+                        onClick={onExitToMenu}
+                        className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white/10 hover:bg-white/20 text-slate-200 border border-white/20 cursor-pointer transition-all active:scale-95"
+                      >
+                        Ana Menü
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : isMultiplayer ? (
+                /* MULTIPLAYER READY-CHECK SYSTEM */
+                <div className="flex flex-col items-center gap-2">
+                  {/* Readiness Status Badges of Each Slot */}
+                  {slotsReadiness && slotsReadiness.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+                      {slotsReadiness.map(slot => (
+                        <div
+                          key={slot.seatIndex}
+                          className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold border flex items-center gap-1.5 transition-all ${
+                            slot.isReady
+                              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400/80 shadow-[0_0_12px_rgba(52,211,153,0.35)]'
+                              : 'bg-slate-900/85 text-slate-400 border-slate-700/60'
+                          }`}
+                        >
+                          <span className="text-xs">{slot.isReady ? '✅' : '⏳'}</span>
+                          <span>{slot.name}</span>
+                          <span className="text-[9px] opacity-80">{slot.isReady ? 'Hazır' : 'Bekliyor'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Ready Toggle Button */}
+                  <button
+                    onClick={onToggleReady}
+                    className={`px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all active:scale-95 flex items-center gap-2 cursor-pointer shadow-lg ${
+                      isReadyForNextRound
+                        ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                        : 'bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] animate-pulse'
+                    }`}
+                  >
+                    {isReadyForNextRound ? (
+                      <>
+                        <span>✅ HAZIRSIN</span>
+                        <span className="text-emerald-100 font-mono text-xs">
+                          ({readySeatsCount}/{totalHumanPlayersCount} Hazır — Bekleniyor...)
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔥 SONRAKİ EL (HAZIRIM)</span>
+                        <span>→</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                /* SINGLEPLAYER NEXT ROUND BUTTON */
+                <button
+                  onClick={onNextRound}
+                  className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.5)] transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Sonraki Eli Başlat</span>
+                  <span>→</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-6 sm:gap-12 mx-auto">
+            {/* Physical Deck Stack on the Left of the Pot (Exact scale(1) to match shuffle end) */}
+            <div className="flex flex-col items-center">
+              <div
+                ref={el => {
+                  tableRefs.current.deckEl = el;
+                }}
+                className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl border border-dashed border-white/20 bg-black/25`}
+              >
+                {isShuffling ? (
+                  <div className="flex flex-col items-center justify-center text-amber-300/70 text-[10px] font-bold text-center px-2">
+                    <Sparkles className="w-4 h-4 mb-1 animate-spin text-amber-400" />
+                    <span>Deste Karılıyor</span>
+                  </div>
+                ) : deckCount > 0 ? (
+                  <div className="relative w-full h-full">
+                    {Array.from({ length: Math.min(8, Math.ceil(deckCount / 6)) }).map(
+                      (_, layerIdx) => (
+                        <div
+                          key={layerIdx}
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            transform: `translate3d(${layerIdx * -1.2}px, ${
+                              layerIdx * -1.5
+                            }px, 0)`
+                          }}
+                          className="rounded-xl shadow-md"
+                        >
+                          <CardBackSurface cardBack={cardBack} />
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-white/30 font-semibold text-center px-1">
+                    Deste
+                    <br />
+                    Bitti
+                  </span>
+                )}
+              </div>
+              <span className="mt-1.5 text-[10px] font-cyber text-slate-200 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-white/15 shadow-md">
+                Deste: {deckCount}
+              </span>
+            </div>
+
+            {/* Center Pot Pile (Where cards are dealt & thrown) */}
+            <div className="relative flex flex-col items-center justify-center">
+              <div
+                ref={el => {
+                  tableRefs.current.potEl = el;
+                }}
+                className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-2xl border-2 transition-all duration-300 ${
+                  isSingleCardPistiChance
+                    ? 'border-amber-400/80 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
+                    : 'border-dashed border-white/20 bg-black/20'
+                }`}
+              >
+                {visibleTableCards.length === 0 && tableCards.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-white/25 p-2 text-center pointer-events-none">
+                    <span className="text-xs font-semibold">ORTA</span>
+                  </div>
+                ) : (
+                  tableCards.slice(-14).map((card, idx) => {
+                    const ox = card.tableOffsetX ?? 0;
+                    const oy = card.tableOffsetY ?? 0;
+                    const rot = card.tableRotation ?? 0;
+                    const isHidden = hiddenCardIds?.has(card.id) ?? false;
+
+                    return (
+                      <div
+                        key={card.id}
+                        data-card-id={card.id}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          transform: `translate3d(${ox}px, ${oy}px, 0) rotate(${rot}deg)`,
+                          zIndex: idx + 1
+                        }}
+                      >
+                        <CardView
+                          card={card}
+                          isOpponent={!card.faceUp}
+                          isHiddenInFlight={isHidden}
+                          tiltAngle={0}
+                          cardBack={cardBack}
+                          theme={theme}
+                          size="md"
+                        />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Table Card Counter Badge */}
+              <div className="mt-1.5 bg-slate-950/90 border border-white/20 text-slate-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg">
+                Yerde: {visibleTableCards.length} Kart
+              </div>
+
+              {/* Instant Game Over Overlay if ended before counting */}
+              {isGameOver && !onTableCountState?.isActive && (
+                <div className="absolute inset-0 -inset-x-8 z-30 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl p-4 shadow-2xl animate-in fade-in duration-300">
+                  <div className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-black text-sm shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-2 mb-3 animate-pulse">
+                    <span>🏆</span>
+                    <span>
+                      {gameOverWinner ? `${gameOverWinner.name.toUpperCase()} KAZANDI!` : 'MAÇ TAMAMLANDI!'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {onRestartGame && (
+                      <button
+                        onClick={onRestartGame}
+                        className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95 flex items-center gap-1.5"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Yeni Maç</span>
+                      </button>
+                    )}
+                    {onExitToMenu && (
+                      <button
+                        onClick={onExitToMenu}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-slate-200 border border-white/20 cursor-pointer transition-all active:scale-95"
+                      >
+                        Ana Menü
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Right Player (Seat 1 - Kurnaz Bot in 4-Player mode) */}
+        {isFourPlayers && players[1] ? (
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex flex-col gap-3">
+              {renderCollectedPile(players[1], 1, 'bottom', true)}
+              {renderPistiPile(players[1], 1, 'bottom', true)}
+            </div>
+            <div className="flex flex-col items-center">
+              <span
+                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1 ${
+                  currentTurn === 1 && !isCountingActive
+                    ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
+                    : 'bg-slate-950/80 text-slate-300 border-white/15'
+                }`}
+              >
+                <span>{players[1].avatar}</span>
+                <span>{players[1].name}</span>
+              </span>
+              <div
+                ref={el => {
+                  tableRefs.current.handEls[1] = el;
+                }}
+                className="flex flex-col items-center justify-center min-h-[110px] min-w-[68px] -space-y-11"
+              >
+                {players[1].hand.map((card, idx) => {
+                  const isHidden = hiddenCardIds?.has(card.id) ?? false;
+                  const tilt = -90 + (idx - (players[1].hand.length - 1) / 2) * 4;
+                  return (
+                    <div
+                      key={card.id}
+                      data-card-id={card.id}
+                      className="transition-transform duration-200"
+                    >
+                      <CardView
+                        card={devSeeAllHands ? { ...card, faceUp: true, devForceFaceUp: true } : card}
+                        isOpponent={true}
+                        isHiddenInFlight={isHidden}
+                        tiltAngle={tilt}
+                        cardBack={cardBack}
+                        theme={theme}
+                        size="sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="w-4 sm:w-12" />
+        )}
+      </div>
+
+      {/* =========================================================
+          3. BOTTOM HUMAN PLAYER HAND AREA & CONTROLS
+         ========================================================= */}
+      <div className="relative z-10 flex items-center justify-center gap-3 sm:gap-7 w-full">
+        {/* User Collected Pile */}
+        {renderCollectedPile(user, 0, 'top')}
+
+        {/* User Hand with Turn Status */}
+        <div className="flex flex-col items-center relative">
+          {/* Floating Active Emote for User */}
+          {activeEmotes
+            ?.filter(e => e.playerIdx === 0)
+            .map(e => (
+              <div
+                key={e.id}
+                className="absolute -top-12 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-bounce"
+              >
+                <div className="px-3 py-1 rounded-2xl bg-slate-900 border-2 border-emerald-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                  {e.emoji}
+                </div>
+              </div>
+            ))}
+
+          {/* Turn Status: Timer ONLY appears if isMultiplayer === true! */}
+          <div className="mb-1 flex flex-col items-center w-full max-w-xs">
+            {isMultiplayer ? (
+              <>
+                <div className="flex items-center justify-between w-full px-2 mb-0.5 text-[11px]">
+                  {isPlayerTurn ? (
+                    <span className="font-bold text-emerald-300 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      Senin Sıran — Kartını Seç
+                    </span>
+                  ) : (
+                    <span className="text-slate-300 font-medium">
+                      {`${players[currentTurn]?.name || 'Rakip'} oynuyor...`}
+                    </span>
+                  )}
+
+                  {/* Countdown Number in Multiplayer */}
+                  <span
+                    className={`font-cyber font-bold flex items-center gap-1 ${
+                      turnTimeRemaining <= 5 ? 'text-red-400 animate-pulse' : 'text-slate-200'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" />
+                    {turnTimeRemaining}s
+                  </span>
+                </div>
+
+                {/* Visual 15s Countdown Progress Bar in Multiplayer */}
+                <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/15">
+                  <div
+                    style={{ width: `${(turnTimeRemaining / 15) * 100}%` }}
+                    className={`h-full transition-all duration-300 ${
+                      turnTimeRemaining <= 5
+                        ? 'bg-gradient-to-r from-red-600 to-amber-500'
+                        : isPlayerTurn
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                    }`}
+                  />
+                </div>
+              </>
+            ) : (
+              /* Singleplayer: Clean Relaxing Indicator (NO Timer, NO Countdown!) */
+              <div className="flex items-center justify-center w-full py-0.5">
+                {isPlayerTurn ? (
+                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 px-3.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-400/50 shadow-md">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    Senin Sıran — Kartını Seç
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-300 px-3.5 py-0.5 rounded-full bg-slate-950/80 border border-white/15">
+                    {`${players[currentTurn]?.name || 'Rakip'} düşünüyor...`}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Cards Hand */}
+          <div
+            ref={el => {
+              tableRefs.current.handEls[0] = el;
+            }}
+            className="flex justify-center items-center min-h-[128px] sm:min-h-[144px] min-w-[230px] -space-x-2.5 sm:-space-x-3.5 pb-1"
+          >
+            {user.hand.map((card, idx) => {
+              const tilt = (idx - (user.hand.length - 1) / 2) * 5;
+              const isHidden = hiddenCardIds?.has(card.id) ?? false;
+
+              return (
+                <div
+                  key={card.id}
+                  data-card-id={card.id}
+                  className="transition-transform duration-200 ease-out"
+                >
+                  <CardView
+                    card={card}
+                    isPlayable={isPlayerTurn && !isHidden}
+                    isHiddenInFlight={isHidden}
+                    onClick={e => handleCardClick(card, tilt, e)}
+                    tiltAngle={tilt}
+                    cardBack={cardBack}
+                    theme={theme}
+                    size="md"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* User Separate 90-Degree Crossed Pişti Pile */}
+        {renderPistiPile(user, 0, 'top')}
+
+        {/* Minimalist Quick Emote Reaction Trigger */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowEmotePicker(prev => !prev)}
+            title="Reaksiyon Gönder"
+            className="p-2.5 rounded-2xl bg-slate-950/85 hover:bg-slate-900 border border-white/20 hover:border-amber-400/60 text-amber-300 shadow-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+          >
+            <span className="text-lg">💬</span>
+          </button>
+
+          {showEmotePicker && (
+            <div className="absolute bottom-12 right-0 z-50 flex items-center gap-1 p-2 rounded-2xl bg-slate-950/95 border border-white/20 shadow-2xl backdrop-blur-md animate-fadeIn">
+              {[
+                { emoji: '☕', name: 'Çay Ismarla' },
+                { emoji: '👏', name: 'Alkış' },
+                { emoji: '🔥', name: 'Alev' },
+                { emoji: '😅', name: 'Balına' },
+                { emoji: '🃏', name: 'Vale miydi!' },
+                { emoji: '😎', name: 'Usta İşi' }
+              ].map(item => (
+                <button
+                  key={item.emoji}
+                  type="button"
+                  onClick={() => {
+                    onSendEmote?.(item.emoji);
+                    setShowEmotePicker(false);
+                  }}
+                  title={item.name}
+                  className="w-9 h-9 rounded-xl hover:bg-white/15 flex items-center justify-center text-lg transition-transform hover:scale-125 active:scale-95 cursor-pointer"
+                >
+                  {item.emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

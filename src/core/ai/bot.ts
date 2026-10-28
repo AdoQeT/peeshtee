@@ -1,0 +1,136 @@
+import { Card, AIDifficulty } from '../../types/game';
+
+/**
+ * Chooses the best card for the AI opponent based on difficulty level.
+ */
+export function chooseAICard(
+  hand: Card[],
+  tableCards: Card[],
+  seenCards: Card[],
+  difficulty: AIDifficulty
+): Card {
+  if (hand.length === 0) {
+    throw new Error('AI hand is empty');
+  }
+
+  // 1. Easy (Çaylak / Acemi): Simple or random
+  if (difficulty === 'easy') {
+    // 50% chance to match if possible, otherwise random
+    if (tableCards.length > 0 && Math.random() > 0.4) {
+      const topCard = tableCards[tableCards.length - 1];
+      const match = hand.find(c => c.value === topCard.value);
+      if (match) return match;
+    }
+    const randomIndex = Math.floor(Math.random() * hand.length);
+    return hand[randomIndex];
+  }
+
+  const topCard = tableCards.length > 0 ? tableCards[tableCards.length - 1] : null;
+
+  // 2. Medium (Kurnaz) & 3. Hard (Şampiyon) Logic
+  if (topCard) {
+    // Case A: Table has cards. Can we match the top card?
+    const match = hand.find(c => c.value === topCard.value);
+    if (match) {
+      // Prioritize Pişti or capturing pile!
+      return match;
+    }
+
+    // Case B: Can we play a Jack to sweep the pile?
+    const jack = hand.find(c => c.value === 11);
+    if (jack) {
+      // If pile has 3+ cards, or any special point card (Karo 10, Sinek 2, As), sweep it!
+      const hasValuableCard = tableCards.some(
+        c => c.basePoints > 0 || (c.suit === 'diamonds' && c.value === 10)
+      );
+
+      if (tableCards.length >= 3 || hasValuableCard || difficulty === 'medium') {
+        return jack;
+      }
+    }
+
+    // Case C: No match, no Jack (or saving Jack). Pick the safest discard.
+    // Avoid discarding points or Jacks.
+    return pickSafestDiscard(hand, seenCards, difficulty);
+  }
+
+  // Case D: Table is EMPTY.
+  // We must throw a card without giving the opponent an easy Pişti!
+  return pickSafestEmptyTableDiscard(hand, seenCards, difficulty);
+}
+
+/**
+ * Picks the safest card to discard onto an empty table.
+ */
+function pickSafestEmptyTableDiscard(
+  hand: Card[],
+  seenCards: Card[],
+  difficulty: AIDifficulty
+): Card {
+  // Never discard a Jack (11) on an empty table if we have other cards!
+  const nonJacks = hand.filter(c => c.value !== 11);
+  const pool = nonJacks.length > 0 ? nonJacks : hand;
+
+  // Never discard high-value cards (Karo 10, Sinek 2, As) if possible
+  const nonSpecials = pool.filter(c => !c.isSpecial);
+  const candidatePool = nonSpecials.length > 0 ? nonSpecials : pool;
+
+  if (difficulty === 'hard') {
+    // MASTER STRATEGY: Card Counting!
+    // Check which card values have already been seen the most.
+    // If 3 cards of rank X were already played, rank X is 100% IMMUNE to Pişti!
+    const rankCounts: Record<number, number> = {};
+    for (const c of seenCards) {
+      rankCounts[c.value] = (rankCounts[c.value] || 0) + 1;
+    }
+
+    // Sort candidate cards by how many of their rank have already appeared
+    const sortedBySafety = [...candidatePool].sort((a, b) => {
+      const seenA = (rankCounts[a.value] || 0) + hand.filter(c => c.value === a.value).length - 1;
+      const seenB = (rankCounts[b.value] || 0) + hand.filter(c => c.value === b.value).length - 1;
+      // The higher the total known count of this rank (approaching 4), the safer it is!
+      return seenB - seenA;
+    });
+
+    return sortedBySafety[0];
+  }
+
+  // Medium: Pick rank with lowest value or where AI holds a duplicate
+  // If AI has two of the same rank (e.g. two 7s), throwing one is great because if player matches, AI can Pişti back!
+  const valueFrequencies: Record<number, number> = {};
+  for (const c of candidatePool) {
+    valueFrequencies[c.value] = (valueFrequencies[c.value] || 0) + 1;
+  }
+
+  const duplicates = candidatePool.filter(c => valueFrequencies[c.value] > 1);
+  if (duplicates.length > 0) {
+    return duplicates[0];
+  }
+
+  // Otherwise pick any non-special card
+  return candidatePool[0];
+}
+
+/**
+ * Safest discard when table has cards we can't capture
+ */
+function pickSafestDiscard(
+  hand: Card[],
+  _seenCards: Card[],
+  difficulty: AIDifficulty
+): Card {
+  // Don't waste Jack
+  const nonJacks = hand.filter(c => c.value !== 11);
+  const pool = nonJacks.length > 0 ? nonJacks : hand;
+
+  // Don't feed points
+  const nonSpecials = pool.filter(c => !c.isSpecial);
+  const candidates = nonSpecials.length > 0 ? nonSpecials : pool;
+
+  if (difficulty === 'hard') {
+    // Discard cards that are least useful
+    return candidates[candidates.length - 1];
+  }
+
+  return candidates[0];
+}

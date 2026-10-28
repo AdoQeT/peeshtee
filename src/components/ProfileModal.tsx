@@ -1,0 +1,248 @@
+import React, { useState } from 'react';
+import {
+  UserProfile,
+  PRESET_AVATARS,
+  getAvatarPreset,
+  saveUserProfile
+} from '../features/profile/profileManager';
+import { AvatarBadge } from './AvatarBadge';
+import { User, Trophy, Flame, Zap, Award, Check, X, Sparkles } from 'lucide-react';
+import { sound } from '../core/audio/soundEngine';
+
+interface ProfileModalProps {
+  isOpen: boolean;
+  profile: UserProfile;
+  onUpdateProfile: (updated: UserProfile) => void;
+  onClose: () => void;
+}
+
+export const ProfileModal: React.FC<ProfileModalProps> = ({
+  isOpen,
+  profile,
+  onUpdateProfile,
+  onClose
+}) => {
+  const [name, setName] = useState(profile.name);
+  const [selectedAvatarId, setSelectedAvatarId] = useState(profile.avatarId);
+  const [customTitle, setCustomTitle] = useState(profile.customTitle || '');
+
+  if (!isOpen) return null;
+
+  const currentPreset = getAvatarPreset(selectedAvatarId);
+  const winRate =
+    profile.stats.matchesPlayed > 0
+      ? Math.round((profile.stats.wins / profile.stats.matchesPlayed) * 100)
+      : 0;
+
+  const handleSave = () => {
+    sound.playClick();
+    const updated: UserProfile = {
+      ...profile,
+      name: name.trim() || 'Usta Oyuncu',
+      avatarId: selectedAvatarId,
+      customTitle: customTitle.trim() || currentPreset.title
+    };
+    saveUserProfile(updated);
+    onUpdateProfile(updated);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-xl max-h-[92vh] flex flex-col rounded-3xl bg-slate-900 border border-slate-700/80 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+        {/* Header */}
+        <div className="relative px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-300">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-white font-cyber tracking-wide">
+                OYUNCU PROFİLİ & SABİT PP
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">
+                Karakterini seç, istatistiklerini gör ve masaya havanı at
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              sound.playClick();
+              onClose();
+            }}
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          {/* Active Profile Card Preview */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 shadow-lg flex flex-col sm:flex-row items-center gap-4">
+            <AvatarBadge avatarId={selectedAvatarId} size="xl" />
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 justify-center sm:justify-start">
+                <h3 className="text-lg sm:text-xl font-black text-white font-cyber tracking-tight">
+                  {name || 'İsimsiz Oyuncu'}
+                </h3>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                  {customTitle || currentPreset.title}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1 italic">
+                "{currentPreset.description}"
+              </p>
+
+              {/* Quick stats ribbon */}
+              <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 text-xs">
+                <span className="text-slate-300 flex items-center gap-1">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <strong className="text-white">{profile.stats.wins}</strong> Galibiyet
+                </span>
+                <span className="text-slate-300 flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 text-orange-400" />
+                  <strong className="text-white">{profile.stats.pistiCount}</strong> Pişti
+                </span>
+                <span className="text-slate-300 flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                  <strong className="text-emerald-300">%{winRate}</strong> Kazanma
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Name & Title Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Oyuncu Adı (Nickname)
+              </label>
+              <input
+                type="text"
+                value={name}
+                maxLength={18}
+                onChange={e => setName(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold text-sm focus:outline-none focus:border-amber-400 transition-colors"
+                placeholder="Adınızı girin..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Özel Ünvan / Lakap
+              </label>
+              <input
+                type="text"
+                value={customTitle}
+                maxLength={24}
+                onChange={e => setCustomTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium text-sm focus:outline-none focus:border-amber-400 transition-colors"
+                placeholder={currentPreset.title}
+              />
+            </div>
+          </div>
+
+          {/* Preset Avatars Library */}
+          <div>
+            <div className="flex items-center justify-between mb-2.5">
+              <label className="text-xs font-black text-slate-200 tracking-wider uppercase flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Sabit Profil Resmi Seç (16 Karakter)</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {currentPreset.name} seçili
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 max-h-52 overflow-y-auto p-1.5 rounded-2xl bg-black/40 border border-white/5">
+              {PRESET_AVATARS.map(avatar => {
+                const isSelected = selectedAvatarId === avatar.id;
+                return (
+                  <button
+                    key={avatar.id}
+                    onClick={() => {
+                      sound.playClick();
+                      setSelectedAvatarId(avatar.id);
+                      if (!customTitle) setCustomTitle(avatar.title);
+                    }}
+                    className={`group relative flex flex-col items-center justify-center p-2 rounded-2xl transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500/25 border-2 border-amber-400 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.35)]'
+                        : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 hover:scale-102'
+                    }`}
+                  >
+                    <AvatarBadge avatarId={avatar.id} size="sm" />
+                    <span className="text-[10px] font-bold text-slate-200 mt-1 truncate max-w-full">
+                      {avatar.name.split(' ')[0]}
+                    </span>
+                    {isSelected && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow-md">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detailed Career Stats */}
+          <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5">
+            <h4 className="text-xs font-bold text-slate-400 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Kariyer İstatistikleri</span>
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="text-slate-400 text-[10px] block">Oynanan Maç</span>
+                <span className="text-base font-black text-white font-cyber">
+                  {profile.stats.matchesPlayed}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="text-slate-400 text-[10px] block">Galibiyet / Yenilgi</span>
+                <span className="text-base font-black text-emerald-400 font-cyber">
+                  {profile.stats.wins}{' '}
+                  <span className="text-xs text-rose-400 font-normal">/ {profile.stats.losses}</span>
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="text-slate-400 text-[10px] block">Normal / Çift Pişti</span>
+                <span className="text-base font-black text-orange-400 font-cyber">
+                  {profile.stats.pistiCount}{' '}
+                  <span className="text-xs text-amber-300 font-normal">({profile.stats.doublePistiCount}x2)</span>
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="text-slate-400 text-[10px] block">En Yüksek Skor</span>
+                <span className="text-base font-black text-amber-300 font-cyber">
+                  {profile.stats.highestScore}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950 flex items-center justify-end gap-3">
+          <button
+            onClick={() => {
+              sound.playClick();
+              onClose();
+            }}
+            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            Vazgeç
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Check className="w-4 h-4" />
+            <span>Kaydet & Kullan</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

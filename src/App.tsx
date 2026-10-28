@@ -56,18 +56,8 @@ const SHUFFLE_STYLES: ShuffleStyle[] = [
   'farot_wave'
 ];
 
-const getShuffleDuration = (style: ShuffleStyle): number => {
-  switch (style) {
-    case 'table_wash':
-      return 3200;
-    case 'triple_cut':
-      return 3100;
-    case 'hindu_slide':
-    case 'riffle_bridge':
-    case 'farot_wave':
-    default:
-      return 3150;
-  }
+const getShuffleDuration = (_style: ShuffleStyle): number => {
+  return 2800;
 };
 
 function getCenter(el: HTMLElement | null, fallbackX: number, fallbackY: number) {
@@ -851,7 +841,7 @@ export default function App() {
           initialDeal.remainingDeck,
           configuredSettings.playerCount
         );
-      }, shuffleDuration + 60);
+      }, shuffleDuration);
       dealTimersRef.current.push(t);
     },
     [clearScheduledTimers, runDealChoreography]
@@ -963,7 +953,7 @@ export default function App() {
           initialDeal.remainingDeck,
           currentSettings.playerCount
         );
-      }, shuffleDuration + 60);
+      }, shuffleDuration);
       dealTimersRef.current.push(t);
     },
     [clearScheduledTimers, runDealChoreography]
@@ -1982,11 +1972,23 @@ export default function App() {
   ]);
 
   const getDeckTargetPos = useCallback(() => {
-    return getCenter(
-      tableRefs.current.deckEl,
-      window.innerWidth / 2 - 130,
-      window.innerHeight / 2
-    );
+    if (tableRefs.current.deckEl) {
+      const rect = tableRefs.current.deckEl.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
+      }
+    }
+    const isSm = window.innerWidth >= 640;
+    const deckW = isSm ? 96 : 80;
+    const gap = isSm ? 48 : 24;
+    const halfSpan = gap / 2 + deckW / 2;
+    return {
+      x: window.innerWidth / 2 - halfSpan,
+      y: window.innerHeight / 2
+    };
   }, []);
 
   const isBusy =

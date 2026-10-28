@@ -259,6 +259,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // Flying Card Animation State
   const [flyingCards, setFlyingCards] = useState<FlyingUnoCardData[]>([]);
   const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
+  const [isTableShaking, setIsTableShaking] = useState(false);
 
   // Surrender & Online Abort Confirmation Modals
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false);
@@ -797,6 +798,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             const nextVictimIdx =
               (playerIdx + activeDir + nextPlayers.length) % nextPlayers.length;
             sound.playUnoDrawPenalty();
+            setIsTableShaking(true);
+            window.setTimeout(() => setIsTableShaking(false), 520);
             drawCardsForPlayer(nextVictimIdx, 2);
             showSeatBubble(nextVictimIdx, '💥 +2 Kart Çekti!', 2200);
             nextStep = 2;
@@ -807,6 +810,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               (playerIdx + activeDir + nextPlayers.length) % nextPlayers.length;
             sound.playUnoDrawPenalty();
             sound.playUnoWild();
+            setIsTableShaking(true);
+            window.setTimeout(() => setIsTableShaking(false), 520);
             drawCardsForPlayer(nextVictimIdx, 4);
             showSeatBubble(nextVictimIdx, '🌈💥 +4 Kart Çekti!', 2400);
             nextStep = 2;
@@ -1106,13 +1111,13 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     pushActionLog
   ]);
 
-  // Exit button click handler (Surrender confirmation in multiplayer)
+  // Exit button click handler (Surrender confirmation)
   const handleExitClick = () => {
     sound.playClick();
-    if (isMultiplayer) {
-      setIsSurrenderModalOpen(true);
-    } else {
+    if (gameState.isGameOver) {
       onExitToMenu();
+    } else {
+      setIsSurrenderModalOpen(true);
     }
   };
 
@@ -1248,7 +1253,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   };
 
   return (
-    <div className="relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4 perspective-[1200px]">
+    <div
+      className={`relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4 perspective-[1200px] transition-transform duration-100 ${
+        isTableShaking ? 'animate-shake' : ''
+      }`}
+    >
       {/* Dynamic 3D Felt Stadium & Lighting Atmosphere */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
@@ -1646,14 +1655,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             {user.hand.length <= 2 && (
               <button
                 onClick={handleCallUno}
-                className={`px-4 py-1.5 rounded-2xl text-xs sm:text-sm font-black italic tracking-tighter uppercase transition-all duration-200 active:scale-95 cursor-pointer shadow-xl flex items-center gap-1.5 ${
+                className={`px-5 py-2 sm:px-6 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-black italic tracking-wide uppercase transition-all duration-200 active:scale-95 cursor-pointer shadow-2xl flex items-center gap-2 ${
                   user.hasCalledUno
-                    ? 'bg-emerald-600 text-white border-2 border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.6)]'
-                    : 'bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 hover:brightness-110 text-white border-2 border-white animate-bounce shadow-[0_0_25px_rgba(239,68,68,0.8)]'
+                    ? 'bg-emerald-600 text-white border-2 border-emerald-300 shadow-[0_0_25px_rgba(16,185,129,0.7)]'
+                    : 'bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 hover:brightness-110 text-white border-2 border-white animate-bounce shadow-[0_0_35px_rgba(239,68,68,0.95)] ring-4 ring-red-500/40'
                 }`}
               >
-                <Flame className="w-4 h-4" />
-                <span>{user.hasCalledUno ? 'UNO DEDİN!' : 'UNO DE!'}</span>
+                <Flame className="w-5 h-5 text-yellow-300 animate-pulse" />
+                <span>{user.hasCalledUno ? '🔥 "UNO!" DEDİN!' : '🔥 "UNO!" DİYE BAĞIR!'}</span>
               </button>
             )}
           </div>
@@ -1824,7 +1833,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               Maçı Terk Etmek İstiyor Musunuz?
             </h3>
             <p className="text-xs text-slate-300 mb-6 leading-relaxed">
-              Masadan ayrılırsanız devam eden online maç iptal edilecek ve diğer oyuncular bilgilendirilecektir.
+              {isMultiplayer
+                ? 'Masadan ayrılırsanız devam eden online maç iptal edilecek ve diğer oyuncular bilgilendirilecektir.'
+                : 'Masadan ayrılırsanız devam eden oyununuz sonlandırılacaktır. Ayrılmak istediğinizden emin misiniz?'}
             </p>
             <div className="flex items-center justify-center gap-3">
               <button

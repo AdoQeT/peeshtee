@@ -534,14 +534,16 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       <TableAtmosphere theme={theme} />
 
       {/* =========================================================
-          1. TOP OPPONENT / 2v2 PARTNER AREA
+          1. TOP OPPONENT / 2v2 PARTNER AREA (Fixed 3-Column Lock)
          ========================================================= */}
-      <div className="relative z-10 flex items-center justify-center gap-3 sm:gap-7 w-full">
-        {/* Top Opponent Collected Pile */}
-        {renderCollectedPile(topOpponent, topOpponentIdx, 'bottom')}
+      <div className="relative z-10 flex items-center justify-center w-full max-w-4xl mx-auto px-2">
+        {/* Left: Top Opponent Collected Pile (Fixed 100px width so it NEVER shifts!) */}
+        <div className="w-24 sm:w-28 flex justify-end shrink-0">
+          {renderCollectedPile(topOpponent, topOpponentIdx, 'bottom')}
+        </div>
 
-        {/* Top Opponent / Partner Hand */}
-        <div className="flex flex-col items-center relative">
+        {/* Center: Top Opponent / Partner Hand (Fixed 360px container) */}
+        <div className="w-[320px] sm:w-[380px] flex flex-col items-center shrink-0 relative">
           {/* Floating Active Emote for Top Opponent */}
           {activeEmotes
             ?.filter(e => e.playerIdx === topOpponentIdx)
@@ -613,8 +615,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           </div>
         </div>
 
-        {/* Top Opponent Separate 90-Degree Crossed Pişti Pile */}
-        {renderPistiPile(topOpponent, topOpponentIdx, 'bottom')}
+        {/* Right: Top Opponent Pişti Pile (Fixed 100px width so it NEVER shifts!) */}
+        <div className="w-24 sm:w-28 flex justify-start shrink-0">
+          {renderPistiPile(topOpponent, topOpponentIdx, 'bottom')}
+        </div>
       </div>
 
       {/* =========================================================
@@ -1253,14 +1257,16 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       </div>
 
       {/* =========================================================
-          3. BOTTOM HUMAN PLAYER HAND AREA & CONTROLS
+          3. BOTTOM HUMAN PLAYER HAND AREA & CONTROLS (Fixed 3-Column Lock)
          ========================================================= */}
-      <div className="relative z-10 flex items-center justify-center gap-3 sm:gap-7 w-full">
-        {/* User Collected Pile */}
-        {renderCollectedPile(user, 0, 'top')}
+      <div className="relative z-10 flex items-center justify-center w-full max-w-4xl mx-auto px-2">
+        {/* Left: User Collected Pile (Fixed 100px width so it NEVER shifts!) */}
+        <div className="w-24 sm:w-28 flex justify-end shrink-0">
+          {renderCollectedPile(user, 0, 'top')}
+        </div>
 
-        {/* User Hand with Turn Status */}
-        <div className="flex flex-col items-center relative">
+        {/* Center: User Hand with Turn Status (Fixed 360px container so it NEVER shifts the piles!) */}
+        <div className="w-[320px] sm:w-[380px] flex flex-col items-center shrink-0 relative">
           {/* Floating Active Emote for User */}
           {activeEmotes
             ?.filter(e => e.playerIdx === 0)
@@ -1422,45 +1428,47 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           </div>
         </div>
 
-        {/* User Separate 90-Degree Crossed Pişti Pile */}
-        {renderPistiPile(user, 0, 'top')}
+        {/* Right: Pişti Pile & Emote Button (Fixed 100px width so it NEVER shifts!) */}
+        <div className="w-24 sm:w-28 flex items-center justify-start gap-2 shrink-0">
+          {renderPistiPile(user, 0, 'top')}
 
-        {/* Minimalist Quick Emote Reaction Trigger */}
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowEmotePicker(prev => !prev)}
-            title="Reaksiyon Gönder"
-            className="p-2.5 rounded-2xl bg-slate-950/85 hover:bg-slate-900 border border-white/20 hover:border-amber-400/60 text-amber-300 shadow-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center"
-          >
-            <span className="text-lg">💬</span>
-          </button>
+          {/* Minimalist Quick Emote Reaction Trigger */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowEmotePicker(prev => !prev)}
+              title="Reaksiyon Gönder"
+              className="p-2.5 rounded-2xl bg-slate-950/85 hover:bg-slate-900 border border-white/20 hover:border-amber-400/60 text-amber-300 shadow-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+            >
+              <span className="text-lg">💬</span>
+            </button>
 
-          {showEmotePicker && (
-            <div className="absolute bottom-12 right-0 z-50 flex items-center gap-1 p-2 rounded-2xl bg-slate-950/95 border border-white/20 shadow-2xl backdrop-blur-md animate-fadeIn">
-              {[
-                { emoji: '☕', name: 'Çay Ismarla' },
-                { emoji: '👏', name: 'Alkış' },
-                { emoji: '🔥', name: 'Alev' },
-                { emoji: '😅', name: 'Balına' },
-                { emoji: '🃏', name: 'Vale miydi!' },
-                { emoji: '😎', name: 'Usta İşi' }
-              ].map(item => (
-                <button
-                  key={item.emoji}
-                  type="button"
-                  onClick={() => {
-                    onSendEmote?.(item.emoji);
-                    setShowEmotePicker(false);
-                  }}
-                  title={item.name}
-                  className="w-9 h-9 rounded-xl hover:bg-white/15 flex items-center justify-center text-lg transition-transform hover:scale-125 active:scale-95 cursor-pointer"
-                >
-                  {item.emoji}
-                </button>
-              ))}
-            </div>
-          )}
+            {showEmotePicker && (
+              <div className="absolute bottom-12 right-0 z-50 flex items-center gap-1 p-2 rounded-2xl bg-slate-950/95 border border-white/20 shadow-2xl backdrop-blur-md animate-fadeIn">
+                {[
+                  { emoji: '☕', name: 'Çay Ismarla' },
+                  { emoji: '👏', name: 'Alkış' },
+                  { emoji: '🔥', name: 'Alev' },
+                  { emoji: '😅', name: 'Balına' },
+                  { emoji: '🃏', name: 'Vale miydi!' },
+                  { emoji: '😎', name: 'Usta İşi' }
+                ].map(item => (
+                  <button
+                    key={item.emoji}
+                    type="button"
+                    onClick={() => {
+                      onSendEmote?.(item.emoji);
+                      setShowEmotePicker(false);
+                    }}
+                    title={item.name}
+                    className="w-9 h-9 rounded-xl hover:bg-white/15 flex items-center justify-center text-lg transition-transform hover:scale-125 active:scale-95 cursor-pointer"
+                  >
+                    {item.emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

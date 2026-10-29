@@ -8,9 +8,6 @@
 import type { MqttClient } from 'mqtt';
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
 
-// Primary Relay WebSocket Server (can be set via VITE_RELAY_WS_URL)
-const RELAY_WS_URL = (import.meta as any).env?.VITE_RELAY_WS_URL || 'ws://localhost:3001';
-
 const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
 const BROKER_2 = 'wss://broker.emqx.io:8084/mqtt';
 
@@ -191,7 +188,6 @@ export class MultiplayerManager {
   public instanceId: string = `peer-${getCryptoRandomString(8)}-${Date.now()}`;
   public client: MqttClient | null = null;
   public clients: MqttClient[] = [];
-  public relayWs: WebSocket | null = null;
   public broadcastChannel: BroadcastChannel | null = null;
   private eventListeners: ((event: MultiplayerEvent) => void)[] = [];
   private seenMsgIds: Set<string> = new Set();
@@ -243,26 +239,10 @@ export class MultiplayerManager {
   }
 
   public getTopic(code: string): string {
-    return `projectp_v11/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
+    return `pisti/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
   }
 
   private setupLocalBuses(code: string) {
-    // 1. Fast Relay WebSocket Connection
-    try {
-      if (typeof WebSocket !== 'undefined' && RELAY_WS_URL) {
-        const wsUrl = `${RELAY_WS_URL.replace(/\/$/, '')}/?room=${encodeURIComponent(code)}`;
-        const ws = new WebSocket(wsUrl);
-        ws.onmessage = ev => {
-          try {
-            const data = JSON.parse(ev.data);
-            this.handleRawIncoming(data);
-          } catch {}
-        };
-        ws.onerror = () => {};
-        this.relayWs = ws;
-      }
-    } catch {}
-
     try {
       if (typeof BroadcastChannel !== 'undefined') {
         this.broadcastChannel = new BroadcastChannel(`pisti-bus-${code}`);
@@ -497,12 +477,6 @@ export class MultiplayerManager {
     const str = JSON.stringify(envelope);
     const topic = this.getTopic(this.roomCode);
 
-    if (this.relayWs && this.relayWs.readyState === WebSocket.OPEN) {
-      try {
-        this.relayWs.send(str);
-      } catch {}
-    }
-
     this.clients.forEach(c => {
       if (c.connected) {
         try {
@@ -547,12 +521,6 @@ export class MultiplayerManager {
     if (this.heartbeatTimer) {
       window.clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
-    }
-    if (this.relayWs) {
-      try {
-        this.relayWs.close();
-      } catch {}
-      this.relayWs = null;
     }
     if (this.clients.length) {
       this.clients.forEach(c => {

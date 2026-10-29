@@ -215,14 +215,14 @@ class FriendNetworkManager {
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
-      customAvatarUrl: profile.customAvatarDataUrl,
+      customAvatarUrl: profile.customAvatarDataUrl && !profile.customAvatarDataUrl.startsWith('data:') ? profile.customAvatarDataUrl : undefined,
       customTitle: profile.customTitle,
       level: lvlInfo.level,
       status: this.currentStatus,
       roomCode: this.currentRoomCode,
       gameType: this.currentGameType,
       stats: profile.stats,
-      matchHistory: profile.matchHistory,
+      matchHistory: undefined,
       lastSeen: Date.now()
     };
 

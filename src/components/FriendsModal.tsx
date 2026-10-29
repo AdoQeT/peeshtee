@@ -75,7 +75,32 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   const handleCopyMyId = () => {
     sound.playClick();
-    navigator.clipboard.writeText(`#${profile.friendCode}`);
+    const txt = `#${profile.friendCode}`;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(txt).catch(() => {
+        try {
+          const el = document.createElement('textarea');
+          el.value = txt;
+          el.style.position = 'fixed';
+          el.style.left = '-9999px';
+          document.body.appendChild(el);
+          el.select();
+          document.execCommand('copy');
+          document.body.removeChild(el);
+        } catch {}
+      });
+    } else {
+      try {
+        const el = document.createElement('textarea');
+        el.value = txt;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      } catch {}
+    }
     setCopiedMyId(true);
     showToast(`Kimlik kodun (#${profile.friendCode}) kopyalandı!`);
     window.setTimeout(() => setCopiedMyId(false), 2000);
@@ -178,6 +203,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     sound.playClick();
     const updated = removeFriend(friend.id);
     setProfile(updated);
+    friendNetwork.sendFriendRemovedNotice({ friendCode: friend.friendCode, name: friend.name });
     showToast(`${friend.name} arkadaş listesinden çıkarıldı.`);
   };
 

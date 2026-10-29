@@ -16,7 +16,7 @@ import { sound } from './core/audio/soundEngine';
 import { particleEngine } from './core/particles/particleEngine';
 import { multiplayerManager, MultiplayerEvent, LobbyPlayerSlot } from './features/multiplayer/peerManager';
 import { MainMenu } from './components/MainMenu';
-import { TableSurface, TableDomRefs, RecentCaptureFeedback, ActiveEmote, SlotReadinessInfo } from './components/TableSurface';
+import { TableSurface, TableDomRefs, RecentCaptureFeedback, ActiveEmote, SlotReadinessInfo, cardDomElements } from './components/TableSurface';
 import { ScoreBoard } from './components/ScoreBoard';
 import { PistiOverlay } from './components/PistiOverlay';
 import { RulesModal } from './components/RulesModal';
@@ -57,7 +57,7 @@ const SHUFFLE_STYLES: ShuffleStyle[] = [
 ];
 
 const getShuffleDuration = (_style: ShuffleStyle): number => {
-  return 2800;
+  return 2200;
 };
 
 function getCenter(el: HTMLElement | null, fallbackX: number, fallbackY: number) {
@@ -122,6 +122,18 @@ export default function App() {
   // Dev Test Macro: Reveal all players' hands exclusively on this client (Ctrl+Shift+X or Alt+X)
   const [devSeeAllHands, setDevSeeAllHands] = useState(false);
   const [devToast, setDevToast] = useState<string | null>(null);
+  const devToastTimerRef = useRef<number | null>(null);
+
+  const showDevToast = useCallback((msg: string) => {
+    if (devToastTimerRef.current !== null) {
+      window.clearTimeout(devToastTimerRef.current);
+    }
+    setDevToast(msg);
+    devToastTimerRef.current = window.setTimeout(() => {
+      setDevToast(null);
+      devToastTimerRef.current = null;
+    }, 3000);
+  }, []);
 
   // Synchronous Ready-Check for Multiplayer Next Round
   const [readySeatsForNextRound, setReadySeatsForNextRound] = useState<Set<number>>(new Set());
@@ -505,9 +517,9 @@ export default function App() {
             const oy = step.card.tableOffsetY ?? 0;
             const rot = step.card.tableRotation ?? 0;
 
-            const domSlot = document.querySelector(
+            const domSlot = cardDomElements.get(step.card.id) || (document.querySelector(
               `[data-card-id="${step.card.id}"]`
-            ) as HTMLElement | null;
+            ) as HTMLElement | null);
             let targetX = potPos.x + ox;
             let targetY = potPos.y + oy;
             if (domSlot) {
@@ -558,9 +570,9 @@ export default function App() {
             const fallback = getHandCardFallbackTarget(pIdx, cIdx, totalPlayers);
 
             // Measure exact pre-rendered DOM slot for 0px jump!
-            const domSlot = document.querySelector(
+            const domSlot = cardDomElements.get(step.card.id) || (document.querySelector(
               `[data-card-id="${step.card.id}"]`
-            ) as HTMLElement | null;
+            ) as HTMLElement | null);
             let targetX = fallback.x;
             let targetY = fallback.y;
             if (domSlot) {
@@ -1158,9 +1170,9 @@ export default function App() {
         startX = sourceRect.left + sourceRect.width / 2;
         startY = sourceRect.top + sourceRect.height / 2;
       } else {
-        const cardDom = document.querySelector(
+        const cardDom = cardDomElements.get(card.id) || (document.querySelector(
           `[data-card-id="${card.id}"]`
-        ) as HTMLElement | null;
+        ) as HTMLElement | null);
         if (cardDom) {
           const r = cardDom.getBoundingClientRect();
           if (r.width > 0 && r.height > 0) {
@@ -1525,6 +1537,7 @@ export default function App() {
           });
         }
       } else if (msg.type === 'MP_MATCH_ABORTED') {
+        if (msg.gameType && msg.gameType !== 'pisti') return;
         setPeerReconnectingSeconds(null);
         setMatchAbortedInfo({
           senderName: msg.senderName || 'Rakip oyuncu',
@@ -2171,13 +2184,13 @@ export default function App() {
         e.preventDefault();
         if (isMultiplayerGameRef.current) {
           sound.playClick();
-          setDevToast('🔒 Çok oyunculu modda elleri görme hilesi engellenmiştir');
+          showDevToast('🔒 Çok oyunculu modda elleri görme hilesi engellenmiştir');
           return;
         }
         setDevSeeAllHands(prev => {
           const next = !prev;
           sound.playClick();
-          setDevToast(next ? '👁️ DEV TEST MODU: TÜM ELLER AÇIK' : '🔒 DEV TEST MODU: NORMAL GÖRÜNÜM');
+          showDevToast(next ? '👁️ DEV TEST MODU: TÜM ELLER AÇIK' : '🔒 DEV TEST MODU: NORMAL GÖRÜNÜM');
           return next;
         });
       }
@@ -2185,13 +2198,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (!devToast) return;
-    const t = window.setTimeout(() => setDevToast(null), 3000);
-    return () => window.clearTimeout(t);
-  }, [devToast]);
+  }, [showDevToast]);
 
   const handleUpdateProfile = useCallback((newProfile: UserProfile) => {
     setUserProfile(newProfile);
@@ -2223,7 +2230,7 @@ export default function App() {
           seatIndex: myMultiplayerSeatRef.current,
           timestamp: Date.now()
         });
-      } else {
+      } else if (!isMultiplayerGame) {
         // Singleplayer Bot Banter
         if (Math.random() < 0.7) {
           const botReplies = [
@@ -2630,7 +2637,7 @@ export default function App() {
           onClick={() => {
             setDevSeeAllHands(false);
             sound.playClick();
-            setDevToast('🔒 DEV TEST MODU: NORMAL GÖRÜNÜM');
+            showDevToast('🔒 DEV TEST MODU: NORMAL GÖRÜNÜM');
           }}
           title="Kapatmak için tıkla (veya Ctrl+Shift+X / Alt+X)"
           className="fixed bottom-3 right-3 z-40 px-3 py-1.5 rounded-lg bg-cyan-950/90 border border-cyan-400/70 text-cyan-300 font-mono text-[10px] sm:text-xs font-black shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:bg-cyan-900 transition-all flex items-center gap-1.5 cursor-pointer"

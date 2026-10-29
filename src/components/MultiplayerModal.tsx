@@ -598,10 +598,27 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     );
   };
 
+  const fallbackCopyText = (text: string) => {
+    try {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    } catch {}
+  };
+
   const handleCopyCode = () => {
     if (!createdRoomCode) return;
     sound.playClick();
-    navigator.clipboard.writeText(createdRoomCode);
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(createdRoomCode).catch(() => fallbackCopyText(createdRoomCode));
+    } else {
+      fallbackCopyText(createdRoomCode);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -610,7 +627,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     if (!createdRoomCode) return;
     sound.playClick();
     const url = `${window.location.origin}${window.location.pathname}?oda=${createdRoomCode}`;
-    navigator.clipboard.writeText(url);
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).catch(() => fallbackCopyText(url));
+    } else {
+      fallbackCopyText(url);
+    }
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };

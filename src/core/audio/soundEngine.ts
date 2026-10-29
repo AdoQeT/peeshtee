@@ -35,6 +35,9 @@ class SoundEngine {
 
   public setEnabled(enabled: boolean) {
     this.enabled = enabled;
+    if (!enabled && this.ambienceActiveNodes.length > 0) {
+      this.stopAmbience();
+    }
   }
 
   public setVolume(vol: number) {

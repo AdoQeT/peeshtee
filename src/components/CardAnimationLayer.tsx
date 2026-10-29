@@ -229,7 +229,7 @@ const DynamicDeckShuffle: React.FC<{
       if (!el) return;
 
       let keyframes: Keyframe[] = [];
-      const duration = 2800;
+      const duration = 2200;
       const stackOffset = Math.min(idx, 4) * 0.8;
 
       if (style === 'riffle_bridge') {

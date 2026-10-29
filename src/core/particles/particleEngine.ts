@@ -74,6 +74,7 @@ export class ParticleEngine {
   private isRunning: boolean = false;
   private currentTheme: TableTheme = 'sakura';
   private enabled: boolean = true;
+  private resizeRafId: number | null = null;
 
   public init(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -103,6 +104,10 @@ export class ParticleEngine {
   public destroy() {
     this.stopLoop();
     window.removeEventListener('resize', this.handleResize);
+    if (this.resizeRafId !== null) {
+      cancelAnimationFrame(this.resizeRafId);
+      this.resizeRafId = null;
+    }
     this.particles = [];
     this.ambientPetals = [];
     this.shockwaves = [];
@@ -110,8 +115,12 @@ export class ParticleEngine {
   }
 
   private handleResize = () => {
-    this.resize();
-    this.seedAmbientParticles();
+    if (this.resizeRafId !== null) return;
+    this.resizeRafId = requestAnimationFrame(() => {
+      this.resize();
+      this.seedAmbientParticles();
+      this.resizeRafId = null;
+    });
   };
 
   public resize() {

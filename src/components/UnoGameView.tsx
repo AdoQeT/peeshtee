@@ -720,6 +720,31 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         deckSyncRef.current = combined;
       }
 
+      if (drawnCards.length === 0) {
+        setPenaltyPoolCount(0);
+        setGameState(prev => {
+          const updated: UnoGameState = {
+            ...prev,
+            pendingDrawPenalty: 0
+          };
+          gameStateSyncRef.current = updated;
+          return updated;
+        });
+        setIsAnimatingAction(false);
+        advanceTurn(1, gameStateSyncRef.current.direction);
+        return;
+      }
+
+      if (isMultiplayer && playerIdx === 0) {
+        multiplayerManager.send({
+          type: 'MP_UNO_DRAW_CARD',
+          seatIndex: mySeatIndex,
+          count: penaltyCount,
+          penalty: true,
+          senderPeerId: multiplayerManager.instanceId
+        });
+      }
+
       const targetPlayer = playersSyncRef.current[playerIdx];
       const updatedHand = [...targetPlayer.hand, ...drawnCards];
       const nextPlayers = playersSyncRef.current.map((p, idx) =>
@@ -770,7 +795,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         }, idx * 130);
       });
     },
-    [getSafeSeatRect, spawnFlyingUnoCard, advanceTurn]
+    [getSafeSeatRect, spawnFlyingUnoCard, advanceTurn, isMultiplayer, mySeatIndex]
   );
 
   // Handle Play Card with flying 3D arc animation & fanned discard stack physics!
@@ -1056,9 +1081,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
-        drawCardsForPlayer(targetLocalIdx, event.count || 1);
-        showSeatBubble(targetLocalIdx, `📥 ${event.count || 1} Kart Çekti`);
-        pushActionLog(`📥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} desteden kart çekti.`);
+        if (event.penalty) {
+          showSeatBubble(targetLocalIdx, `💥 ${event.count || 1} Ceza Kartı Çekti`, 2200);
+          deliverPenaltyCardsToPlayer(targetLocalIdx, event.count || 1);
+        } else {
+          drawCardsForPlayer(targetLocalIdx, event.count || 1);
+          showSeatBubble(targetLocalIdx, `📥 ${event.count || 1} Kart Çekti`);
+          pushActionLog(`📥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} desteden kart çekti.`);
+        }
       } else if (event.type === 'MP_UNO_CALL_UNO') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
         const currentPlayers = playersSyncRef.current;
@@ -1078,12 +1108,15 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         showSeatBubble(targetLocalIdx, '⏭️ Pas Geçti', 1800);
         advanceTurn(1);
       } else if (event.type === 'MP_MATCH_ABORTED') {
+        if (event.gameType && event.gameType !== 'uno') return;
+        try { multiplayerManager.leaveRoom(); } catch {}
         setMatchAbortedReason(
           event.reason === 'surrender'
             ? `${event.senderName || 'Rakip'} maçı terk etti.`
             : `${event.senderName || 'Rakip'} bağlantısı koptu.`
         );
       } else if (event.type === 'PEER_DISCONNECTED') {
+        try { multiplayerManager.leaveRoom(); } catch {}
         setMatchAbortedReason('Rakip masadan ayrıldı. Bağlantı koptu.');
       }
     });
@@ -1094,29 +1127,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     mySeatIndex,
     executePlayCard,
     drawCardsForPlayer,
+    deliverPenaltyCardsToPlayer,
     triggerBanner,
     showSeatBubble,
     pushActionLog
   ]);
-
-  // Handle Tab Close / Unload in multiplayer
-  useEffect(() => {
-    if (!isMultiplayer) return;
-    const handleBeforeUnload = () => {
-      try {
-        multiplayerManager.send({
-          type: 'MP_MATCH_ABORTED',
-          reason: 'disconnect',
-          senderName: userProfile.name
-        });
-        multiplayerManager.leaveRoom();
-      } catch {
-        // Ignored
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isMultiplayer, userProfile.name]);
 
   // Human card click
   const handleHumanCardClick = (card: UnoCard, e?: React.MouseEvent) => {
@@ -1376,7 +1391,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         multiplayerManager.send({
           type: 'MP_MATCH_ABORTED',
           reason: 'surrender',
-          senderName: userProfile.name
+          senderName: userProfile.name,
+          gameType: 'uno'
         });
         multiplayerManager.leaveRoom();
       } catch (e) {
@@ -2174,6 +2190,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             <button
               onClick={() => {
                 setMatchAbortedReason(null);
+                try {
+                  multiplayerManager.leaveRoom();
+                } catch {}
                 onExitToMenu();
               }}
               className="px-6 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-lg cursor-pointer"

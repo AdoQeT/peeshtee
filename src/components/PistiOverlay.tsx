@@ -42,7 +42,7 @@ export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) 
       />
 
       {/* Floating Arcade Banner (positioned above center pot) */}
-      <div className="relative flex flex-col items-center animate-banner-pop max-w-md w-full">
+      <div onAnimationEnd={onComplete} className="relative flex flex-col items-center animate-banner-pop max-w-md w-full">
         {/* Subtle Player Badge */}
         <div className="mb-1 bg-slate-950/85 border border-white/20 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase text-slate-300 shadow-lg backdrop-blur-md">
           {slam.playerName} Hamlesi!

@@ -101,11 +101,13 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
       animations.push(anim);
     });
 
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      onComplete();
+      if (!cancelled) onComplete();
     }, 2250);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
       animations.forEach(a => a.cancel());
     };

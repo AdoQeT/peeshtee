@@ -200,6 +200,7 @@ export interface UserProfile {
     highestScore: number;
     unoMatchesPlayed: number;
     unoWins: number;
+    highestUnoScore?: number;
   };
 }
 
@@ -376,6 +377,9 @@ export function recordMatchStats(isWin: boolean, score: number, pistis: number, 
   if (isUno) {
     profile.stats.unoMatchesPlayed += 1;
     if (isWin) profile.stats.unoWins += 1;
+    if (score > (profile.stats.highestUnoScore || 0)) {
+      profile.stats.highestUnoScore = score;
+    }
   } else {
     profile.stats.matchesPlayed += 1;
     if (isWin) profile.stats.wins += 1;

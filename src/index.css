@@ -67,3 +67,15 @@
 .text-glow-crimson {
   text-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 25px rgba(220, 38, 38, 0.6), 0 0 50px rgba(185, 28, 28, 0.4);
 }
+
+/* Accessibility: respect user prefers-reduced-motion settings */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

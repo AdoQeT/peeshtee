@@ -75,6 +75,7 @@ export type MultiplayerEvent =
       type: 'MP_UNO_DRAW_CARD';
       seatIndex: number;
       count: number;
+      penalty?: boolean;
       senderPeerId?: string;
     }
   | {
@@ -135,7 +136,13 @@ export type MultiplayerEvent =
   | { type: 'PEER_RECONNECTING'; secondsLeft: number }
   | { type: 'PEER_RECONNECTED' }
   | { type: 'PEER_DISCONNECTED'; peerId?: string }
-  | { type: 'MP_MATCH_ABORTED'; reason: string; senderPeerId?: string; senderName?: string };
+  | {
+      type: 'MP_MATCH_ABORTED';
+      reason: string;
+      senderPeerId?: string;
+      senderName?: string;
+      gameType?: 'pisti' | 'uno';
+    };
 
 interface PacketEnvelope {
   __pistiEnvelope: true;

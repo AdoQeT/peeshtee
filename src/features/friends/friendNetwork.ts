@@ -59,6 +59,10 @@ type SocialPacket =
   | {
       type: 'FRIEND_ADDED_NOTICE';
       notice: IncomingFriendNotice;
+    }
+  | {
+      type: 'FRIEND_REMOVED_NOTICE';
+      notice: IncomingFriendNotice;
     };
 
 class FriendNetworkManager {
@@ -222,6 +226,25 @@ class FriendNetworkManager {
 
     this.sendPacket({
       type: 'FRIEND_ADDED_NOTICE',
+      notice
+    });
+  }
+
+  public sendFriendRemovedNotice(target: { friendCode?: string; name?: string }) {
+    const profile = getUserProfile();
+    const notice: IncomingFriendNotice = {
+      id: `fr-rem-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fromId: profile.id,
+      fromFriendCode: profile.friendCode,
+      fromName: profile.name,
+      fromAvatarId: profile.avatarId,
+      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      targetName: target.name?.trim(),
+      timestamp: Date.now()
+    };
+
+    this.sendPacket({
+      type: 'FRIEND_REMOVED_NOTICE',
       notice
     });
   }

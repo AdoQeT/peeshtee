@@ -268,6 +268,8 @@ export interface SlotReadinessInfo {
   isAI: boolean;
 }
 
+export const cardDomElements = new Map<string, HTMLElement>();
+
 interface TableSurfaceProps {
   theme: TableTheme;
   cardBack: string;
@@ -671,6 +673,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 <div
                   key={card.id}
                   data-card-id={card.id}
+                  ref={el => {
+                    if (el) cardDomElements.set(card.id, el);
+                    else cardDomElements.delete(card.id);
+                  }}
                   className="transition-transform duration-200 ease-out"
                 >
                   <CardView
@@ -745,6 +751,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     <div
                       key={card.id}
                       data-card-id={card.id}
+                      ref={el => {
+                        if (el) cardDomElements.set(card.id, el);
+                        else cardDomElements.delete(card.id);
+                      }}
                       className="transition-transform duration-200"
                     >
                       <CardView
@@ -1195,6 +1205,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                       <div
                         key={card.id}
                         data-card-id={card.id}
+                        ref={el => {
+                          if (el) cardDomElements.set(card.id, el);
+                          else cardDomElements.delete(card.id);
+                        }}
                         style={{
                           position: 'absolute',
                           inset: 0,
@@ -1307,6 +1321,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     <div
                       key={card.id}
                       data-card-id={card.id}
+                      ref={el => {
+                        if (el) cardDomElements.set(card.id, el);
+                        else cardDomElements.delete(card.id);
+                      }}
                       className="transition-transform duration-200"
                     >
                       <CardView
@@ -1468,6 +1486,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 <div
                   key={card.id}
                   data-card-id={card.id}
+                  ref={el => {
+                    if (el) cardDomElements.set(card.id, el);
+                    else cardDomElements.delete(card.id);
+                  }}
                   onMouseEnter={() => setHoveredHandCardId(card.id)}
                   onMouseLeave={() => setHoveredHandCardId(null)}
                   style={{

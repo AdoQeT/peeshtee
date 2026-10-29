@@ -29,18 +29,18 @@ export interface GeneratedFlightPlan {
  *
  * Runs 100% on the browser's hardware-accelerated compositor thread (off-main-thread).
  * Features:
- *  1. Aerodynamic Parabolic Flight Path (Quadratic & Waypoint Bezier)
- *  2. True 3D Aerodynamic Pitch & Banking (Wrist-whip rotateX & rotateZ)
- *  3. Dynamic Altitude-Coupled Drop Shadow (Decoupled airborne shadow diffusion)
+ *  1. Highly Visible 3D Parabolic Arc (80-110px aerial apex)
+ *  2. True 3D Aerodynamic Pitch & Banking (32° nose-up wrist-whip)
+ *  3. Decoupled Airborne Drop Shadow (expands & softens when high, snaps tight on landing)
  *  4. Tactile Casino Baize Landing Snap & Micro-Settle (Micro-overshoot dampening)
  */
 class CardPhysicsEngine {
   /**
-   * Generates a 16-step ultra-smooth hardware keyframe sequence
+   * Generates an ultra-smooth hardware keyframe sequence with bold, eye-catching 3D physics
    */
   public generateFlightPlan(
     params: CardFlightParams,
-    baseDurationMs: number = 420
+    baseDurationMs: number = 480
   ): GeneratedFlightPlan {
     const {
       startX,
@@ -53,7 +53,7 @@ class CardPhysicsEngine {
       endFaceUp,
       startScale = 1,
       targetScale = 1,
-      arcHeight = 54,
+      arcHeight = 92,
       waypointX,
       waypointY,
       waypointRotation,
@@ -65,23 +65,23 @@ class CardPhysicsEngine {
     const dy = targetY - startY;
     const flightDist = Math.hypot(dx, dy);
 
-    // Adaptive duration: longer flights take slightly more time, short snaps feel immediate
+    // Calibrated duration so the player can truly appreciate the flight arc without slowing the game down
     const adaptiveDuration = Math.round(
-      Math.min(520, Math.max(340, baseDurationMs + flightDist * 0.12))
+      Math.min(560, Math.max(440, baseDurationMs + flightDist * 0.14))
     );
 
     // Normal vector perpendicular to flight direction for natural wrist banking
     const nx = flightDist > 1 ? -dy / flightDist : 0;
-    const curveMag = Math.min(32, flightDist * 0.08);
-    const liftY = Math.min(arcHeight, Math.max(22, flightDist * 0.18));
+    const curveMag = Math.min(48, Math.max(18, flightDist * 0.12));
+    const liftY = Math.min(arcHeight, Math.max(62, flightDist * 0.28));
 
-    const steps = 16;
+    const steps = 18;
     const keyframes: Keyframe[] = [];
 
     if (waypointX !== undefined && waypointY !== undefined) {
       // 3-Point Waypoint Trajectory (e.g. swept from table to showcase point then collected pile)
       const wpRot = waypointRotation ?? startRotation + (targetRotation - startRotation) * 0.4;
-      const wpScale = waypointScale ?? Math.max(startScale, targetScale) * 1.08;
+      const wpScale = waypointScale ?? Math.max(startScale, targetScale) * 1.15;
 
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
@@ -91,23 +91,23 @@ class CardPhysicsEngine {
           const subT = t / waypointOffset;
           const subSine = Math.sin(subT * Math.PI);
           curX = startX + (waypointX - startX) * subT + nx * curveMag * subSine * 0.5;
-          curY = startY + (waypointY - startY) * subT - liftY * subSine * 0.6;
+          curY = startY + (waypointY - startY) * subT - liftY * subSine * 0.7;
           curRot = startRotation + (wpRot - startRotation) * subT;
-          curScale = startScale + (wpScale - startScale) * subT + subSine * 0.08;
+          curScale = startScale + (wpScale - startScale) * subT + subSine * 0.15;
         } else {
           const subT = (t - waypointOffset) / (1 - waypointOffset);
           const subSine = Math.sin(subT * Math.PI);
           curX = waypointX + (targetX - waypointX) * subT + nx * curveMag * subSine;
           curY = waypointY + (targetY - waypointY) * subT - liftY * subSine;
           curRot = wpRot + (targetRotation - wpRot) * subT;
-          curScale = wpScale + (targetScale - wpScale) * subT + subSine * 0.1;
+          curScale = wpScale + (targetScale - wpScale) * subT + subSine * 0.2;
         }
 
         const arcSine = Math.sin(t * Math.PI);
-        const pitchX = Math.round(arcSine * 14); // degrees of aerodynamic nose-up
-        const shadowY = Math.round(5 + arcSine * 24);
-        const shadowBlur = Math.round(8 + arcSine * 28);
-        const shadowAlpha = (0.55 - arcSine * 0.18).toFixed(2);
+        const pitchX = Math.round(arcSine * 26); // visible aerodynamic nose-up
+        const shadowY = Math.round(5 + arcSine * 34);
+        const shadowBlur = Math.round(8 + arcSine * 38);
+        const shadowAlpha = (0.6 - arcSine * 0.22).toFixed(2);
 
         keyframes.push({
           offset: t,
@@ -116,7 +116,7 @@ class CardPhysicsEngine {
         });
       }
     } else {
-      // 2-Point Parabolic Arc with Aerodynamic Wrist Whip & Dynamic Shadow
+      // 2-Point Parabolic Arc with Bold 3D Wrist Whip & Deep Floating Shadow
       const apexX = startX + dx * 0.5 + nx * curveMag;
       const apexY = startY + dy * 0.5 - liftY;
 
@@ -130,22 +130,22 @@ class CardPhysicsEngine {
         const curY =
           oneMinusT * oneMinusT * startY + 2 * oneMinusT * t * apexY + t * t * targetY;
 
-        // Wrist rotation with subtle apex banking
+        // Wrist rotation with apex banking
         const baseRot = startRotation + (targetRotation - startRotation) * t;
-        const banking = Math.sin(t * Math.PI) * (nx * 4);
+        const banking = Math.sin(t * Math.PI) * (nx * 6);
         const curRot = baseRot + banking;
 
-        // Altitude elevation curve (sinusoidal bell curve)
+        // Bold altitude elevation: expands up to +28% scale at peak flight to feel physically airborne
         const arcSine = Math.sin(t * Math.PI);
-        const curScale = startScale + (targetScale - startScale) * t + arcSine * 0.12;
+        const curScale = startScale + (targetScale - startScale) * t + arcSine * 0.24;
 
-        // 3D Aerodynamic Pitch: Card nose tilts up on takeoff, levels out near landing
-        const pitchX = Math.round(arcSine * 16);
+        // 3D Aerodynamic Pitch: Card tilts up 30° toward the screen at mid-flight!
+        const pitchX = Math.round(arcSine * 30);
 
-        // Decoupled floating drop-shadow
-        const shadowY = Math.round(4 + arcSine * 26);
-        const shadowBlur = Math.round(8 + arcSine * 30);
-        const shadowAlpha = (0.58 - arcSine * 0.2).toFixed(2);
+        // Bold decoupled floating drop-shadow that clearly detaches from the card
+        const shadowY = Math.round(4 + arcSine * 38);
+        const shadowBlur = Math.round(8 + arcSine * 40);
+        const shadowAlpha = (0.62 - arcSine * 0.25).toFixed(2);
 
         keyframes.push({
           offset: t,
@@ -171,8 +171,8 @@ class CardPhysicsEngine {
       keyframes,
       flipKeyframes,
       durationMs: adaptiveDuration,
-      // Custom calibrated curve for high-speed launch + tactile casino felt settle
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+      // Calibrated cubic-bezier with a tactile landing snap
+      easing: 'cubic-bezier(0.25, 1, 0.35, 1)'
     };
   }
 }

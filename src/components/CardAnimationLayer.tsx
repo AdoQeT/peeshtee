@@ -151,8 +151,11 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
         left: 0,
         top: 0,
         zIndex: fc.zIndex ?? 60,
+        perspective: '1000px',
+        transformStyle: 'preserve-3d',
+        pointerEvents: 'none',
         transform: `translate3d(${fc.startX}px, ${fc.startY}px, 0) translate(-50%, -50%) rotate(${fc.startRotation}deg) scale(${startScale})`,
-        willChange: 'transform'
+        willChange: 'transform, filter'
       }}
       className={sizeClasses}
     >

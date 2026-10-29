@@ -523,8 +523,8 @@ export default function App() {
               endFaceUp: step.card.faceUp,
               startScale: 1,
               targetScale: 1,
-              duration: 380,
-              arcHeight: 38,
+              duration: 450,
+              arcHeight: 88,
               size: 'md',
               zIndex: 60 + sIdx,
               onComplete: () => {
@@ -576,8 +576,8 @@ export default function App() {
               endFaceUp: isHuman,
               startScale: 1,
               targetScale: 1,
-              duration: 390,
-              arcHeight: 42,
+              duration: 460,
+              arcHeight: 92,
               size: fallback.size,
               zIndex: 60 + sIdx,
               onComplete: () => {
@@ -1068,7 +1068,7 @@ export default function App() {
           startScale: 1,
           targetScale: 0.76,
           duration: isPistiSweep ? 540 : 440 + idx * 22,
-          arcHeight: 36,
+          arcHeight: 78,
           size: 'md',
           zIndex: 75 + idx,
           onComplete: () => {
@@ -1198,8 +1198,8 @@ export default function App() {
         endFaceUp: true,
         startScale: 1,
         targetScale: 1,
-        duration: isHuman ? 410 : 390,
-        arcHeight: 44,
+        duration: isHuman ? 490 : 460,
+        arcHeight: 96,
         size: 'md',
         zIndex: 85,
         onComplete: () => {

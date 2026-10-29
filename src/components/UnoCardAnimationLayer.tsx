@@ -127,7 +127,8 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
         pointerEvents: 'none',
         transform: `translate3d(${fc.startX}px, ${fc.startY}px, 0) translate(-50%, -50%) rotate(${fc.startRotation}deg) scale(${startScale})`,
         willChange: 'transform, filter',
-        perspective: '900px'
+        perspective: '1000px',
+        transformStyle: 'preserve-3d'
       }}
       className={dimClass}
     >

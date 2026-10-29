@@ -393,8 +393,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         targetRotation: options.targetRotation ?? (Math.random() * 14 - 7),
         startFaceUp: options.startFaceUp ?? false,
         endFaceUp: options.endFaceUp ?? true,
-        duration: options.duration ?? 430,
-        arcHeight: 62,
+        duration: options.duration ?? 480,
+        arcHeight: 95,
         size: 'md',
         onComplete: () => {
           setFlyingCards(prev => prev.filter(c => c.id !== animId));
@@ -513,7 +513,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         spawnFlyingUnoCard(step.card, deckRect, handRect, {
           startFaceUp: false,
           endFaceUp: step.playerIdx === 0,
-          duration: 330,
+          duration: 460,
           onFinish: () => {
             setHiddenCardIds(prev => {
               const next = new Set(prev);
@@ -545,7 +545,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       spawnFlyingUnoCard(initialCard, deckRect, discardRect, {
         startFaceUp: false,
         endFaceUp: true,
-        duration: 380,
+        duration: 480,
         targetRotation: 3,
         onFinish: () => {
           setHiddenCardIds(new Set());
@@ -825,7 +825,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         startFaceUp: true,
         endFaceUp: true,
         targetRotation: finalRotation,
-        duration: 400,
+        duration: 490,
         onFinish: () => {
           sound.playClick();
           setTablePulseKey(k => k + 1);

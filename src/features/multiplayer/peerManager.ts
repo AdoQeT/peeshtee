@@ -283,7 +283,7 @@ export class MultiplayerManager {
       });
 
       client.on('connect', () => {
-        client.subscribe(topic, { qos: 1 }, (err: any) => {
+        client.subscribe(topic, { qos: 0 }, (err: any) => {
           if (err) console.warn('MQTT sub error:', brokerUrl, err);
         });
       });
@@ -417,12 +417,12 @@ export class MultiplayerManager {
 
         if (this.isConnected) {
           const elapsed = Date.now() - this.lastRemoteMessageTime;
-          // Fast Disconnect Detection: Grace Period if no packet for > 3.5s and <= 8.5s
-          if (elapsed > 3500 && elapsed <= 8500) {
+          // Grace Period if no packet for > 15s and <= 30s (prevents tab throttle false disconnects)
+          if (elapsed > 15000 && elapsed <= 30000) {
             this.isPeerReconnecting = true;
-            const secondsLeft = Math.max(1, Math.ceil((8500 - elapsed) / 1000));
+            const secondsLeft = Math.max(1, Math.ceil((30000 - elapsed) / 1000));
             this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft });
-          } else if (elapsed > 8500) {
+          } else if (elapsed > 30000) {
             this.isConnected = false;
             this.isPeerReconnecting = false;
             this.dispatch({ type: 'PEER_DISCONNECTED', peerId: this.instanceId });
@@ -480,7 +480,7 @@ export class MultiplayerManager {
     this.clients.forEach(c => {
       if (c.connected) {
         try {
-          c.publish(topic, str, { qos: 1 });
+          c.publish(topic, str, { qos: 0 });
         } catch {}
       }
     });

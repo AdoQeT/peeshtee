@@ -353,6 +353,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         setLobbyRole('guest');
         setIsConnecting(false);
         setErrorMsg(null);
+      } else if (event.type === 'MP_GAME_START') {
+        onClose();
       } else if (event.type === 'PEER_DISCONNECTED') {
         if (multiplayerManager.isHost && event.peerId) {
           setSlots(prev => {
@@ -577,13 +579,17 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           id: g.peerId || g.name,
           name: g.name,
           avatarId: g.avatarId || 'wolf',
-          customAvatarDataUrl: g.customAvatarUrl,
           roomCode: createdRoomCode
         });
       }
     });
 
-    const finalSlots = slots.map(s => {
+    const sanitizedSlots = slots.map(s => ({
+      ...s,
+      customAvatarUrl: undefined
+    }));
+
+    const finalSlots = sanitizedSlots.map(s => {
       if (s.seatIndex > 0 && (!s.peerId || s.peerId === '')) {
         const botName =
           s.seatIndex === 2

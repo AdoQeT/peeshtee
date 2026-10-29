@@ -96,25 +96,25 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
     case 'estoril_blue':
       return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
-          {/* M-Sport Carbon Vector Grid */}
+          {/* Subtle Sport Fabric Weave */}
           <div
-            className="absolute inset-0 opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.035]"
             style={{
               backgroundImage:
-                'repeating-linear-gradient(45deg, #38bdf8 0, #38bdf8 1px, transparent 1px, transparent 8px), repeating-linear-gradient(-45deg, #0284c7 0, #0284c7 1px, transparent 1px, transparent 8px)'
+                'repeating-linear-gradient(45deg, #e0f2fe 0, #e0f2fe 1px, transparent 1px, transparent 6px), repeating-linear-gradient(-45deg, #bae6fd 0, #bae6fd 1px, transparent 1px, transparent 6px)'
             }}
           />
-          {/* Aerodynamic Dual Metallic Blue Pinstripe Rail */}
-          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-sky-400/50 shadow-[0_0_22px_rgba(56,189,248,0.22)]" />
-          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-sky-300/30" />
-          {/* Corner Aerodynamic Speed Fins */}
-          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-sky-400/80 rounded-tl-md" />
-          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-sky-400/80 rounded-tr-md" />
-          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-sky-400/80 rounded-bl-md" />
-          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-sky-400/80 rounded-br-md" />
+          {/* Aerodynamic Dual Silver-Sky Pinstripe Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-sky-300/40 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-sky-200/25" />
+          {/* Corner Aerodynamic Speed Accents */}
+          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-sky-300/60 rounded-tl-md" />
+          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-sky-300/60 rounded-tr-md" />
+          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-sky-300/60 rounded-bl-md" />
+          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-sky-300/60 rounded-br-md" />
           {/* Central Estoril M-Sport Racing Crest */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
-            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-sky-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-sky-200" fill="none" stroke="currentColor" strokeWidth="1.5">
               <polygon points="100,18 175,55 175,145 100,182 25,145 25,55" strokeWidth="2" strokeDasharray="6 3" />
               <polygon points="100,32 160,62 160,138 100,168 40,138 40,62" />
               <circle cx="100" cy="100" r="42" strokeDasharray="4 2" />
@@ -122,8 +122,74 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
               <circle cx="100" cy="100" r="16" />
             </svg>
           </div>
-          {/* Deep Sapphire Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(1,5,15,0.85)_100%)]" />
+          {/* Deep Sapphire Felt Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(4,14,28,0.75)_100%)]" />
+        </div>
+      );
+
+    case 'alpine_white':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Luxury White Marble / Silk Baize Weave */}
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 50% 50%, #475569 1px, transparent 1px), repeating-linear-gradient(45deg, #64748b 0, #64748b 1px, transparent 1px, transparent 10px)'
+            }}
+          />
+          {/* Brushed Platinum & Anthracite Dual Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-slate-300/50 shadow-[inset_0_0_20px_rgba(0,0,0,0.4)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-slate-400/30" />
+          {/* Minimal Platinum Corner Brackets */}
+          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-slate-300/70 rounded-tl-md" />
+          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-slate-300/70 rounded-tr-md" />
+          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-slate-300/70 rounded-bl-md" />
+          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-slate-300/70 rounded-br-md" />
+          {/* Central Alpine Platinum Diamond Monogram */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <polygon points="100,20 180,100 100,180 20,100" strokeWidth="2" strokeDasharray="4 2" />
+              <polygon points="100,38 162,100 100,162 38,100" />
+              <circle cx="100" cy="100" r="32" />
+              <circle cx="100" cy="100" r="12" fill="currentColor" opacity="0.3" />
+            </svg>
+          </div>
+          {/* Soft Anthracite Edge Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_48%,_rgba(15,23,42,0.7)_100%)]" />
+        </div>
+      );
+
+    case 'melbourne_red':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          {/* Melbourne Sport Red Diamond Weave */}
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(45deg, #f87171 0, #f87171 1px, transparent 1px, transparent 7px), repeating-linear-gradient(-45deg, #dc2626 0, #dc2626 1px, transparent 1px, transparent 7px)'
+            }}
+          />
+          {/* Metallic Bronze & Crimson Inlay Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-amber-400/40 shadow-[inset_0_0_22px_rgba(0,0,0,0.6)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-red-300/30" />
+          {/* Dynamic Corner Speed Fins */}
+          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-amber-400/60 rounded-tl-md" />
+          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-amber-400/60 rounded-tr-md" />
+          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-amber-400/60 rounded-bl-md" />
+          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-amber-400/60 rounded-br-md" />
+          {/* Central Melbourne Speed Emblem */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-red-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="100" cy="100" r="88" strokeWidth="2" strokeDasharray="5 3" />
+              <polygon points="100,28 172,70 172,130 100,172 28,130 28,70" />
+              <circle cx="100" cy="100" r="30" />
+              <polygon points="100,55 125,120 75,120" fill="currentColor" opacity="0.4" />
+            </svg>
+          </div>
+          {/* Deep Crimson Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_42%,_rgba(15,2,4,0.85)_100%)]" />
         </div>
       );
 
@@ -317,7 +383,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       case 'sakura':
         return 'bg-[#120414] bg-[radial-gradient(ellipse_at_center,_#360c29_0%,_#1a051d_58%,_#0a010c_100%)] border-pink-900/80 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
       case 'estoril_blue':
-        return 'bg-[#030d1c] bg-[radial-gradient(ellipse_at_center,_#0b3159_0%,_#051c38_50%,_#010711_100%)] border-sky-500/50 shadow-[inset_0_0_100px_rgba(14,165,233,0.22),0_25px_60px_rgba(0,0,0,0.88)]';
+        return 'bg-[#061528] bg-[radial-gradient(ellipse_at_center,_#123a66_0%,_#081e36_50%,_#020b16_100%)] border-sky-400/40 shadow-[inset_0_0_100px_rgba(14,165,233,0.18),0_25px_60px_rgba(0,0,0,0.88)]';
+      case 'alpine_white':
+        return 'bg-[#151921] bg-[radial-gradient(ellipse_at_center,_#333c48_0%,_#1b212b_52%,_#0b0e13_100%)] border-slate-400/40 shadow-[inset_0_0_100px_rgba(255,255,255,0.06),0_25px_60px_rgba(0,0,0,0.88)]';
+      case 'melbourne_red':
+        return 'bg-[#1a0407] bg-[radial-gradient(ellipse_at_center,_#520912_0%,_#290408_52%,_#0d0103_100%)] border-red-500/40 shadow-[inset_0_0_100px_rgba(220,38,38,0.2),0_25px_60px_rgba(0,0,0,0.9)]';
       case 'monaco_velvet':
         return 'bg-[#03170e] bg-[radial-gradient(ellipse_at_center,_#0a3d28_0%,_#042114_55%,_#010b06_100%)] border-emerald-500/50 shadow-[inset_0_0_100px_rgba(16,185,129,0.25),0_25px_60px_rgba(0,0,0,0.9)]';
       case 'luxury_gold':

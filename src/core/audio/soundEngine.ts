@@ -205,32 +205,51 @@ class SoundEngine {
     if (!this.ctx) return;
 
     const t = this.ctx.currentTime;
-    const cardFlutters = 20;
+    const cardFlutters = 26;
 
     for (let i = 0; i < cardFlutters; i++) {
-      const flutterTime = t + i * 0.032;
+      const jitter = (Math.random() - 0.5) * 0.006;
+      const flutterTime = t + i * 0.024 + jitter;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       const filter = this.ctx.createBiquadFilter();
 
+      // Pitch slightly rises as the deck interlaces, mimicking physical tension
+      const progress = i / cardFlutters;
+      const baseFreq = 280 + progress * 240 + Math.random() * 80;
+
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(320 + Math.random() * 260, flutterTime);
-      osc.frequency.exponentialRampToValueAtTime(85, flutterTime + 0.028);
+      osc.frequency.setValueAtTime(baseFreq, flutterTime);
+      osc.frequency.exponentialRampToValueAtTime(75, flutterTime + 0.022);
 
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1300, flutterTime);
-      filter.frequency.linearRampToValueAtTime(220, flutterTime + 0.028);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1400 + progress * 600, flutterTime);
+      filter.Q.setValueAtTime(2.2, flutterTime);
 
-      gain.gain.setValueAtTime(0.13 * this.volume, flutterTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, flutterTime + 0.028);
+      gain.gain.setValueAtTime(0.16 * this.volume, flutterTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, flutterTime + 0.022);
 
       osc.connect(filter);
       filter.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start(flutterTime);
-      osc.stop(flutterTime + 0.032);
+      osc.stop(flutterTime + 0.025);
     }
+
+    // Final crisp square-up deck snap at the end
+    const snapTime = t + cardFlutters * 0.024 + 0.05;
+    const snapOsc = this.ctx.createOscillator();
+    const snapGain = this.ctx.createGain();
+    snapOsc.type = 'triangle';
+    snapOsc.frequency.setValueAtTime(320, snapTime);
+    snapOsc.frequency.exponentialRampToValueAtTime(90, snapTime + 0.045);
+    snapGain.gain.setValueAtTime(0.3 * this.volume, snapTime);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, snapTime + 0.05);
+    snapOsc.connect(snapGain);
+    snapGain.connect(this.ctx.destination);
+    snapOsc.start(snapTime);
+    snapOsc.stop(snapTime + 0.06);
   }
 
   /**
@@ -323,7 +342,7 @@ class SoundEngine {
   }
 
   /**
-   * Authentic Card Play Foley: Crisp paper flick + resonant table-felt thud
+   * Authentic Card Play Foley: Crisp paper flick + resonant table-felt thud with organic micro-variation
    */
   public playCardPlay() {
     if (!this.enabled) return;
@@ -331,6 +350,7 @@ class SoundEngine {
     if (!this.ctx) return;
 
     const t = this.ctx.currentTime;
+    const pitchVar = 0.94 + Math.random() * 0.12;
 
     // Layer 1: Resonant wooden felt thud (low frequency body)
     const thudOsc = this.ctx.createOscillator();
@@ -338,15 +358,15 @@ class SoundEngine {
     const thudFilter = this.ctx.createBiquadFilter();
 
     thudOsc.type = 'triangle';
-    thudOsc.frequency.setValueAtTime(125, t);
-    thudOsc.frequency.exponentialRampToValueAtTime(38, t + 0.08);
+    thudOsc.frequency.setValueAtTime(135 * pitchVar, t);
+    thudOsc.frequency.exponentialRampToValueAtTime(36, t + 0.085);
 
     thudFilter.type = 'lowpass';
-    thudFilter.frequency.setValueAtTime(320, t);
-    thudFilter.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+    thudFilter.frequency.setValueAtTime(340, t);
+    thudFilter.frequency.exponentialRampToValueAtTime(55, t + 0.085);
 
-    thudGain.gain.setValueAtTime(0.38 * this.volume, t);
-    thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    thudGain.gain.setValueAtTime(0.42 * this.volume, t);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.095);
 
     thudOsc.connect(thudFilter);
     thudFilter.connect(thudGain);
@@ -354,12 +374,12 @@ class SoundEngine {
     thudOsc.start(t);
     thudOsc.stop(t + 0.1);
 
-    // Layer 2: Card snap friction (short crisp white-noise snap)
-    const snapSize = Math.floor(this.ctx.sampleRate * 0.035);
+    // Layer 2: Card snap friction & slap (short crisp organic noise snap)
+    const snapSize = Math.floor(this.ctx.sampleRate * 0.04);
     const snapBuffer = this.ctx.createBuffer(1, snapSize, this.ctx.sampleRate);
     const snapData = snapBuffer.getChannelData(0);
     for (let i = 0; i < snapSize; i++) {
-      snapData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (snapSize * 0.25));
+      snapData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (snapSize * 0.22));
     }
 
     const snapSource = this.ctx.createBufferSource();
@@ -367,17 +387,30 @@ class SoundEngine {
 
     const snapFilter = this.ctx.createBiquadFilter();
     snapFilter.type = 'bandpass';
-    snapFilter.frequency.setValueAtTime(1800, t);
-    snapFilter.Q.setValueAtTime(1.8, t);
+    snapFilter.frequency.setValueAtTime(2200 * pitchVar, t);
+    snapFilter.Q.setValueAtTime(2.2, t);
 
     const snapGain = this.ctx.createGain();
-    snapGain.gain.setValueAtTime(0.24 * this.volume, t);
-    snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+    snapGain.gain.setValueAtTime(0.3 * this.volume, t);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
 
     snapSource.connect(snapFilter);
     snapFilter.connect(snapGain);
     snapGain.connect(this.ctx.destination);
     snapSource.start(t);
+
+    // Layer 3: Subtle card edge flick transient
+    const flickOsc = this.ctx.createOscillator();
+    const flickGain = this.ctx.createGain();
+    flickOsc.type = 'sine';
+    flickOsc.frequency.setValueAtTime(820 * pitchVar, t);
+    flickOsc.frequency.exponentialRampToValueAtTime(210, t + 0.035);
+    flickGain.gain.setValueAtTime(0.2 * this.volume, t);
+    flickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+    flickOsc.connect(flickGain);
+    flickGain.connect(this.ctx.destination);
+    flickOsc.start(t);
+    flickOsc.stop(t + 0.04);
   }
 
   /**
@@ -553,7 +586,7 @@ class SoundEngine {
   }
 
   /**
-   * Card deal / whoosh sound
+   * Card deal / whoosh sound with tactile paper slide
    */
   public playCardDeal() {
     if (!this.enabled) return;
@@ -561,11 +594,11 @@ class SoundEngine {
     if (!this.ctx) return;
 
     const t = this.ctx.currentTime;
-    const bufferSize = this.ctx.sampleRate * 0.08;
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.09);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const output = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      output[i] = Math.random() * 2 - 1;
+      output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.45));
     }
 
     const whiteNoise = this.ctx.createBufferSource();
@@ -573,13 +606,13 @@ class SoundEngine {
 
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(1200, t);
-    filter.frequency.linearRampToValueAtTime(400, t + 0.07);
-    filter.Q.value = 3;
+    filter.frequency.setValueAtTime(1500, t);
+    filter.frequency.exponentialRampToValueAtTime(500, t + 0.08);
+    filter.Q.value = 2.5;
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.18 * this.volume, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    gain.gain.setValueAtTime(0.24 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.085);
 
     whiteNoise.connect(filter);
     filter.connect(gain);
@@ -688,27 +721,22 @@ class SoundEngine {
     crackOsc.start(t);
     crackOsc.stop(t + 0.16);
 
-    // 3. Victory Fanfare Arpeggio
+    // 3. Victory Crystal Chime Arpeggio
     const fanfareNotes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
     fanfareNotes.forEach((note, i) => {
       const osc = this.ctx!.createOscillator();
       const g = this.ctx!.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(note, t + 0.1 + i * 0.06);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note, t + 0.08 + i * 0.055);
 
-      g.gain.setValueAtTime(0.15 * this.volume, t + 0.1 + i * 0.06);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.1 + i * 0.06 + 0.25);
+      g.gain.setValueAtTime(0.22 * this.volume, t + 0.08 + i * 0.055);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.08 + i * 0.055 + 0.4);
 
-      const lp = this.ctx!.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 2400;
-
-      osc.connect(lp);
-      lp.connect(g);
+      osc.connect(g);
       g.connect(this.ctx!.destination);
 
-      osc.start(t + 0.1 + i * 0.06);
-      osc.stop(t + 0.1 + i * 0.06 + 0.28);
+      osc.start(t + 0.08 + i * 0.055);
+      osc.stop(t + 0.08 + i * 0.055 + 0.45);
     });
   }
 
@@ -849,29 +877,30 @@ class SoundEngine {
   }
 
   /**
-   * UNO: Dramatic "UNO!" Shout Fanfare
+   * UNO: Dramatic & Radiant "UNO!" Shout Fanfare
    */
   public playUnoShout() {
     if (!this.enabled) return;
     this.initCtx();
     if (!this.ctx) return;
 
-    const chords = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
-    chords.forEach(freq => {
-      const t = this.ctx!.currentTime;
+    // Rich bright triad fanfare (C5 -> E5 -> G5 -> C6 sweep)
+    const chords = [523.25, 659.25, 783.99, 1046.5];
+    chords.forEach((freq, idx) => {
+      const t = this.ctx!.currentTime + idx * 0.04;
       const osc = this.ctx!.createOscillator();
       const gain = this.ctx!.createGain();
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.22 * this.volume, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      gain.gain.setValueAtTime(0.24 * this.volume, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
 
       osc.connect(gain);
       gain.connect(this.ctx!.destination);
       osc.start(t);
-      osc.stop(t + 0.6);
+      osc.stop(t + 0.65);
     });
   }
 

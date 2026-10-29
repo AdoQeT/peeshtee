@@ -85,9 +85,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     theme === 'sakura'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#4a0e36_0%,_#190520_52%,_#07020a_100%)]'
       : theme === 'estoril_blue'
-      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0b3159_0%,_#051c38_55%,_#010711_100%)]'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#163758_0%,_#0c2136_55%,_#06111c_100%)]'
+      : theme === 'alpine_white'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#2c323b_0%,_#171b21_55%,_#0c0e12_100%)]'
+      : theme === 'melbourne_red'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#4d0b13_0%,_#240509_55%,_#0f0204_100%)]'
       : theme === 'monaco_velvet'
-      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0a3d28_0%,_#042114_55%,_#010b06_100%)]'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0d4229_0%,_#062316_55%,_#020d08_100%)]'
       : theme === 'traditional'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#064e3b_0%,_#041f17_55%,_#020c09_100%)]'
       : 'bg-[radial-gradient(circle_at_50%_20%,_#451a03_0%,_#1c1917_55%,_#090807_100%)]';
@@ -240,7 +244,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   : 'bg-gradient-to-b from-white via-amber-200 to-amber-500'
               }`}
             >
-              P İ Ş T İ
+              PEESHTEE
             </h1>
             <p
               className={`text-xs sm:text-sm font-cyber tracking-[0.28em] font-black -mt-1 ${
@@ -359,7 +363,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   <Globe className="w-6 h-6" />
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                  Canlı P2P
+                  Online Lobi
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
@@ -421,9 +425,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </main>
 
-      {/* Clean Footer Info */}
-      <footer className="relative z-10 text-center text-[11px] text-slate-400/70 font-medium py-1">
-        Sıfır Işınlanma 3D Kart Fiziği • Canlı Masa Üstü Kart Sayımı • WebRTC Küresel Canlı Lobi
+      {/* Minimal Footer & Version Tag */}
+      <footer className="relative z-10 w-full max-w-6xl flex items-center justify-end px-2 py-1 pointer-events-none">
+        <span className="text-[11px] font-mono font-bold text-slate-500/80 tracking-wider">
+          v1.8
+        </span>
       </footer>
     </div>
   );

@@ -5,14 +5,13 @@ import {
   VolumeX,
   Sliders,
   Palette,
-  Zap,
   Activity,
   Sparkles,
   Trophy,
   Bot,
   Flame
 } from 'lucide-react';
-import { GameSettings, TableTheme, AIDifficulty } from '../types/game';
+import { GameSettings, TableTheme, AIDifficulty, getCardBackForTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
 
 interface SettingsModalProps {
@@ -37,68 +36,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onClose();
   };
 
-  const themes: { id: TableTheme; name: string; subtitle: string; preview: string; badge: string }[] = [
+  const themes: { id: TableTheme; name: string; subtitle: string; preview: string; badge: string; cardDesc: string }[] = [
+    {
+      id: 'estoril_blue',
+      name: 'Estoril Blue',
+      subtitle: 'Tatlı Safir Metalik & Gümüş Hatlar',
+      preview: 'from-[#123e70] via-[#092548] to-[#031124] border-sky-400/80',
+      badge: 'M-SPORT',
+      cardDesc: 'Estoril Sport Kart & Çift Yarış Deseni'
+    },
+    {
+      id: 'alpine_white',
+      name: 'Alpine White',
+      subtitle: 'Saf Beyaz Mermer Çuha & Platin İşleme',
+      preview: 'from-[#e2e8f0] via-[#94a3b8] to-[#334155] border-slate-300 text-slate-900',
+      badge: 'PLATINUM',
+      cardDesc: 'Alpine Platinum Kart & Fildişi Doku'
+    },
+    {
+      id: 'melbourne_red',
+      name: 'Melbourne Red',
+      subtitle: 'Derin Metalik Kırmızı & Altın Yarış Dikişi',
+      preview: 'from-[#8a0e1b] via-[#57050e] to-[#1c0205] border-red-400/80',
+      badge: 'SPEED',
+      cardDesc: 'Melbourne Speed Kart & Yakut Bordür'
+    },
+    {
+      id: 'monaco_velvet',
+      name: 'Monaco Velvet',
+      subtitle: 'Casino Royale & Zümrüt Kadife Çuha',
+      preview: 'from-[#0c4028] via-[#062919] to-[#02130b] border-emerald-400/80',
+      badge: 'ROYALE',
+      cardDesc: 'Monaco Royal Kart & Altın Kraliyet Tacı'
+    },
     {
       id: 'traditional',
       name: 'Zümrüt Kıraathane',
       subtitle: 'Klasik Yeşil Çuha & Maun Ağacı',
       preview: 'from-[#0d422e] via-[#082a1d] to-[#04170f] border-emerald-500/60',
-      badge: 'KLASİK'
+      badge: 'KLASİK',
+      cardDesc: 'Klasik Bicycle Mavi Kart Arkası'
     },
     {
       id: 'sakura',
       name: 'Sakura Spirit',
       subtitle: 'Gece Kiraz Çiçeği & Mürdüm Kadife',
       preview: 'from-[#3b0a28] via-[#220625] to-[#120317] border-pink-400/60',
-      badge: 'ZARİF'
+      badge: 'ZARİF',
+      cardDesc: 'Sakura Çiçek Monogramı Pembe Kart'
     },
     {
       id: 'luxury_gold',
       name: 'Lüks Varak',
-      subtitle: 'Casino Royale & Altın İşleme',
+      subtitle: 'Casino Royale & 24k Altın İşleme',
       preview: 'from-[#381408] via-[#21090d] to-[#0d0407] border-amber-500/60',
-      badge: 'VIP'
-    },
-    {
-      id: 'estoril_blue',
-      name: 'Estoril Blue',
-      subtitle: 'M-Sport Safir Metalik & Karbon Dokulu',
-      preview: 'from-[#0b3159] via-[#051c38] to-[#010711] border-sky-400/80',
-      badge: 'M-SPORT'
-    },
-    {
-      id: 'monaco_velvet',
-      name: 'Monaco Velvet',
-      subtitle: 'Casino Royale & Zümrüt Kadife',
-      preview: 'from-[#0a3d28] via-[#042114] to-[#010b06] border-emerald-400/80',
-      badge: 'ROYALE'
-    }
-  ];
-
-  const cardBacks = [
-    {
-      id: 'classic_blue',
-      name: 'Klasik Mavi',
-      desc: 'Geleneksel Çift Kenar',
-      bg: 'bg-gradient-to-br from-blue-700 via-blue-900 to-slate-950 border-blue-400'
-    },
-    {
-      id: 'sakura_blossom',
-      name: 'Sakura Ruh',
-      desc: 'Kiraz Çiçeği Rozeti',
-      bg: 'bg-gradient-to-br from-[#3b0a28] via-[#1f0726] to-[#0f0318] border-pink-400'
-    },
-    {
-      id: 'gold_dragon',
-      name: 'Altın Ejder',
-      desc: 'VIP Altın Folyo & Varak',
-      bg: 'bg-gradient-to-br from-amber-800 via-stone-900 to-black border-amber-400'
-    },
-    {
-      id: 'estoril_sport',
-      name: 'Estoril M-Sport',
-      desc: 'Safir Çift Yarış Çizgisi',
-      bg: 'bg-gradient-to-br from-sky-600 via-blue-950 to-slate-950 border-sky-400'
+      badge: 'VIP',
+      cardDesc: '24k Altın Folyo & Varak Ejderha'
     }
   ];
 
@@ -174,15 +167,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tab Contents (Scrollable Area) */}
         <div className="overflow-y-auto space-y-5 text-sm pr-1 flex-1">
-          {/* TAB 1: MASA & KART TEMASI */}
+          {/* TAB 1: MASA TEMASI */}
           {activeTab === 'themes' && (
             <div className="space-y-5">
-              {/* Masa Teması */}
+              {/* Masa Teması Seçici */}
               <div>
                 <div className="flex items-center justify-between mb-2.5">
                   <label className="font-bold text-white flex items-center gap-2 text-xs sm:text-sm">
                     <Palette className="w-4 h-4 text-amber-400" />
-                    Masa Çuhası & Atmosfer
+                    Masa Çuhası & Özel Tema
                   </label>
                   <span className="text-[11px] text-amber-300 font-mono font-bold">
                     {themes.find(t => t.id === settings.theme)?.name}
@@ -196,7 +189,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         key={t.id}
                         onClick={() => {
                           sound.playClick();
-                          onUpdateSettings({ theme: t.id });
+                          const matchingCardBack = getCardBackForTheme(t.id);
+                          onUpdateSettings({ theme: t.id, cardBack: matchingCardBack });
                         }}
                         className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden bg-gradient-to-br cursor-pointer ${t.preview} ${
                           isSelected
@@ -219,39 +213,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Deste Arkası Deseni */}
-              <div>
-                <label className="font-bold text-white mb-2.5 flex items-center gap-2 text-xs sm:text-sm">
-                  <Zap className="w-4 h-4 text-cyan-400" />
-                  Deste & Kart Arkası Deseni
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {cardBacks.map(cb => {
-                    const isSelected = settings.cardBack === cb.id;
-                    return (
-                      <button
-                        key={cb.id}
-                        onClick={() => {
-                          sound.playClick();
-                          onUpdateSettings({ cardBack: cb.id });
-                        }}
-                        className={`p-3 rounded-2xl border flex flex-col items-center text-center gap-2 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-cyan-400 ring-2 ring-cyan-400/50 bg-cyan-950/40 shadow-lg'
-                            : 'border-white/10 hover:border-white/30 bg-white/5 opacity-75 hover:opacity-100'
-                        }`}
-                      >
-                        <div className={`w-10 h-14 rounded-lg ${cb.bg} border-2 shadow-md flex items-center justify-center`}>
-                          <span className="font-arcade text-[10px] text-white/70">P</span>
-                        </div>
-                        <div>
-                          <span className="font-bold text-xs text-white block">{cb.name}</span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">{cb.desc}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
+              {/* Temaya Özel Kart Deseni Bilgisi */}
+              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-sm shadow-sm">
+                    🂠
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-white block">
+                      Otomatik Özgün Kart Seti
+                    </span>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      {themes.find(t => t.id === settings.theme)?.cardDesc || 'Temaya özel el yapımı kart deseni'}
+                    </span>
+                  </div>
                 </div>
+                <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono font-bold shrink-0">
+                  AKTİF EŞLEŞTİRİLDİ
+                </span>
               </div>
             </div>
           )}
@@ -522,10 +501,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Sparkles className="w-4 h-4 text-emerald-400" />
-                      60 FPS Parçacık Motoru (Particles)
+                      Dinamik Parçacık Motoru (144Hz / 240Hz+ Sınırsız)
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Pişti ve UNO kutlamalarında GPU konfeti ve ışımaları
+                      Yüksek yenileme hızlı monitörlerde akıcı GPU parçacıkları ve ışık efektleri
                     </span>
                   </div>
                   <button

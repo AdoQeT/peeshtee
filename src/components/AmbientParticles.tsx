@@ -8,7 +8,9 @@ interface AmbientParticlesProps {
 }
 
 const THEME_PALETTES: Record<string, string[]> = {
-  estoril_blue: ['#38bdf8', '#0ea5e9', '#67e8f9', '#7dd3fc', '#ffffff', '#0284c7'],
+  estoril_blue: ['#60a5fa', '#38bdf8', '#93c5fd', '#bfdbfe', '#ffffff', '#2563eb'],
+  alpine_white: ['#ffffff', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#e0e7ff'],
+  melbourne_red: ['#ef4444', '#dc2626', '#b91c1c', '#f87171', '#fbbf24', '#ffffff'],
   monaco_velvet: ['#10b981', '#34d399', '#f59e0b', '#6ee7b7', '#fbbf24', '#a7f3d0'],
   sakura: ['#f472b6', '#fb7185', '#fda4af', '#fbcfe8', '#ffffff'],
   luxury_gold: ['#fbbf24', '#f59e0b', '#d97706', '#fef08a', '#ffffff'],

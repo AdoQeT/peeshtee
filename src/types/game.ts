@@ -49,7 +49,34 @@ export interface Player {
   level: number;
 }
 
-export type TableTheme = 'sakura' | 'traditional' | 'estoril_blue' | 'monaco_velvet' | 'luxury_gold';
+export type TableTheme =
+  | 'estoril_blue'
+  | 'alpine_white'
+  | 'melbourne_red'
+  | 'monaco_velvet'
+  | 'traditional'
+  | 'sakura'
+  | 'luxury_gold';
+
+export function getCardBackForTheme(theme: TableTheme): string {
+  switch (theme) {
+    case 'estoril_blue':
+      return 'estoril_sport';
+    case 'alpine_white':
+      return 'alpine_platinum';
+    case 'melbourne_red':
+      return 'melbourne_speed';
+    case 'monaco_velvet':
+      return 'monaco_royal';
+    case 'sakura':
+      return 'sakura_blossom';
+    case 'luxury_gold':
+      return 'gold_dragon';
+    case 'traditional':
+    default:
+      return 'classic_blue';
+  }
+}
 
 export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain';
 

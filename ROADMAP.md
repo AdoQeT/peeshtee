@@ -43,6 +43,11 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - **Canlı Ağ İstatistikleri & Oyun İçi Ünvanlar**: Arkadaş profillerindeki yapay sabit değerler yerine gerçek kariyer istatistikleri ve maç geçmişi yayınlanıyor; oyuncu unvanları eksiksiz gösteriliyor.
   - **Emote Görünürlüğü**: Reaksiyonlar `z-[100]` katmanına taşınarak çerçevenin arkasında kalması ve kırpılması önlendi.
   - **Discord Webhook Entegrasyonu**: Güncelleme notlarının Discord kanalına anlık zengin Embed mesajı olarak gönderilmesi (`npm run changelog`).
+- [x] **Deste Kesim Fiziği, Mükerrer Buton Temizliği & Online Maç Geçmişi Güvencesi (v1.14.3)**:
+  - **Mükerrer Deste & Işınlanma Giderimi**: Deste masaya yayılırken deste yuvasının (`deckEl`) tamamen boş kalması; kartların standart masa kartlarıyla birebir aynı boyutta (`CARD_DIMENSIONS.md`) yayılması; kesim ve birleşim sonrasında destenin tam yuva koordinatına (`deckSlotOffset`) sıfır ışınlanma ve kesintisiz ölçekle yerleşmesi.
+  - **Ana Menü Buton Temizliği**: Ana menüdeki mükerrer yüzen sosyal butonu kaldırılarak yalnızca sağ üst header butonunun kalması.
+  - **Online Maç İstatistikleri & Geçmiş Senkronizasyonu**: Tek el ve çok oyunculu maçlarda (Pişti & RENQ) maç sonu ve el bitiminde galibiyet/mağlubiyet, skor ve rakip adının profildeki kariyer istatistiklerine ve maç geçmişine anında eksiksiz kaydedilmesi.
+  - **Pişti Kartları Yerleşim & Uçuş Fiziği**: Pişti yapıldığında eşleşen açık kartın pişti yuvasına, alt kartın toplanan kartlar destesine uçması; yuva içine yerleşen kartların aynı açıyla, okunabilir ve kademeli üst üste sergilenmesi.
 
 - [x] **Fiziki Masa Kesimi, Sosyal İstekler, Seviye & Görev Sistemi (v1.14)**:
   - **Fiziki Masa Üstü Deste Kesme (In-Table Physical Deck Cut)**: Ayrı pencere yerine doğrudan masa çuhasında yayılan 52 kart; sadece tura başlayacak oyuncunun kesebilmesi; çok oyunculuda `MP_DECK_CUT` ile anlık senkronizasyon; kesilen 2 destenin kalınlıklarıyla masada ayrılması, 4 yer kartının dağıtımı (Vale kesene yarar ödülü) ve destelerin birleşimi.

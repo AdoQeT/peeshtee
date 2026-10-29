@@ -39,7 +39,7 @@ import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
 import confetti from 'canvas-confetti';
-import { AlertTriangle, Bell, Play, X, Users } from 'lucide-react';
+import { AlertTriangle, Bell, Play, X } from 'lucide-react';
 
 const INITIAL_SETTINGS: GameSettings = {
   soundEnabled: true,
@@ -1455,10 +1455,25 @@ export default function App() {
         const flyId = `sweep-${c.id}-${idx}-${Date.now()}`;
 
         const isTopCardOfPair = idx === visibleToFly.length - 1;
-        // Pişti: bottom card 0° face-down, top card 90° face-up!
-        const targetRot =
-          isPistiSweep && isTopCardOfPair ? 90 : isPistiSweep ? 0 : (idx % 2 === 0 ? 1 : -1) * 3;
+
+        // Pişti: Top card flies face-up to pistiEls, bottom card(s) fly face-down to collectedEls
+        const actualTargetEl = isPistiSweep && isTopCardOfPair
+          ? tableRefs.current.pistiEls[winnerIdx] || targetEl
+          : tableRefs.current.collectedEls[winnerIdx] || targetEl;
+
+        const actualTargetPos = getCenter(
+          actualTargetEl,
+          targetPos.x,
+          targetPos.y
+        );
+
+        const currentPistiCount = playersRef.current[winnerIdx]?.pistiCount || 0;
+        const targetRot = isPistiSweep && isTopCardOfPair
+          ? (currentPistiCount % 2 === 0 ? 1 : -1) * (2 + Math.min(currentPistiCount * 1.5, 8))
+          : (idx % 2 === 0 ? 1 : -1) * 3;
+
         const endFaceUp = isPistiSweep ? isTopCardOfPair : false;
+        const targetScale = isPistiSweep && isTopCardOfPair ? 0.65 : 0.76;
 
         return {
           id: flyId,
@@ -1470,14 +1485,14 @@ export default function App() {
           waypointRotation: targetRot,
           waypointScale: isPistiSweep ? 1.12 : 1.04,
           waypointOffset: isPistiSweep ? 0.38 : 0.30,
-          targetX: targetPos.x,
-          targetY: targetPos.y,
+          targetX: actualTargetPos.x,
+          targetY: actualTargetPos.y,
           startRotation: rot,
           targetRotation: targetRot,
           startFaceUp: c.faceUp,
           endFaceUp,
           startScale: 1,
-          targetScale: 0.76,
+          targetScale,
           duration: isPistiSweep ? 540 : 440 + idx * 22,
           arcHeight: 78,
           size: 'md',
@@ -1980,6 +1995,8 @@ export default function App() {
         });
         // Record match win for local player
         recordMatchStats(true, 50, 0, 0, false, msg.senderName || 'Online Rakip');
+        setUserProfile(getUserProfile());
+        friendNetwork.announcePresence();
       }
     });
 
@@ -2094,21 +2111,26 @@ export default function App() {
       const newOppScore = finalPlayersState[1].score + oBreakdown.totalRoundPoints;
 
       const target = settingsRef.current.targetScore;
+      const isSingleRound = target <= 25 || target === 1;
       const gameOver =
-        (newUserScore >= target || newOppScore >= target) && newUserScore !== newOppScore;
+        isSingleRound ||
+        ((newUserScore >= target || newOppScore >= target) && newUserScore !== newOppScore);
 
       let matchWinner: Player | null = null;
       if (gameOver) {
         matchWinner = newUserScore > newOppScore ? userSideAggregate : oppSideAggregate;
         const isUserWin = newUserScore > newOppScore;
+        const oppName = oppSideAggregate.name || 'Rakip';
         const xpRes = recordMatchStats(
           isUserWin,
           newUserScore,
           userSideAggregate.pistiCount,
           userSideAggregate.doublePistiCount,
           false,
-          oppSideAggregate.name || 'Rakip'
+          oppName
         );
+        setUserProfile(getUserProfile());
+        friendNetwork.announcePresence();
         if (xpRes.leveledUp) {
           showDevToast(`🎉 SEVİYE ATLADIN! Yeni Seviye: Level ${xpRes.newLevel} (+${xpRes.xpEarned} XP)`);
         }
@@ -2567,6 +2589,22 @@ export default function App() {
 
   const handleExitToMenu = useCallback(() => {
     if (isMultiplayerGameRef.current) {
+      if (roundScores && !roundScores.isGameOver && playersRef.current.length >= 2) {
+        const uScore = playersRef.current[0].score;
+        const oScore = playersRef.current[1].score;
+        const isWin = uScore > oScore;
+        const oppName = playersRef.current[1].name || 'Online Rakip';
+        recordMatchStats(
+          isWin,
+          uScore,
+          playersRef.current[0].pistiCount || 0,
+          playersRef.current[0].doublePistiCount || 0,
+          false,
+          oppName
+        );
+        setUserProfile(getUserProfile());
+        friendNetwork.announcePresence();
+      }
       try {
         multiplayerManager.send({
           type: 'MP_MATCH_ABORTED',
@@ -2595,6 +2633,18 @@ export default function App() {
   const handleConfirmSurrender = useCallback(() => {
     setIsSurrenderModalOpen(false);
     if (isMultiplayerGameRef.current) {
+      const uScore = playersRef.current[0]?.score || 0;
+      const oppName = playersRef.current[1]?.name || 'Online Rakip';
+      recordMatchStats(
+        false,
+        uScore,
+        playersRef.current[0]?.pistiCount || 0,
+        playersRef.current[0]?.doublePistiCount || 0,
+        false,
+        oppName
+      );
+      setUserProfile(getUserProfile());
+      friendNetwork.announcePresence();
       try {
         multiplayerManager.send({
           type: 'MP_MATCH_ABORTED',
@@ -2830,7 +2880,7 @@ export default function App() {
           onOpenMultiplayer={() => setIsMultiplayerOpen(true)}
           onOpenRules={() => setIsRulesOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenProfile={() => { setUserProfile(getUserProfile()); setIsProfileOpen(true); }}
           onOpenFriends={() => setIsFriendsOpen(prev => !prev)}
           isFriendsOpen={isFriendsOpen}
           onStartUnoGame={() => setScreen('uno')}
@@ -2848,6 +2898,8 @@ export default function App() {
             setMultiplayerSeedUnoDeck(null);
             setInitialJoinCode('');
             setActiveMultiplayerSlots([]);
+            setUserProfile(getUserProfile());
+            friendNetwork.announcePresence();
             setScreen('menu');
           }}
           playerCount={isMultiplayerGame ? (settings.playerCount || 4) : 4}
@@ -3054,34 +3106,7 @@ export default function App() {
         }}
       />
 
-      {/* Top Right Floating Social Launcher Pill */}
-      {screen === 'menu' && (
-        <button
-          onClick={() => {
-            sound.playClick();
-            setIsFriendsOpen(prev => !prev);
-          }}
-          className="fixed top-4 right-4 z-40 flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-emerald-400/60 hover:border-emerald-300 text-xs font-black text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.35)] backdrop-blur-md transition-all active:scale-95 cursor-pointer group"
-          title="Sosyal Menüsünü Aç / Kapat"
-        >
-          <div className="relative">
-            <Users className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-            {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            )}
-          </div>
-          <span className="hidden sm:inline">Sosyal</span>
-          {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 ? (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
-              {userProfile.incomingFriendRequests.length}
-            </span>
-          ) : userProfile.friends && userProfile.friends.length > 0 ? (
-            <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
-              {userProfile.friends.length}
-            </span>
-          ) : null}
-        </button>
-      )}
+
 
       {/* Standalone Friends & Global Player Network Modal */}
       <FriendsModal

@@ -145,7 +145,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Host configurable lobby settings
-  const [targetScore, setTargetScore] = useState<number>(initialSettings.targetScore || 101);
+  const [targetScore, setTargetScore] = useState<number>(initialSettings.targetScore || 1);
   const [fiveRuleEnabled, setFiveRuleEnabled] = useState<boolean>(
     initialSettings.fiveRuleEnabled || false
   );
@@ -888,6 +888,54 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                         </button>
                       </div>
                     </div>
+
+                    {gameType === 'pisti' && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs font-bold text-slate-300">Hedef:</span>
+                        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+                          <button
+                            onClick={() => {
+                              sound.playClick();
+                              setTargetScore(1);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              targetScore === 1
+                                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title="1 El (Tek El) — 52 kart bittiğinde kazanan belli olur"
+                          >
+                            Tek El
+                          </button>
+                          <button
+                            onClick={() => {
+                              sound.playClick();
+                              setTargetScore(51);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              targetScore === 51
+                                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            51P
+                          </button>
+                          <button
+                            onClick={() => {
+                              sound.playClick();
+                              setTargetScore(101);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              targetScore === 101
+                                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            101P
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       onClick={handleCreateRoom}

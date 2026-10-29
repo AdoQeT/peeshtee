@@ -953,13 +953,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             }, 0);
 
             const newPlayerScore = actingPlayer.score + totalRoundPoints;
-            const isGameEnd = newPlayerScore >= targetScore;
+            const isGameEnd = isMultiplayer ? true : (newPlayerScore >= targetScore);
 
             if (isGameEnd) {
+              const oppName = playerIdx === 0 ? (nextPlayers[1]?.name || 'Online Rakip') : (nextPlayers[playerIdx]?.name || 'Online Rakip');
               if (playerIdx === 0) {
-                recordMatchStats(true, newPlayerScore, 0, 0, true, nextPlayers[1]?.name || 'Rakip');
+                recordMatchStats(true, newPlayerScore, 0, 0, true, oppName);
               } else {
-                recordMatchStats(false, nextPlayers[0]?.score || 0, 0, 0, true, nextPlayers[playerIdx]?.name || 'Rakip');
+                recordMatchStats(false, nextPlayers[0]?.score || 0, 0, 0, true, oppName);
               }
             }
 
@@ -2410,9 +2411,20 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             <div className="flex items-center justify-center gap-3">
               {!gameState.isGameOver ? (
                 isMultiplayer && !isHost ? (
-                  <div className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-amber-300 border border-amber-500/30 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                    <span>Oda Yöneticisinin Yeni Eli Başlatması Bekleniyor...</span>
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <div className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-amber-300 border border-amber-500/30 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                      <span>Oda Yöneticisinin Yeni Eli Başlatması Bekleniyor...</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        onExitToMenu();
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-slate-300 cursor-pointer"
+                    >
+                      Menüye Dön
+                    </button>
                   </div>
                 ) : (
                   <button

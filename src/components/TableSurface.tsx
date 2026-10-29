@@ -514,7 +514,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     player: Player,
     playerIdx: number,
     labelPos: 'top' | 'bottom' = 'bottom',
-    compact: boolean = false
+    _compact: boolean = false
   ) => {
     const pistiCount = player.pistiCount;
     const pairs = player.pistiPairs || [];
@@ -522,9 +522,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     const hasPistiPulse =
       recentCapture && recentCapture.playerIdx === playerIdx && recentCapture.isPisti;
 
-    const boxSize = compact
-      ? 'w-14 h-16 sm:w-16 sm:h-20'
-      : 'w-16 h-20 sm:w-20 sm:h-24';
+    const boxSize = CARD_DIMENSIONS.sm.classes;
 
     return (
       <div
@@ -545,11 +543,13 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             <span className="text-base select-none font-sans font-light text-amber-200">✛</span>
           </div>
         ) : (
-          <div className="relative w-10 h-14 sm:w-12 sm:h-17 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center">
             {visiblePairs.map((pair, pairIdx) => {
-              const xShift = (pairIdx - (visiblePairs.length - 1) / 2) * 8;
-              const yShift = pairIdx * -1.5;
-              const rot = (pairIdx - (visiblePairs.length - 1) / 2) * 4;
+              const count = visiblePairs.length;
+              const offset = pairIdx - (count - 1);
+              const xShift = offset * 7;
+              const yShift = offset * -2;
+              const rot = (pairIdx % 2 === 0 ? 1 : -1) * (2 + Math.min(pairIdx * 1.5, 8));
 
               return (
                 <div
@@ -1188,7 +1188,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 </div>
 
                 {/* FANNED / SPLIT / MERGING 52 PHYSICAL CARDS SPREAD ACROSS TABLE FELT */}
-                <div className="relative w-full h-24 sm:h-28 flex items-center justify-center">
+                <div className="relative w-full h-36 sm:h-44 flex items-center justify-center">
                   {Array.from({ length: 52 }).map((_, idx) => {
                     const isSm = typeof window !== 'undefined' && window.innerWidth >= 640;
                     const pileOffset = isSm ? 140 : 105;
@@ -1256,8 +1256,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                       cardTransition =
                         'left 0.65s cubic-bezier(0.25, 1, 0.45, 1), transform 0.65s cubic-bezier(0.25, 1, 0.45, 1)';
                     } else if (deckCutState.step === 'stowing') {
-                      cardLeft = `calc(50% - ${isSm ? 130 : 100}px)`;
-                      cardTransform = `translate(-50%, ${(idx - 26) * -0.5}px) scale(0.95)`;
+                      const deckSlotOffset = isSm ? 72 : 56;
+                      cardLeft = `calc(50% - ${deckSlotOffset}px)`;
+                      cardTransform = `translate(-50%, ${(idx - 26) * -0.6}px) scale(1)`;
                       cardZIndex = idx + 1;
                       cardTransition = 'all 0.45s cubic-bezier(0.25, 1, 0.5, 1)';
                     }
@@ -1291,9 +1292,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                           zIndex: cardZIndex,
                           transition: cardTransition
                         }}
-                        className={`w-12 sm:w-14 h-16 sm:h-20 rounded-lg shadow-md ${
+                        className={`${CARD_DIMENSIONS.md.classes} ${
                           deckCutState.step === 'waiting_cut' && deckCutState.isHumanCutter
-                            ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(245,158,11,0.9)] ring-1 hover:ring-2 ring-amber-400/80 pointer-events-auto'
+                            ? 'cursor-pointer hover:shadow-[0_0_20px_rgba(245,158,11,0.9)] ring-1 hover:ring-2 ring-amber-400/80 pointer-events-auto'
                             : 'pointer-events-none'
                         }`}
                       >
@@ -1325,7 +1326,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               </div>
             )}
 
-            <div className={`flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 ${deckCutState?.isActive ? 'opacity-85' : 'opacity-100'}`}>
+            <div className="flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 opacity-100">
             {/* Physical Deck Stack on the Left of the Pot (Exact scale(1) to match shuffle end) */}
             <div className="flex flex-col items-center">
               <div
@@ -1334,7 +1335,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 }}
                 className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl border border-dashed border-white/20 bg-black/25`}
               >
-                {isShuffling ? (
+                {deckCutState?.isActive ? (
+                  <div className="flex flex-col items-center justify-center text-amber-200/40 text-[10px] font-bold text-center px-1 select-none animate-pulse">
+                    <Scissors className="w-3.5 h-3.5 mb-1 text-amber-400/60" />
+                    <span>Masada</span>
+                  </div>
+                ) : isShuffling ? (
                   <div className="flex flex-col items-center justify-center text-amber-300/70 text-[10px] font-bold text-center px-2">
                     <Sparkles className="w-4 h-4 mb-1 animate-spin text-amber-400" />
                     <span>Deste Karılıyor</span>
@@ -1368,7 +1374,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 )}
               </div>
               <span className="mt-1.5 text-[10px] font-cyber text-slate-200 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-white/15 shadow-md">
-                Deste: {deckCount}
+                {deckCutState?.isActive ? 'Deste: Masada' : `Deste: ${deckCount}`}
               </span>
             </div>
 

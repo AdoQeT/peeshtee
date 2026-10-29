@@ -38,7 +38,7 @@ import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
 import confetti from 'canvas-confetti';
-import { AlertTriangle, Bell, Play, X } from 'lucide-react';
+import { AlertTriangle, Bell, Play, X, Users } from 'lucide-react';
 
 const INITIAL_SETTINGS: GameSettings = {
   soundEnabled: true,
@@ -2675,7 +2675,8 @@ export default function App() {
           onOpenRules={() => setIsRulesOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
-          onOpenFriends={() => setIsFriendsOpen(true)}
+          onOpenFriends={() => setIsFriendsOpen(prev => !prev)}
+          isFriendsOpen={isFriendsOpen}
           onStartUnoGame={() => setScreen('uno')}
         />
       ) : screen === 'uno' ? (
@@ -2897,9 +2898,39 @@ export default function App() {
         }}
       />
 
+      {/* Top Right Floating Social Launcher Pill */}
+      {screen === 'menu' && (
+        <button
+          onClick={() => {
+            sound.playClick();
+            setIsFriendsOpen(prev => !prev);
+          }}
+          className="fixed top-4 right-4 z-40 flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-emerald-400/60 hover:border-emerald-300 text-xs font-black text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.35)] backdrop-blur-md transition-all active:scale-95 cursor-pointer group"
+          title="Sosyal Menüsünü Aç / Kapat"
+        >
+          <div className="relative">
+            <Users className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+            {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            )}
+          </div>
+          <span className="hidden sm:inline">Sosyal</span>
+          {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
+              {userProfile.incomingFriendRequests.length}
+            </span>
+          ) : userProfile.friends && userProfile.friends.length > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
+              {userProfile.friends.length}
+            </span>
+          ) : null}
+        </button>
+      )}
+
       {/* Standalone Friends & Global Player Network Modal */}
       <FriendsModal
         isOpen={isFriendsOpen}
+        hideBackdrop={screen === 'menu'}
         userProfile={userProfile}
         onJoinFriendRoom={(code: string) => {
           const trimmed = code.trim().toUpperCase();

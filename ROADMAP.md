@@ -34,6 +34,11 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - **Maç İçi Profil Rozetleri**: Oyuncu ünvanlarının (`customTitle`) maç içi skor tabelası ve oyuncu kartlarında gösterilmesi.
   - **Lobi Temizliği**: Maçtan çıkıldığında eski lobi durumunun tamamen sıfırlanması.
   - **Kural & Ses Ayarları**: 5'e basmalı kuralı varsayılan olarak kapatıldı; varsayılan ses düzeyi %50'ye ayarlandı.
+- [x] **Sağdan Kayan Bağımsız Sosyal Menüsü & UI Ergonomisi (v1.14.1)**:
+  - **Sağdan Kayan Drawer Sosyal Paneli**: Ekranın sağ üst köşesine bağımsız "Sosyal" erişim butonu eklendi; ana menüden bağımsız olarak açılır ve arka planı kilitlemez (`hideBackdrop`).
+  - **Eşzamanlı Kullanım**: Sosyal çekmecesi açıkken ana menüdeki tüm butonlar, oyun modları ve ayarlar tam işlevsel kalır; elle kapatılana kadar açık kalır.
+  - **Arayüz Üst Üste Binme Koruması**: Sosyal çekmecesi açıkken ana menü ve üst navigasyon dinamik olarak sola ötelenir (`xl:mr-96`, `2xl:mr-[420px]`); butonlar veya kartlar birbirinin üzerine binmez.
+
 - [x] **Fiziki Masa Kesimi, Sosyal İstekler, Seviye & Görev Sistemi (v1.14)**:
   - **Fiziki Masa Üstü Deste Kesme (In-Table Physical Deck Cut)**: Ayrı pencere yerine doğrudan masa çuhasında yayılan 52 kart; sadece tura başlayacak oyuncunun kesebilmesi; çok oyunculuda `MP_DECK_CUT` ile anlık senkronizasyon; kesilen 2 destenin kalınlıklarıyla masada ayrılması, 4 yer kartının dağıtımı (Vale kesene yarar ödülü) ve destelerin birleşimi.
   - **Sosyal (Social) Çekmecesi & Arkadaşlık İstekleri**: "Arkadaşlar" -> "Sosyal" revizyonu; ana menüde sağ üstte konumlandırma; anında ekleme yerine istek gönderme (`FRIEND_REQUEST`), kabul etme (`FRIEND_ACCEPT`) ve reddetme akışı.

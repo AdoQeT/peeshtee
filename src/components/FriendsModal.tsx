@@ -40,6 +40,7 @@ interface FriendsModalProps {
   onJoinFriendRoom: (roomCode: string) => void;
   onInspectProfile?: (inspected: UserProfile) => void;
   userProfile?: UserProfile;
+  hideBackdrop?: boolean;
 }
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({
@@ -48,7 +49,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onInviteFriendToMatch,
   onJoinFriendRoom,
   onInspectProfile,
-  userProfile
+  userProfile,
+  hideBackdrop = false
 }) => {
   const [profile, setProfile] = useState<UserProfile>(getUserProfile);
   const activeProfile = userProfile || profile;
@@ -210,18 +212,20 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end select-none">
+    <div className={`fixed inset-0 z-50 flex justify-end select-none ${hideBackdrop ? 'pointer-events-none' : ''}`}>
       {/* Dimmed backdrop - click to close */}
-      <div
-        onClick={() => {
-          sound.playClick();
-          onClose();
-        }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-      />
+      {!hideBackdrop && (
+        <div
+          onClick={() => {
+            sound.playClick();
+            onClose();
+          }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        />
+      )}
 
       {/* Right Slide-over Drawer Menu */}
-      <div className="relative w-full max-w-md sm:max-w-lg h-full bg-slate-950/98 border-l border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
+      <div className="pointer-events-auto relative w-full max-w-md sm:max-w-lg h-full bg-slate-950/98 border-l border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
         {/* Top Header */}
         <div className="px-5 py-3.5 border-b border-white/10 bg-slate-950 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">

@@ -108,12 +108,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Modal Header */}
         <div className="flex items-center gap-3 mb-5 shrink-0">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shadow-lg">
-            <Sliders className="w-6 h-6" />
+          <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-400/30 flex items-center justify-center text-purple-300">
+            <Sliders className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black font-cyber text-white">GENEL AYARLAR</h2>
-            <p className="text-xs text-purple-300 font-medium">Görsel Atmosfer, Ses ve Oyun Tercihleri</p>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">AYARLAR</h2>
+            <p className="text-[11px] text-slate-400">Masa Teması, Ses ve Oyun Tercihleri</p>
           </div>
         </div>
 
@@ -125,9 +125,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               setActiveTab('themes');
             }}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'themes'
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow-md scale-[1.02]'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+              activeTab === 'themes' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
@@ -140,9 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               setActiveTab('audio');
             }}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'audio'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md scale-[1.02]'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+              activeTab === 'audio' ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" />
@@ -155,9 +151,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               setActiveTab('rules');
             }}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'rules'
-                ? 'bg-gradient-to-r from-purple-500 to-indigo-400 text-white shadow-md scale-[1.02]'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+              activeTab === 'rules' ? 'bg-purple-500 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
@@ -532,9 +526,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="mt-5 pt-3 border-t border-white/10 shrink-0">
           <button
             onClick={handleClose}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-500 via-indigo-600 to-cyan-600 text-white font-black font-cyber tracking-wider hover:opacity-95 shadow-xl transition-all active:scale-[0.99] cursor-pointer"
+            className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white font-bold text-xs transition-colors cursor-pointer"
           >
-            AYARLARI KAYDET & DÖN
+            Tamam, Ayarları Kaydet
           </button>
         </div>
       </div>

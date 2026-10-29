@@ -11,7 +11,6 @@ import {
   Sparkles,
   MessageCircle,
   Hash,
-  Radio,
   ArrowRight
 } from 'lucide-react';
 import {
@@ -203,20 +202,19 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       />
 
       {/* Right Slide-over Drawer Menu */}
-      <div className="relative w-full max-w-md sm:max-w-lg h-full bg-slate-950/95 border-l border-white/15 shadow-[-20px_0_60px_rgba(0,0,0,0.85)] flex flex-col z-10 animate-in slide-in-from-right duration-300 overflow-hidden">
+      <div className="relative w-full max-w-md sm:max-w-lg h-full bg-slate-950/98 border-l border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
         {/* Top Header */}
-        <div className="px-5 py-4 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-slate-950 flex items-center justify-center shadow-lg">
-              <Users className="w-5 h-5" />
+        <div className="px-5 py-3.5 border-b border-white/10 bg-slate-950 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 flex items-center justify-center">
+              <Users className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white font-cyber tracking-wide">
+              <h2 className="text-base font-bold text-white font-cyber tracking-wide">
                 ARKADAŞLAR
               </h2>
-              <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>ID ile Ekle • Tek Tıkla Maça Çağır</span>
+              <p className="text-[11px] text-slate-400">
+                Arkadaş Ekle & Canlı Maça Davet Et
               </p>
             </div>
           </div>
@@ -226,73 +224,58 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               sound.playClick();
               onClose();
             }}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Kapat"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Toast Feedback */}
         {feedbackToast && (
-          <div className="mx-5 mt-3 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
-            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="mx-4 mt-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-medium flex items-center gap-2 animate-in fade-in">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>{feedbackToast}</span>
           </div>
         )}
 
-        {/* MY PLAYER ID CARD */}
-        <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-400/30 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        {/* COMPACT PLAYER ID PILL */}
+        <div className="mx-4 mt-3 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <AvatarBadge
               avatarId={profile.avatarId}
               customAvatarUrl={profile.customAvatarDataUrl}
-              size="md"
+              size="xs"
             />
-            <div>
-              <div className="text-xs font-bold text-slate-400">Senin Oyuncu Kimliğin</div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm font-black text-white">{profile.name}</span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/50 text-amber-300 font-mono text-xs font-black tracking-wider">
-                  #{profile.friendCode}
-                </span>
-              </div>
-            </div>
+            <span className="text-xs font-bold text-white truncate max-w-[120px]">{profile.name}</span>
+            <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-amber-300 font-mono text-[11px] font-bold">
+              #{profile.friendCode}
+            </span>
           </div>
 
           <button
             onClick={handleCopyMyId}
-            className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
           >
-            {copiedMyId ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>Kopyalandı!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>ID Kopyala (#{profile.friendCode})</span>
-              </>
-            )}
+            {copiedMyId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            <span>{copiedMyId ? 'Kopyalandı' : 'Kopyala'}</span>
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="px-5 pt-3 flex items-center gap-2">
+        {/* Clean 2 Tabs */}
+        <div className="px-4 pt-3 flex items-center gap-1.5">
           <button
             onClick={() => {
               sound.playClick();
               setActiveTab('friends');
             }}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
               activeTab === 'friends'
-                ? 'bg-emerald-500 text-slate-950 shadow-md'
-                : 'bg-slate-950/70 text-slate-400 hover:text-white border border-white/10'
+                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
-            <span>Arkadaşlarım ({friendsList.length})</span>
+            Arkadaşlarım ({friendsList.length})
           </button>
 
           <button
@@ -300,29 +283,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               sound.playClick();
               setActiveTab('add');
             }}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
               activeTab === 'add'
-                ? 'bg-cyan-400 text-slate-950 shadow-md'
-                : 'bg-slate-950/70 text-slate-400 hover:text-white border border-white/10'
+                ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>ID / İsim ile Ekle</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              setActiveTab('online');
-            }}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'online'
-                ? 'bg-amber-400 text-slate-950 shadow-md'
-                : 'bg-slate-950/70 text-slate-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span>Çevrimiçi ({onlinePlayers.length})</span>
+            + Arkadaş Ekle
           </button>
         </div>
 

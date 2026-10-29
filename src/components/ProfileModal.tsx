@@ -98,15 +98,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Header */}
         <div className="relative px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-300">
-              <User className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300 flex items-center justify-center">
+              <User className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white font-cyber tracking-wide">
-                OYUNCU PROFİLİ & FOTOĞRAF
+              <h2 className="text-base font-bold text-white tracking-wide">
+                OYUNCU PROFİLİ
               </h2>
-              <p className="text-[11px] text-slate-400 font-medium">
-                Profil resmini yükle veya sabit karakterlerden seç, masaya havanı at!
+              <p className="text-[11px] text-slate-400">
+                İsim ve Profil Fotoğrafı Tercihleri
               </p>
             </div>
           </div>

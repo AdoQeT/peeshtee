@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Users, Target, Flame, Play, ShieldAlert, Cpu } from 'lucide-react';
+import { X, Users, Target, Flame, Play, Bot } from 'lucide-react';
 import { GameSettings, AIDifficulty } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
 
@@ -19,7 +19,7 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
   const [playerCount, setPlayerCount] = useState<2 | 4>(initialSettings.playerCount || 2);
   const [targetScore, setTargetScore] = useState<number>(initialSettings.targetScore || 101);
   const [fiveRuleEnabled, setFiveRuleEnabled] = useState<boolean>(
-    initialSettings.fiveRuleEnabled || false
+    initialSettings.fiveRuleEnabled ?? true
   );
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(
     initialSettings.aiDifficulty || 'medium'
@@ -39,51 +39,52 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto glass-panel-glow rounded-3xl p-6 sm:p-8 text-slate-100 shadow-2xl border-amber-500/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn select-none">
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto glass-panel-glow rounded-3xl p-5 sm:p-6 text-slate-100 shadow-2xl border border-white/10">
         {/* Close Button */}
         <button
           onClick={() => {
             sound.playClick();
             onClose();
           }}
-          className="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
+          className="absolute top-4 right-4 p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 mb-2 shadow-lg">
-            <Play className="w-7 h-7 fill-amber-400 ml-0.5" />
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <Play className="w-4 h-4 fill-amber-400" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black font-cyber text-white">MASA KURULUMU</h2>
-          <p className="text-xs text-amber-400/90 font-medium">Oyun kurallarını ve masa dinamiklerini belirle</p>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">MASA KURULUMU</h2>
+            <p className="text-[11px] text-slate-400">Oyun Modu ve Kural Tercihleri</p>
+          </div>
         </div>
 
-        <div className="space-y-5 text-sm">
-          {/* 1. Kaç Kişilik? */}
+        <div className="space-y-4 text-xs">
+          {/* 1. Oyuncu Sayısı */}
           <div>
-            <label className="font-bold text-white mb-2 flex items-center gap-2">
-              <Users className="w-4 h-4 text-cyan-400" />
-              Kaç Kişilik Oyun?
+            <label className="font-bold text-slate-300 mb-2 flex items-center gap-1.5 text-xs">
+              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              Oyuncu Sayısı
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => {
                   sound.playClick();
                   setPlayerCount(2);
                 }}
-                className={`p-3.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
                   playerCount === 2
-                    ? 'border-cyan-400 bg-cyan-950/60 ring-2 ring-cyan-400/50 shadow-lg text-white'
+                    ? 'border-cyan-400 bg-cyan-950/60 ring-1 ring-cyan-400/50 text-white'
                     : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="text-xl">👥</span>
-                <span className="font-black font-cyber text-sm">2 Kişilik</span>
-                <span className="text-[11px] opacity-75">Teke Tek (Sen vs Bot)</span>
+                <span className="font-bold text-xs">1v1 Düello</span>
+                <span className="text-[10px] opacity-75">Sen vs Kurnaz Bot</span>
               </button>
 
               <button
@@ -92,26 +93,25 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
                   sound.playClick();
                   setPlayerCount(4);
                 }}
-                className={`p-3.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
                   playerCount === 4
-                    ? 'border-cyan-400 bg-cyan-950/60 ring-2 ring-cyan-400/50 shadow-lg text-white'
+                    ? 'border-cyan-400 bg-cyan-950/60 ring-1 ring-cyan-400/50 text-white'
                     : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="text-xl">👨‍👩‍👧‍👦</span>
-                <span className="font-black font-cyber text-sm">4 Kişilik</span>
-                <span className="text-[11px] opacity-75">4 Oyuncu Masa Etrafında</span>
+                <span className="font-bold text-xs">4 Kişilik Eşli</span>
+                <span className="text-[10px] opacity-75">Dayı & Muhtar Masası</span>
               </button>
             </div>
           </div>
 
-          {/* 2. Hedef Puan? */}
+          {/* 2. Hedef Puan */}
           <div>
-            <label className="font-bold text-white mb-2 flex items-center gap-2">
-              <Target className="w-4 h-4 text-amber-400" />
-              Hedef Puan Kaç Olsun?
+            <label className="font-bold text-slate-300 mb-2 flex items-center gap-1.5 text-xs">
+              <Target className="w-3.5 h-3.5 text-amber-400" />
+              Hedef Puan
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {[51, 101, 151, 201].map(pts => (
                 <button
                   key={pts}
@@ -120,69 +120,29 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
                     sound.playClick();
                     setTargetScore(pts);
                   }}
-                  className={`py-2.5 rounded-xl border font-cyber font-bold text-xs sm:text-sm transition-all ${
+                  className={`py-2 rounded-lg border font-mono font-bold text-xs transition-all cursor-pointer ${
                     targetScore === pts
-                      ? 'border-amber-400 bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/60 shadow-md'
+                      ? 'border-amber-400 bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/60'
                       : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
                   }`}
                 >
-                  {pts} Puan
+                  {pts}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 3. 5'e Basmalı mı? (Özel Kural) */}
-          <div className="bg-gradient-to-r from-red-950/40 via-amber-950/30 to-slate-900 border border-red-500/30 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="font-black text-amber-300 flex items-center gap-2 text-sm sm:text-base">
-                <Flame className="w-5 h-5 text-red-500 fill-red-500" />
-                5'e Basmalı mı?
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playClick();
-                  setFiveRuleEnabled(!fiveRuleEnabled);
-                }}
-                className={`w-14 h-7 rounded-full transition-colors relative flex items-center px-1 ${
-                  fiveRuleEnabled ? 'bg-red-500' : 'bg-slate-700'
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                    fiveRuleEnabled ? 'translate-x-7' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed mt-1">
-              {fiveRuleEnabled ? (
-                <span className="text-red-300 font-semibold flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
-                  <strong>AÇIK:</strong> Yerde tek bir 5 varken, 5 atan oyuncu anında PİŞTİ yapar ve skora bakılmaksızın <strong>maçı direkt KAZANIR!</strong>
-                </span>
-              ) : (
-                <span className="text-slate-400">
-                  <strong>KAPALI:</strong> Standart kurallar geçerli. 5 ile pişti yapılsa bile standart 10 puan yazılır.
-                </span>
-              )}
-            </p>
-          </div>
-
-          {/* 4. Bot Zorluğu */}
+          {/* 3. Bot Zorluğu */}
           <div>
-            <label className="font-bold text-white mb-2 flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-purple-400" />
-              Bot Seviyesi
+            <label className="font-bold text-slate-300 mb-2 flex items-center gap-1.5 text-xs">
+              <Bot className="w-3.5 h-3.5 text-emerald-400" />
+              Bot Zekası
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {[
-                { id: 'easy', label: 'Acemi' },
-                { id: 'medium', label: 'Kurnaz' },
-                { id: 'hard', label: 'Şampiyon' }
+                { id: 'easy', label: 'Rahat' },
+                { id: 'medium', label: 'Normal' },
+                { id: 'hard', label: 'Usta' }
               ].map(d => (
                 <button
                   key={d.id}
@@ -191,9 +151,9 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
                     sound.playClick();
                     setAiDifficulty(d.id as AIDifficulty);
                   }}
-                  className={`py-2 rounded-xl border text-xs font-bold transition-all ${
+                  className={`py-2 rounded-lg border font-bold text-xs transition-all cursor-pointer ${
                     aiDifficulty === d.id
-                      ? 'border-purple-400 bg-purple-500/20 text-purple-300'
+                      ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50'
                       : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
                   }`}
                 >
@@ -202,17 +162,44 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
               ))}
             </div>
           </div>
+
+          {/* 4. 5'e Basmalı Kuralı */}
+          <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div>
+              <span className="font-bold text-white text-xs flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                5'e Basmalı Kuralı (+5 Puan)
+              </span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                Yerde 5 varken 5 atıldığında anında +5 puan
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setFiveRuleEnabled(!fiveRuleEnabled);
+              }}
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
+                fiveRuleEnabled ? 'bg-amber-500' : 'bg-slate-700'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                  fiveRuleEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
-        {/* Start Button */}
-        <div className="mt-7">
+        {/* Start Game Action Button */}
+        <div className="mt-5 pt-3 border-t border-white/10">
           <button
-            type="button"
             onClick={handleStart}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 font-black font-cyber text-base tracking-wider uppercase shadow-[0_0_25px_rgba(245,158,11,0.5)] hover:shadow-[0_0_35px_rgba(245,158,11,0.8)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:opacity-95 text-slate-950 font-bold text-xs font-cyber tracking-wider transition-all shadow-md cursor-pointer"
           >
-            <Play className="w-5 h-5 fill-slate-950" />
-            <span>MASAYA GEÇ & BAŞLA</span>
+            OYUNU BAŞLAT
           </button>
         </div>
       </div>

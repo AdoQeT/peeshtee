@@ -9,8 +9,8 @@ import {
   type MatchRecord
 } from '../profile/profileManager';
 
-const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
-const BROKER_2 = 'wss://broker.emqx.io:8084/mqtt';
+const BROKER_1 = 'wss://broker.emqx.io:8084/mqtt';
+const BROKER_2 = 'wss://broker.hivemq.com:8884/mqtt';
 const SOCIAL_TOPIC = 'pisti/global/social/v1';
 
 export interface OnlinePlayerPresence {
@@ -149,7 +149,7 @@ class FriendNetworkManager {
           const client = connectFn(url, {
             clientId: `pisti-soc-${Math.random().toString(16).slice(2, 10)}`,
             clean: true,
-            connectTimeout: 8000,
+            connectTimeout: 3500,
             reconnectPeriod: 4000
           });
 
@@ -215,14 +215,14 @@ class FriendNetworkManager {
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
-      customAvatarUrl: profile.customAvatarDataUrl,
+      customAvatarUrl: profile.customAvatarDataUrl && !profile.customAvatarDataUrl.startsWith('data:') ? profile.customAvatarDataUrl : undefined,
       customTitle: profile.customTitle,
       level: lvlInfo.level,
       status: this.currentStatus,
       roomCode: this.currentRoomCode,
       gameType: this.currentGameType,
       stats: profile.stats,
-      matchHistory: profile.matchHistory,
+      matchHistory: undefined,
       lastSeen: Date.now()
     };
 

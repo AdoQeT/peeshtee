@@ -8,8 +8,8 @@
 import type { MqttClient } from 'mqtt';
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
 
-const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
-const BROKER_2 = 'wss://broker.emqx.io:8084/mqtt';
+const BROKER_1 = 'wss://broker.emqx.io:8084/mqtt';
+const BROKER_2 = 'wss://broker.hivemq.com:8884/mqtt';
 
 export interface LobbyPlayerSlot {
   seatIndex: number; // 0 (Host), 1 (Right/Opp 1), 2 (Top/Teammate), 3 (Left/Opp 2)
@@ -239,7 +239,7 @@ export class MultiplayerManager {
   }
 
   public getTopic(code: string): string {
-    return `projectp_v11/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
+    return `pisti/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
   }
 
   private setupLocalBuses(code: string) {
@@ -278,12 +278,12 @@ export class MultiplayerManager {
         keepalive: 30,
         clientId: `pisti-${this.instanceId}-${Math.random().toString(36).slice(2, 6)}`,
         clean: true,
-        connectTimeout: 8000,
+        connectTimeout: 3500,
         reconnectPeriod: 2000
       });
 
       client.on('connect', () => {
-        client.subscribe(topic, { qos: 1 }, (err: any) => {
+        client.subscribe(topic, { qos: 0 }, (err: any) => {
           if (err) console.warn('MQTT sub error:', brokerUrl, err);
         });
       });
@@ -488,7 +488,7 @@ export class MultiplayerManager {
     this.clients.forEach(c => {
       if (c.connected) {
         try {
-          c.publish(topic, str, { qos: 1 });
+          c.publish(topic, str, { qos: 0 });
         } catch {}
       }
     });

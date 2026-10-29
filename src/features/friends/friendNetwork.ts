@@ -3,6 +3,7 @@ import {
   getUserProfile,
   addOrUpdateFriend,
   addIncomingFriendRequest,
+  removeFriend,
   calculateLevel,
   type UserProfile,
   type MatchRecord
@@ -493,6 +494,21 @@ class FriendNetworkManager {
           avatarId: notice.fromAvatarId,
           customAvatarDataUrl: notice.fromCustomAvatarUrl
         });
+        this.noticeListeners.forEach(cb => cb(notice));
+        this.notifyListeners();
+      }
+    } else if (pkt.type === 'FRIEND_REMOVED_NOTICE') {
+      const notice = pkt.notice;
+      if (notice.fromId === myProfile.id) return;
+
+      const isForMeByCode =
+        notice.targetFriendCode &&
+        notice.targetFriendCode.toLowerCase() === myProfile.friendCode.toLowerCase();
+      const isForMeByName =
+        notice.targetName && notice.targetName.toLowerCase() === myProfile.name.toLowerCase();
+
+      if (isForMeByCode || isForMeByName) {
+        removeFriend(notice.fromId, notice.fromFriendCode, notice.fromName);
         this.noticeListeners.forEach(cb => cb(notice));
         this.notifyListeners();
       }

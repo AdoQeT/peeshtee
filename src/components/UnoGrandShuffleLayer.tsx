@@ -1,7 +1,6 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { UnoCardBack } from './UnoCardView';
 import { sound } from '../core/audio/soundEngine';
-import gsap from 'gsap';
 
 interface UnoGrandShuffleLayerProps {
   getTargetPos: () => { x: number; y: number };
@@ -9,8 +8,8 @@ interface UnoGrandShuffleLayerProps {
 }
 
 /**
- * GSAP 144Hz/240Hz+ 108-Card Grand Deck Shuffle Engine for UNO
- * - Multi-Packet 3D Deck Split with Smooth Elastic Easing
+ * 144 FPS Hardware-Accelerated 108-Card Grand Deck Shuffle Engine for UNO
+ * - Multi-Packet 3D Deck Split
  * - High-Speed Casino Riffle Interleave
  * - 3D Waterfall Bridge Bend & Snap
  * - Seamless Glide into the Draw Deck Position (Zero Teleportation)
@@ -21,9 +20,7 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-  const totalCards = 24;
+  const totalCards = 24; // 24 physical layered cards giving the optical density of a 108-card Uno deck
 
   useLayoutEffect(() => {
     const centerX = window.innerWidth / 2;
@@ -32,98 +29,87 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
     const finalX = targetPos.x;
     const finalY = targetPos.y;
 
+    const easeOut = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    const easeInOut = 'cubic-bezier(0.45, 0, 0.25, 1)';
+
     sound.playRiffleShuffle();
 
-    const masterTl = gsap.timeline({
-      onComplete: () => {
-        onCompleteRef.current?.();
-      }
-    });
+    const animations: Animation[] = [];
 
     cardRefs.current.forEach((el, idx) => {
       if (!el) return;
 
+      const duration = 2200;
       const isLeft = idx < totalCards / 2;
       const halfIdx = isLeft ? idx : idx - totalCards / 2;
       const splitX = isLeft ? centerX - 130 : centerX + 130;
       const splitRot = isLeft ? -14 : 14;
       const riffleOrder = isLeft ? halfIdx * 2 : halfIdx * 2 + 1;
-      const riffleDelay = 0.5 + (riffleOrder / totalCards) * 0.55;
+      const riffleStart = 0.24 + (riffleOrder / totalCards) * 0.28;
+      const riffleEnd = Math.min(0.64, riffleStart + 0.08);
+
       const stackOffset = Math.min(idx, 6) * 0.75;
 
-      // Initial placement at center
-      gsap.set(el, {
-        x: centerX,
-        y: centerY - idx * 0.6,
-        rotation: 0,
-        scale: 1,
-        transformOrigin: '50% 50%',
-        force3D: true
+      const keyframes: Keyframe[] = [
+        // 0: Centered resting deck
+        {
+          transform: `translate3d(${centerX}px, ${centerY - idx * 0.6}px, 0) translate(-50%, -50%) rotate(0deg) scale(1)`,
+          offset: 0,
+          easing: easeOut
+        },
+        // 0.20: Split deck into left and right 54-card packets
+        {
+          transform: `translate3d(${splitX}px, ${centerY - halfIdx * 0.9}px, 0) translate(-50%, -50%) rotate(${splitRot}deg) scale(1.05)`,
+          offset: 0.2,
+          easing: easeInOut
+        },
+        // Hold split before riffle
+        {
+          transform: `translate3d(${splitX}px, ${centerY - halfIdx * 0.9}px, 0) translate(-50%, -50%) rotate(${splitRot}deg) scale(1.05)`,
+          offset: riffleStart,
+          easing: easeOut
+        },
+        // Riffle interleave to center with snappy snap
+        {
+          transform: `translate3d(${centerX + (isLeft ? -12 : 12)}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotate(${isLeft ? -3 : 3}deg) scale(1.02)`,
+          offset: riffleEnd,
+          easing: easeInOut
+        },
+        // 0.72: The 3D Bridge Arc (cards arch upwards in middle)
+        {
+          transform: `translate3d(${centerX}px, ${centerY - 52 - Math.abs(idx - totalCards / 2) * 1.5}px, 0) translate(-50%, -50%) rotate(${isLeft ? 9 : -9}deg) scale(1.04)`,
+          offset: 0.74,
+          easing: easeInOut
+        },
+        // 0.86: Snap flat down into unified 108-card deck
+        {
+          transform: `translate3d(${centerX}px, ${centerY - idx * 0.6}px, 0) translate(-50%, -50%) rotate(0deg) scale(1)`,
+          offset: 0.86,
+          easing: easeOut
+        },
+        // 1.0: Glide straight into the live Draw Deck table coordinate
+        {
+          transform: `translate3d(${finalX - stackOffset}px, ${finalY - stackOffset}px, 0) translate(-50%, -50%) rotate(0deg) scale(1)`,
+          offset: 1
+        }
+      ];
+
+      const anim = el.animate(keyframes, {
+        duration,
+        fill: 'forwards'
       });
-
-      const cardTl = gsap.timeline();
-
-      // Step 1: Split into 2 packets
-      cardTl
-        .to(el, {
-          x: splitX,
-          y: centerY - halfIdx * 0.9,
-          rotation: splitRot,
-          scale: 1.05,
-          duration: 0.45,
-          ease: 'power2.out'
-        })
-        // Step 2: Riffle interleave to center with crisp stagger
-        .to(
-          el,
-          {
-            x: centerX + (isLeft ? -10 : 10),
-            y: centerY - riffleOrder * 0.45,
-            rotation: isLeft ? -2.5 : 2.5,
-            scale: 1.02,
-            duration: 0.22,
-            ease: 'power1.inOut'
-          },
-          riffleDelay
-        )
-        // Step 3: 3D Bridge Arc bend
-        .to(el, {
-          x: centerX,
-          y: centerY - 52 - Math.abs(idx - totalCards / 2) * 1.6,
-          rotation: isLeft ? 8 : -8,
-          scale: 1.05,
-          duration: 0.35,
-          ease: 'power1.out'
-        })
-        // Step 4: Snap flat into unified deck
-        .to(el, {
-          x: centerX,
-          y: centerY - idx * 0.6,
-          rotation: 0,
-          scale: 1,
-          duration: 0.24,
-          ease: 'back.out(1.5)' // tactile slap
-        })
-        // Step 5: Smooth parabolic glide into Draw Deck position
-        .to(el, {
-          x: finalX - stackOffset,
-          y: finalY - stackOffset,
-          rotation: 0,
-          scale: 1,
-          duration: 0.55,
-          ease: 'power2.inOut'
-        });
-
-      masterTl.add(cardTl, 0);
+      animations.push(anim);
     });
 
+    const timer = window.setTimeout(() => {
+      onComplete();
+    }, 2250);
+
     return () => {
-      masterTl.kill();
-      cardRefs.current.forEach(el => {
-        if (el) gsap.killTweensOf(el);
-      });
+      window.clearTimeout(timer);
+      animations.forEach(a => a.cancel());
     };
-  }, [getTargetPos, totalCards]);
+  }, [getTargetPos, onComplete, totalCards]);
 
   return (
     <div

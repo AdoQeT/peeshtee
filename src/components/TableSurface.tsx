@@ -626,9 +626,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               <div
                 key={e.id}
                 style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
-                className="absolute -top-14 left-1/2 z-40 pointer-events-none"
+                className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
               >
-                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-amber-400 text-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-center justify-center">
+                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-amber-400 text-3xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-center animate-bounce">
                   {e.emoji}
                 </div>
               </div>
@@ -652,6 +652,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 showBorder={false}
               />
               <span>{topOpponent.name}</span>
+              {topOpponent.customTitle && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
+                  {topOpponent.customTitle}
+                </span>
+              )}
               {isFourPlayers && (
                 <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
                   Ortağın
@@ -714,9 +719,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 <div
                   key={e.id}
                   style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
-                  className="absolute -top-12 left-1/2 z-40 pointer-events-none"
+                  className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
                 >
-                  <div className="px-3 py-1 rounded-2xl bg-slate-900/95 border-2 border-rose-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                  <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-rose-400 text-3xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-center animate-bounce">
                     {e.emoji}
                   </div>
                 </div>
@@ -737,6 +742,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   showBorder={false}
                 />
                 <span>{players[3].name}</span>
+                {players[3].customTitle && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
+                    {players[3].customTitle}
+                  </span>
+                )}
               </span>
               <div
                 ref={el => {
@@ -1280,9 +1290,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 <div
                   key={e.id}
                   style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
-                  className="absolute -top-12 left-1/2 z-40 pointer-events-none"
+                  className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
                 >
-                  <div className="px-3 py-1 rounded-2xl bg-slate-900/95 border-2 border-rose-400 text-xl shadow-[0_8px_25px_rgba(0,0,0,0.65)] flex items-center justify-center">
+                  <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-rose-400 text-3xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-center animate-bounce">
                     {e.emoji}
                   </div>
                 </div>
@@ -1307,6 +1317,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   showBorder={false}
                 />
                 <span>{players[1].name}</span>
+                {players[1].customTitle && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
+                    {players[1].customTitle}
+                  </span>
+                )}
               </span>
               <div
                 ref={el => {
@@ -1365,9 +1380,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               <div
                 key={e.id}
                 style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
-                className="absolute -top-14 left-1/2 z-40 pointer-events-none"
+                className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
               >
-                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-emerald-400 text-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-center justify-center">
+                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-emerald-400 text-3xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-center animate-bounce">
                   {e.emoji}
                 </div>
               </div>

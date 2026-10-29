@@ -2,6 +2,7 @@ import React from 'react';
 import { Player, TableTheme } from '../types/game';
 import { Volume2, VolumeX, Home, Settings, Flame, Shield } from 'lucide-react';
 import { AvatarBadge } from './AvatarBadge';
+import { getUserProfile } from '../features/profile/profileManager';
 
 interface ScoreBoardProps {
   players: Player[];
@@ -86,12 +87,17 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         </div>
 
         <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-xs text-slate-100">
               {isFourPlayers
                 ? `Bizim Takım (${user.name} & ${players[2]?.name || 'Ortak'})`
                 : user.name}
             </span>
+            {(user.customTitle || getUserProfile().customTitle) && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
+                {user.customTitle || getUserProfile().customTitle}
+              </span>
+            )}
             {userTeamPistis > 0 && (
               <span className="flex items-center text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded-full font-black border border-amber-500/40">
                 <Flame className="w-2.5 h-2.5 text-amber-400 mr-0.5 fill-amber-400" />

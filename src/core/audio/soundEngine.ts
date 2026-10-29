@@ -7,7 +7,7 @@ export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain';
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
-  private volume: number = 0.8;
+  private volume: number = 0.5;
 
   // Ambience Engine State
   private currentAmbience: AmbienceType = 'none';

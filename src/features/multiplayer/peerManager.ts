@@ -18,6 +18,7 @@ export interface LobbyPlayerSlot {
   avatar: string;
   avatarId?: string;
   customAvatarUrl?: string;
+  customTitle?: string;
   isHost: boolean;
   isAI?: boolean;
 }
@@ -524,6 +525,7 @@ export class MultiplayerManager {
       this.storageListener = null;
     }
     this.seenMsgIds.clear();
+    this.lastSeenSeq.clear();
     this.isConnected = false;
     this.isPeerReconnecting = false;
     this.roomCode = '';

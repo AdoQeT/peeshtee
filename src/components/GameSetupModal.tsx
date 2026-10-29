@@ -19,7 +19,7 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
   const [playerCount, setPlayerCount] = useState<2 | 4>(initialSettings.playerCount || 2);
   const [targetScore, setTargetScore] = useState<number>(initialSettings.targetScore || 101);
   const [fiveRuleEnabled, setFiveRuleEnabled] = useState<boolean>(
-    initialSettings.fiveRuleEnabled ?? true
+    initialSettings.fiveRuleEnabled ?? false
   );
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(
     initialSettings.aiDifficulty || 'medium'

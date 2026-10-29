@@ -103,10 +103,15 @@ export function shuffleDeck(cards: Card[]): Card[] {
  * Deals the starting 4 cards to the table (3 face-down, 1 face-up)
  * and 4 cards to each player (supports 2 or 4 players).
  */
-export function dealInitialGame(deck: Card[], playerCount: 2 | 4 = 2): {
+export function dealInitialGame(
+  deck: Card[],
+  playerCount: 2 | 4 = 2,
+  enableJackToCutterRule: boolean = true
+): {
   tableCards: Card[];
   playerHands: Card[][];
   remainingDeck: Card[];
+  jacksAwardedToCutter: Card[];
 } {
   const currentDeck = [...deck];
 
@@ -116,7 +121,19 @@ export function dealInitialGame(deck: Card[], playerCount: 2 | 4 = 2): {
     const card = currentDeck.pop()!;
     tableCards.push({ ...card, faceUp: false });
   }
-  const topTableCard = currentDeck.pop()!;
+
+  let topTableCard = currentDeck.pop()!;
+  const jacksAwardedToCutter: Card[] = [];
+
+  // Geleneksel "Vale Kesene Yarar" kuralı:
+  // Eğer açılan 4. kart Vale ise, kesene verilir ve sıradaki kart açılır!
+  if (enableJackToCutterRule) {
+    while (topTableCard && topTableCard.value === 11 && currentDeck.length > 0) {
+      jacksAwardedToCutter.push({ ...topTableCard, faceUp: true });
+      topTableCard = currentDeck.pop()!;
+    }
+  }
+
   tableCards.push({ ...topTableCard, faceUp: true });
 
   // Players get 4 cards each
@@ -133,7 +150,8 @@ export function dealInitialGame(deck: Card[], playerCount: 2 | 4 = 2): {
   return {
     tableCards,
     playerHands,
-    remainingDeck: currentDeck
+    remainingDeck: currentDeck,
+    jacksAwardedToCutter
   };
 }
 

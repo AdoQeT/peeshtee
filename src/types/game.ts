@@ -39,6 +39,7 @@ export interface Player {
   avatar: string; // Emoji fallback or label
   avatarId?: string; // Preset avatar id (e.g. 'wolf', 'lion', 'dayi')
   customAvatarUrl?: string; // Custom uploaded base64 data url
+  customTitle?: string; // User title / rozet (e.g. '👑 Kurucu', '🃏 Kart Ustası')
   hand: Card[];
   collectedCards: Card[]; // Regular captured cards
   pistiPairs: PistiPair[]; // Tersli düzlü 90 derece çapraz Pişti çiftleri!

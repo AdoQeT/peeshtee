@@ -42,7 +42,7 @@ export function evaluatePlay(
 
   // Case 1: Exactly 1 card on the table
   if (tableCards.length === 1) {
-    // 5'e BASMALI KURALI: Yerde tek 5 varken 5 ile Pişti yapılırsa ANINDA OYUN BİTER / KAZANILIR!
+    // 5'e BASMALI KURALI: Yerde tek 5 varken 5 ile Pişti yapılırsa ANINDA OYUN BİTER / KAZANILIR! (+ puan yok, anında maç biter)
     if (playedCard.value === 5 && topCard.value === 5 && fiveRuleEnabled) {
       return {
         isPisti: true,
@@ -52,7 +52,7 @@ export function evaluatePlay(
         isJackSweep: false,
         capturedCards: [...revealedTableCards, cardWithFaceUp],
         newTableCards: [],
-        pointsAwarded: 50,
+        pointsAwarded: 0,
         reason: 'five_slam_instant_win'
       };
     }
@@ -104,9 +104,8 @@ export function evaluatePlay(
   }
 
   // Case 2: Table has 2 or more cards
-  // Match with the top card: Normal trick sweep (or +5 bonus if 5 played on 5 with rule enabled)
+  // Match with the top card: Normal trick sweep
   if (playedCard.value === topCard.value) {
-    const isFiveBonus = playedCard.value === 5 && fiveRuleEnabled;
     return {
       isPisti: false,
       isDoublePisti: false,
@@ -115,7 +114,7 @@ export function evaluatePlay(
       isJackSweep: false,
       capturedCards: [...revealedTableCards, cardWithFaceUp],
       newTableCards: [],
-      pointsAwarded: isFiveBonus ? 5 : 0,
+      pointsAwarded: 0,
       reason: 'match_sweep'
     };
   }

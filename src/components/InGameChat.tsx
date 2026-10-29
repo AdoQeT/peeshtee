@@ -14,21 +14,11 @@ export interface ChatMessage {
   isSystem?: boolean;
 }
 
-interface InGameChatProps {
+export interface InGameChatProps {
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
   isMultiplayer?: boolean;
 }
-
-const QUICK_PHRASES = [
-  'Helal be!',
-  'Eyvah eyvah...',
-  'Pişti geliyor!',
-  'İyi oyundu :)',
-  'Hadi ama sıra sende!',
-  'Şansına güvenme!',
-  'Çaylar benden!'
-];
 
 export const InGameChat: React.FC<InGameChatProps> = ({
   messages,
@@ -38,6 +28,9 @@ export const InGameChat: React.FC<InGameChatProps> = ({
   const [isOpen, setIsOpen] = useState(true);
   const [inputText, setInputText] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [spamWarning, setSpamWarning] = useState<string | null>(null);
+  const [isCooldown, setIsCooldown] = useState(false);
+  const lastSendTimeRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesLengthRef = useRef(messages.length);
 
@@ -61,14 +54,24 @@ export const InGameChat: React.FC<InGameChatProps> = ({
     });
   };
 
-  const handleSend = (textToSend?: string) => {
-    const raw = textToSend || inputText;
-    const trimmed = raw.trim();
+  const handleSend = () => {
+    const trimmed = inputText.trim();
     if (!trimmed) return;
+
+    const now = Date.now();
+    if (now - lastSendTimeRef.current < 1500) {
+      setSpamWarning('⚠️ Lütfen biraz bekleyin...');
+      window.setTimeout(() => setSpamWarning(null), 1600);
+      return;
+    }
+
+    lastSendTimeRef.current = now;
+    setIsCooldown(true);
+    window.setTimeout(() => setIsCooldown(false), 1500);
 
     sound.playClick();
     onSendMessage(trimmed);
-    if (!textToSend) setInputText('');
+    setInputText('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -100,11 +103,11 @@ export const InGameChat: React.FC<InGameChatProps> = ({
         </button>
       )}
 
-      {/* Expanded Floating Chat Box: FULL AÇIK, HAFİF SOLUK, HOVER'DA OPAKLAŞIR */}
+      {/* Expanded Floating Chat Box: YUKARI UZATILMIŞ, SPAM KORUMALI */}
       {isOpen && (
-        <div className="w-64 sm:w-72 h-64 sm:h-72 rounded-2xl bg-slate-950/40 hover:bg-slate-950/85 opacity-65 hover:opacity-100 backdrop-blur-md border border-white/15 hover:border-white/30 shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
+        <div className="w-64 sm:w-76 h-[340px] sm:h-[400px] rounded-2xl bg-slate-950/50 hover:bg-slate-950/90 opacity-75 hover:opacity-100 backdrop-blur-md border border-white/15 hover:border-white/30 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
           {/* Chat Header */}
-          <div className="px-3 py-2 bg-black/40 border-b border-white/10 flex items-center justify-between">
+          <div className="px-3.5 py-2.5 bg-black/50 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
               <span className="text-[11px] font-black text-white font-cyber tracking-wider">
@@ -123,18 +126,12 @@ export const InGameChat: React.FC<InGameChatProps> = ({
             </button>
           </div>
 
-          {/* Quick Phrases Scroll Bar */}
-          <div className="px-2 py-1 bg-black/20 border-b border-white/5 flex items-center gap-1 overflow-x-auto no-scrollbar">
-            {QUICK_PHRASES.map((phrase, i) => (
-              <button
-                key={i}
-                onClick={() => handleSend(phrase)}
-                className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 hover:bg-amber-400/20 text-slate-300 hover:text-amber-200 border border-white/10 hover:border-amber-400/40 transition-colors cursor-pointer active:scale-95"
-              >
-                {phrase}
-              </button>
-            ))}
-          </div>
+          {/* Spam Warning Toast */}
+          {spamWarning && (
+            <div className="mx-2 mt-1 px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[10px] font-bold text-center animate-in fade-in">
+              {spamWarning}
+            </div>
+          )}
 
           {/* Messages Feed */}
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2 text-xs">
@@ -143,7 +140,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
                 <Sparkles className="w-4 h-4 mb-1 text-amber-400/40" />
                 <p className="text-[10px] font-medium">Sohbet hazır.</p>
                 <p className="text-[9px] text-slate-500">
-                  Hızlı sözlere tıkla veya mesaj yaz!
+                  Masadakilere mesaj yaz!
                 </p>
               </div>
             ) : (
@@ -170,7 +167,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
                     <div
                       className={`px-3 py-1.5 rounded-2xl text-[11px] leading-tight break-words shadow-sm ${
                         msg.isMe
-                          ? 'bg-amber-500/85 text-slate-950 font-semibold rounded-tr-xs'
+                          ? 'bg-amber-500/90 text-slate-950 font-semibold rounded-tr-xs'
                           : 'bg-slate-800/90 text-slate-100 border border-white/10 rounded-tl-xs'
                       }`}
                     >
@@ -183,20 +180,21 @@ export const InGameChat: React.FC<InGameChatProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Box */}
-          <div className="p-2 bg-black/40 border-t border-white/10 flex items-center gap-1.5">
+          {/* Input Box with Cooldown Spam Prevention */}
+          <div className="p-2 bg-black/50 border-t border-white/10 flex items-center gap-1.5">
             <input
               type="text"
               value={inputText}
               maxLength={80}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Mesaj yazın..."
-              className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/80 transition-colors"
+              placeholder={isCooldown ? "Bekleyin..." : "Mesaj yazın..."}
+              disabled={isCooldown}
+              className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/80 transition-colors disabled:opacity-50"
             />
             <button
-              onClick={() => handleSend()}
-              disabled={!inputText.trim()}
+              onClick={handleSend}
+              disabled={!inputText.trim() || isCooldown}
               className="p-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-md"
               title="Gönder"
             >

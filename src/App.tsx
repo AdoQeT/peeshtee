@@ -28,6 +28,7 @@ import { FriendsModal } from './components/FriendsModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { InGameChat, ChatMessage } from './components/InGameChat';
 import { UnoGameView } from './components/UnoGameView';
+import { DeckCutRibbon } from './components/DeckCutRibbon';
 import {
   getUserProfile,
   UserProfile,
@@ -42,7 +43,7 @@ import { AlertTriangle, Bell, Play, X } from 'lucide-react';
 
 const INITIAL_SETTINGS: GameSettings = {
   soundEnabled: true,
-  sfxVolume: 0.8,
+  sfxVolume: 0.5,
   ambience: 'none',
   ambienceVolume: 0.25,
   screenShake: true,
@@ -52,7 +53,7 @@ const INITIAL_SETTINGS: GameSettings = {
   targetScore: 101,
   aiDifficulty: 'medium',
   playerCount: 2,
-  fiveRuleEnabled: true
+  fiveRuleEnabled: false
 };
 
 const SHUFFLE_STYLES: ShuffleStyle[] = [
@@ -177,6 +178,13 @@ export default function App() {
   const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
   const [recentCapture, setRecentCapture] = useState<RecentCaptureFeedback | null>(null);
   const [isShaking, setIsShaking] = useState(false);
+  const [isCuttingDeck, setIsCuttingDeck] = useState(false);
+  const [pendingDealContext, setPendingDealContext] = useState<{
+    seedDeck: Card[];
+    configuredSettings: GameSettings;
+    isMp: boolean;
+    mySeat: number;
+  } | null>(null);
 
   // Turn Timer (Used strictly in multiplayer mode)
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(15);
@@ -915,27 +923,69 @@ export default function App() {
       const shuffleDuration = getShuffleDuration(chosenShuffle);
       const t = window.setTimeout(() => {
         setIsShuffling(false);
-        const initialDeal = dealInitialGame(seedDeck, configuredSettings.playerCount);
-        const orientedHands = orientHandsForPerspective(
-          initialDeal.playerHands,
-          isMp ? mySeat : 0
-        );
-
-        setSeenCards([
-          ...initialDeal.tableCards.filter(c => c.faceUp),
-          ...orientedHands[0]
-        ]);
-
-        runDealChoreography(
-          initialDeal.tableCards,
-          orientedHands,
-          initialDeal.remainingDeck,
-          configuredSettings.playerCount
-        );
+        setPendingDealContext({
+          seedDeck,
+          configuredSettings,
+          isMp: Boolean(isMp),
+          mySeat: isMp ? mySeat : 0
+        });
+        setIsCuttingDeck(true);
       }, shuffleDuration);
       dealTimersRef.current.push(t);
     },
-    [clearScheduledTimers, runDealChoreography]
+    [clearScheduledTimers]
+  );
+
+  const handleCutDeckAndProceed = useCallback(
+    (cutIndex: number) => {
+      if (!pendingDealContext) return;
+      const { seedDeck, configuredSettings, isMp, mySeat } = pendingDealContext;
+      setIsCuttingDeck(false);
+      setPendingDealContext(null);
+
+      // Slices and cuts the deck at the chosen position!
+      const validIndex = Math.max(1, Math.min(cutIndex, seedDeck.length - 2));
+      const cutDeck = [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
+
+      const initialDeal = dealInitialGame(cutDeck, configuredSettings.playerCount, true);
+      const orientedHands = orientHandsForPerspective(
+        initialDeal.playerHands,
+        isMp ? mySeat : 0
+      );
+
+      setSeenCards([
+        ...initialDeal.tableCards.filter(c => c.faceUp),
+        ...orientedHands[0]
+      ]);
+
+      // If opening 4th card was Jack, reward cutter!
+      if (initialDeal.jacksAwardedToCutter && initialDeal.jacksAwardedToCutter.length > 0) {
+        sound.playJackSweep();
+        showDevToast(
+          `✂️ VALE KESENE YARAR! Masadaki Vale (${initialDeal.jacksAwardedToCutter.length} adet) kesenin oldu!`
+        );
+        setPlayers(prev =>
+          prev.map((p, idx) => {
+            if (idx === 0) {
+              return {
+                ...p,
+                collectedCards: [...p.collectedCards, ...initialDeal.jacksAwardedToCutter],
+                bonusPoints: (p.bonusPoints || 0) + initialDeal.jacksAwardedToCutter.length
+              };
+            }
+            return p;
+          })
+        );
+      }
+
+      runDealChoreography(
+        initialDeal.tableCards,
+        orientedHands,
+        initialDeal.remainingDeck,
+        configuredSettings.playerCount
+      );
+    },
+    [pendingDealContext, runDealChoreography, showDevToast]
   );
 
   // Standard Singleplayer Start
@@ -1027,23 +1077,13 @@ export default function App() {
       const shuffleDuration = getShuffleDuration(chosenShuffle);
       const t = window.setTimeout(() => {
         setIsShuffling(false);
-        const initialDeal = dealInitialGame(seedDeck, currentSettings.playerCount);
-        const orientedHands = orientHandsForPerspective(
-          initialDeal.playerHands,
-          isMp ? myMultiplayerSeatRef.current : 0
-        );
-
-        setSeenCards([
-          ...initialDeal.tableCards.filter(c => c.faceUp),
-          ...orientedHands[0]
-        ]);
-
-        runDealChoreography(
-          initialDeal.tableCards,
-          orientedHands,
-          initialDeal.remainingDeck,
-          currentSettings.playerCount
-        );
+        setPendingDealContext({
+          seedDeck,
+          configuredSettings: currentSettings,
+          isMp: Boolean(isMp),
+          mySeat: isMp ? myMultiplayerSeatRef.current : 0
+        });
+        setIsCuttingDeck(true);
       }, shuffleDuration);
       dealTimersRef.current.push(t);
     },
@@ -2236,11 +2276,30 @@ export default function App() {
   }, [isMultiplayerGame]);
 
   const handleExitToMenu = useCallback(() => {
+    if (isMultiplayerGameRef.current) {
+      try {
+        multiplayerManager.send({
+          type: 'MP_MATCH_ABORTED',
+          reason: 'surrender',
+          senderName: userProfile.name
+        });
+        multiplayerManager.leaveRoom();
+      } catch (e) {
+        console.warn(e);
+      }
+      setIsMultiplayerGame(false);
+      setMyMultiplayerSeat(0);
+      myMultiplayerSeatRef.current = 0;
+    }
+    friendNetwork.setStatus('menu', undefined);
+    setInitialJoinCode('');
+    setActiveMultiplayerSlots([]);
+    setMultiplayerSeedUnoDeck(null);
     setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
     setRoundScores(null);
     setReadySeatsForNextRound(new Set());
     setScreen('menu');
-  }, []);
+  }, [userProfile.name]);
 
   // Surrender Confirmation Action in Multiplayer
   const handleConfirmSurrender = useCallback(() => {
@@ -2484,10 +2543,16 @@ export default function App() {
       ) : screen === 'uno' ? (
         <UnoGameView
           onExitToMenu={() => {
+            try {
+              multiplayerManager.leaveRoom();
+            } catch {}
+            friendNetwork.setStatus('menu', undefined);
             setIsMultiplayerGame(false);
             setMyMultiplayerSeat(0);
             myMultiplayerSeatRef.current = 0;
             setMultiplayerSeedUnoDeck(null);
+            setInitialJoinCode('');
+            setActiveMultiplayerSlots([]);
             setScreen('menu');
           }}
           playerCount={isMultiplayerGame ? (settings.playerCount || 4) : 4}
@@ -2796,6 +2861,14 @@ export default function App() {
           setUserProfile(updated);
           setIsWelcomeOpen(false);
         }}
+      />
+
+      {/* Interactive Traditional Deck Cut Ribbon ("Deste Kesme & Vale Kesene Yarar") */}
+      <DeckCutRibbon
+        isOpen={isCuttingDeck}
+        cutterName={userProfile.name}
+        isHumanCutter={true}
+        onCutDeck={handleCutDeckAndProceed}
       />
 
       {/* Dev Macro Notification Toast */}

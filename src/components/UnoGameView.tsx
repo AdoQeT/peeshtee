@@ -23,6 +23,7 @@ import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLaye
 import { UnoGrandShuffleLayer } from './UnoGrandShuffleLayer';
 import { AmbientParticles } from './AmbientParticles';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
+import { friendNetwork } from '../features/friends/friendNetwork';
 import {
   ArrowLeft,
   Volume2,
@@ -756,6 +757,17 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   const deliverPenaltyCardsToPlayer = useCallback(
     (playerIdx: number, penaltyCount: number) => {
       setIsAnimatingAction(true);
+      // Clear pool cards from table immediately so they fly cleanly without leaving duplicate ghost cards on table
+      setPenaltyPoolCount(0);
+      setGameState(prev => {
+        const updated: UnoGameState = {
+          ...prev,
+          pendingDrawPenalty: 0
+        };
+        gameStateSyncRef.current = updated;
+        return updated;
+      });
+
       const targetRect = getSafeSeatRect(playerIdx);
       const poolEl = penaltyPoolRef.current;
       const startRect = poolEl
@@ -1490,15 +1502,6 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           showSeatBubble(0, `💥 ${pendingPenalty} Ceza Çekiyorsun!`, 2200);
           triggerBanner(`⚠️ Karşılayacak kartın yok! +${pendingPenalty} ceza kartını çekiyorsun!`, 'draw');
           deliverPenaltyCardsToPlayer(0, pendingPenalty);
-          if (isMultiplayer) {
-            multiplayerManager.send({
-              type: 'MP_UNO_DRAW_CARD',
-              seatIndex: mySeatIndex,
-              count: pendingPenalty,
-              penalty: true,
-              senderPeerId: multiplayerManager.instanceId
-            });
-          }
         }
       }, 750);
       return () => window.clearTimeout(timer);
@@ -1520,6 +1523,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   const handleExitClick = () => {
     sound.playClick();
     if (gameState.isGameOver) {
+      if (isMultiplayer) {
+        try { multiplayerManager.leaveRoom(); } catch {}
+      }
+      friendNetwork.setStatus('menu', undefined);
       onExitToMenu();
     } else {
       setIsSurrenderModalOpen(true);
@@ -1542,6 +1549,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         console.warn(e);
       }
     }
+    friendNetwork.setStatus('menu', undefined);
     onExitToMenu();
   };
 
@@ -2030,6 +2038,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   <span className="text-xs font-black text-white font-cyber">
                     {user.name} (Sen)
                   </span>
+                  {userProfile.customTitle && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/15 text-amber-300 font-bold border border-amber-400/30">
+                      {userProfile.customTitle}
+                    </span>
+                  )}
                   {userProfile.isOwner && (
                     <span
                       title="Kurucu"

@@ -176,6 +176,16 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   };
 
   useEffect(() => {
+    if (!isOpen) {
+      setCreatedRoomCode(null);
+      setInvitedRoomCode(null);
+      setLobbyRole('none');
+      setErrorMsg(null);
+      setSlots(createInitialSlots(playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl));
+    }
+  }, [isOpen, playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl]);
+
+  useEffect(() => {
     if (initialJoinCode) {
       const cleanDigits =
         initialJoinCode.trim().replace(/\D/g, '').slice(0, 6) || initialJoinCode.trim();

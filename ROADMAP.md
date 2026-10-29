@@ -27,6 +27,15 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - **Puanlama Doğruluğu**: 5'e basmalı ve kurallardan gelen bonus puanlar (`bonusPoints`) detaylı döküm ve toplam skora dahil edildi.
   - **Yetki Güvenliği**: İsim bazlı sahte kurucu rozeti açığı kapatıldı; kriptografik oturum doğrulaması getirildi.
   - **Build & Paketleme**: Versiyon numarası `package.json` üzerinden dinamik okundu, bundle bölündü ve `.gitignore` temizlendi.
+- [x] **Özel Avatar & Arkadaşlar Ağı (v1.12)**:
+  - Kullanıcı yüklediği özel profil fotoğraflarının arkadaşlar ve çevrimiçi oyuncular listesinde anlık yayınlanması ve senkronizasyonu.
+- [x] **Deste Kesme & RENQ Ceza Senkronizasyonu (v1.13)**:
+  - **Online RENQ Ceza Senkronizasyonu & Fizik**: +2 ve +4 ceza kartları oynandığında mükerrer paket gönderimi önlendi, sıra kilitlenmesi giderildi; yerdeki ceza kartlarının oyuncuya uçarken fiziksel olarak masadan kalkması sağlandı.
+  - **Geleneksel Deste Kesme (Cut Deck) & "Vale Kesene Yarar"**: Deste karıldıktan sonra masaya yayılan 52 karttan birine tıklayarak kesme töreni; yere açılan 4. açık kart Vale (J) ise kesene hediye edilmesi ve yeni kart açılması.
+  - **Maç İçi Profil Rozetleri**: Oyuncu ünvanlarının (`customTitle`) maç içi skor tabelası ve oyuncu kartlarında gösterilmesi.
+  - **Lobi Temizliği**: Maçtan çıkıldığında eski lobi durumunun tamamen sıfırlanması.
+  - **Sohbet & Emote Revizyonu**: Sohbet kutusu genişletildi, hazır mesajlar kaldırıldı, spam koruması eklendi; emotelar profil kartı üstünde 2 saniye animasyonla gösterilecek şekilde konumlandırıldı.
+  - **Kural & Ses Ayarları**: 5'e basmalı kuralı varsayılan olarak kapatıldı (ek puan kaldırıldı, sadece anında maç bitirme); varsayılan ses düzeyi %50'ye ayarlandı.
 
 ---
 

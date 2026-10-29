@@ -32,7 +32,8 @@ import {
   getUserProfile,
   UserProfile,
   recordMatchStats,
-  isDefaultPlayerName
+  isDefaultPlayerName,
+  getAvatarPreset
 } from './features/profile/profileManager';
 import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
@@ -754,6 +755,9 @@ export default function App() {
           avatar: slot.avatar,
           avatarId: isMe ? curProfile.avatarId : slot.avatarId || 'wolf',
           customAvatarUrl: isMe ? curProfile.customAvatarDataUrl : slot.customAvatarUrl,
+          customTitle: isMe
+            ? (curProfile.customTitle || getAvatarPreset(curProfile.avatarId || 'wolf').title)
+            : (slot.customTitle || getAvatarPreset(slot.avatarId || 'wolf').title),
           hand: [],
           collectedCards: [],
           pistiPairs: [],
@@ -783,6 +787,7 @@ export default function App() {
         avatar: localAvatar,
         avatarId: curProfile.avatarId || 'wolf',
         customAvatarUrl: curProfile.customAvatarDataUrl,
+        customTitle: curProfile.customTitle || getAvatarPreset(curProfile.avatarId || 'wolf').title,
         hand: [],
         collectedCards: [],
         pistiPairs: [],
@@ -1784,7 +1789,7 @@ export default function App() {
                         (p.bonusPoints || 0) + (evaluation.pointsAwarded || 0),
                       collectedCards:
                         isPisti || isDouble
-                          ? p.collectedCards
+                          ? [...p.collectedCards, updatedPile[0]]
                           : [...p.collectedCards, ...evaluation.capturedCards]
                     };
                   })
@@ -1973,6 +1978,8 @@ export default function App() {
           senderName: msg.senderName || 'Rakip oyuncu',
           reason: msg.reason || 'surrender'
         });
+        // Record match win for local player
+        recordMatchStats(true, 50, 0, 0, false, msg.senderName || 'Online Rakip');
       }
     });
 

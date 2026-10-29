@@ -35,9 +35,14 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - **Lobi Temizliği**: Maçtan çıkıldığında eski lobi durumunun tamamen sıfırlanması.
   - **Kural & Ses Ayarları**: 5'e basmalı kuralı varsayılan olarak kapatıldı; varsayılan ses düzeyi %50'ye ayarlandı.
 - [x] **Sağdan Kayan Bağımsız Sosyal Menüsü & UI Ergonomisi (v1.14.1)**:
-  - **Sağdan Kayan Drawer Sosyal Paneli**: Ekranın sağ üst köşesine bağımsız "Sosyal" erişim butonu eklendi; ana menüden bağımsız olarak açılır ve arka planı kilitlemez (`hideBackdrop`).
-  - **Eşzamanlı Kullanım**: Sosyal çekmecesi açıkken ana menüdeki tüm butonlar, oyun modları ve ayarlar tam işlevsel kalır; elle kapatılana kadar açık kalır.
-  - **Arayüz Üst Üste Binme Koruması**: Sosyal çekmecesi açıkken ana menü ve üst navigasyon dinamik olarak sola ötelenir (`xl:mr-96`, `2xl:mr-[420px]`); butonlar veya kartlar birbirinin üzerine binmez.
+  - **Sağdan Kayan Drawer Sosyal Paneli**: Ekranın sağ üst köşesine bağımsız "Sosyal" erişim butonu eklendi.
+- [x] **Fiziksel Deste Koreografisi, Canlı İstatistikler & Discord Webhook (v1.14.2)**:
+  - **Tek ve Sürekli Deste Geçişi**: Karıştırma sonrası oluşan hayalet çift deste giderildi; deste yuvasından akıcı biçimde masaya yayılıyor ve kesim sonrası birleşip yuvaya dönüyor.
+  - **Açık Pişti Kartları & Dağınık Toplanan Deste**: Pişti yapılan kartlar masada açık ve kademeli sergileniyor; toplanan kartlar ters ve hafif dağınık/açılı olarak fiziki yığın hissiyle birikiyor.
+  - **Sosyal Panel & Ekran Sabitliği**: Sosyal menü genişliği %60-70 aralığına küçültüldü; çekmece açıldığında ana menüdeki içerikler sabit kalıyor; göz simgesi kaldırılarak avatar/isim tıklamasıyla inceleme ve anında lobiye davet eklendi.
+  - **Canlı Ağ İstatistikleri & Oyun İçi Ünvanlar**: Arkadaş profillerindeki yapay sabit değerler yerine gerçek kariyer istatistikleri ve maç geçmişi yayınlanıyor; oyuncu unvanları eksiksiz gösteriliyor.
+  - **Emote Görünürlüğü**: Reaksiyonlar `z-[100]` katmanına taşınarak çerçevenin arkasında kalması ve kırpılması önlendi.
+  - **Discord Webhook Entegrasyonu**: Güncelleme notlarının Discord kanalına anlık zengin Embed mesajı olarak gönderilmesi (`npm run changelog`).
 
 - [x] **Fiziki Masa Kesimi, Sosyal İstekler, Seviye & Görev Sistemi (v1.14)**:
   - **Fiziki Masa Üstü Deste Kesme (In-Table Physical Deck Cut)**: Ayrı pencere yerine doğrudan masa çuhasında yayılan 52 kart; sadece tura başlayacak oyuncunun kesebilmesi; çok oyunculuda `MP_DECK_CUT` ile anlık senkronizasyon; kesilen 2 destenin kalınlıklarıyla masada ayrılması, 4 yer kartının dağıtımı (Vale kesene yarar ödülü) ve destelerin birleşimi.

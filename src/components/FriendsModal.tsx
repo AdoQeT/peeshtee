@@ -11,7 +11,6 @@ import {
   Sparkles,
   UserCheck,
   UserX,
-  Eye,
   Send
 } from 'lucide-react';
 import {
@@ -175,18 +174,21 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     showToast(`${friendName} arkadaş listenden çıkarıldı.`);
   };
 
-  const handleInspectPlayer = (contact: {
-    id: string;
-    friendCode?: string;
-    name: string;
-    avatarId: string;
-    customAvatarDataUrl?: string;
-    customTitle?: string;
-    level?: number;
-  }) => {
+  const handleInspectPlayer = (contact: any) => {
     sound.playClick();
     if (onInspectProfile) {
-      const dummyProfile: UserProfile = {
+      const pStats = contact.onlinePresence?.stats || contact.stats || {
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        pistiCount: 0,
+        doublePistiCount: 0,
+        highestScore: 0,
+        unoMatchesPlayed: 0,
+        unoWins: 0
+      };
+      const pHistory = contact.onlinePresence?.matchHistory || contact.matchHistory || [];
+      const inspected: UserProfile = {
         id: contact.id,
         friendCode: contact.friendCode || '000000',
         name: contact.name,
@@ -194,18 +196,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         customAvatarDataUrl: contact.customAvatarDataUrl,
         customTitle: contact.customTitle,
         level: contact.level || 1,
-        stats: {
-          matchesPlayed: 10,
-          wins: 7,
-          losses: 3,
-          pistiCount: 12,
-          doublePistiCount: 2,
-          highestScore: 165,
-          unoMatchesPlayed: 4,
-          unoWins: 3
-        }
+        stats: pStats,
+        matchHistory: pHistory
       };
-      onInspectProfile(dummyProfile);
+      onInspectProfile(inspected);
     }
   };
 
@@ -225,7 +219,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       )}
 
       {/* Right Slide-over Drawer Menu */}
-      <div className="pointer-events-auto relative w-full max-w-md sm:max-w-lg h-full bg-slate-950/98 border-l border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
+      <div className="pointer-events-auto relative w-full max-w-[320px] sm:max-w-[340px] h-full bg-slate-950/98 border-l border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
         {/* Top Header */}
         <div className="px-5 py-3.5 border-b border-white/10 bg-slate-950 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -381,7 +375,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         key={friend.id}
                         className="p-3 rounded-2xl bg-slate-900/90 border border-white/10 hover:border-white/20 transition-all flex items-center justify-between gap-3 shadow-md"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div 
+                          onClick={() => handleInspectPlayer(friend)}
+                          className="flex items-center gap-2.5 min-w-0 cursor-pointer group hover:opacity-90"
+                          title="Profili İncele"
+                        >
                           <div className="relative">
                             <AvatarBadge
                               avatarId={friend.avatarId}
@@ -401,7 +399,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-white truncate">
+                              <span className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
                                 {friend.name}
                               </span>
                               <span className="text-[10px] text-slate-400 font-mono">
@@ -423,15 +421,6 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
                         {/* Action buttons */}
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Inspect Profile Button */}
-                          <button
-                            onClick={() => handleInspectPlayer(friend)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                            title="Profili Gör"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-
                           {/* Join Room if Friend is in Lobby */}
                           {(isInGame || isInLobby) && friend.onlinePresence?.roomCode ? (
                             <button
@@ -448,12 +437,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             <button
                               onClick={() => {
                                 sound.playClick();
-                                setSelectedPlayer(friend);
+                                onInviteFriendToMatch({
+                                  friendCode: friend.friendCode,
+                                  name: friend.name,
+                                  gameType: 'pisti'
+                                });
+                                onClose();
                               }}
-                              className="px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+                              className="px-2 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
                             >
                               <Gamepad2 className="w-3.5 h-3.5" />
-                              <span>Davet Et</span>
+                              <span>Davet</span>
                             </button>
                           ) : null}
 
@@ -565,14 +559,18 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         key={player.id}
                         className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex items-center justify-between gap-3 shadow-sm"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div 
+                          onClick={() => handleInspectPlayer(player)}
+                          className="flex items-center gap-2.5 min-w-0 cursor-pointer group hover:opacity-90"
+                          title="Profili İncele"
+                        >
                           <AvatarBadge
                             avatarId={player.avatarId}
                             customAvatarUrl={player.customAvatarUrl}
                             size="md"
                           />
                           <div className="min-w-0">
-                            <span className="text-xs font-bold text-white block truncate">
+                            <span className="text-xs font-bold text-white block truncate group-hover:text-amber-300 transition-colors">
                               {player.name}
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">
@@ -582,13 +580,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => handleInspectPlayer(player)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                            title="Profili Gör"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
+
 
                           {isRequested ? (
                             <span className="px-2.5 py-1 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">

@@ -3,7 +3,9 @@ import {
   getUserProfile,
   addOrUpdateFriend,
   addIncomingFriendRequest,
-  calculateLevel
+  calculateLevel,
+  type UserProfile,
+  type MatchRecord
 } from '../profile/profileManager';
 
 const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
@@ -21,6 +23,8 @@ export interface OnlinePlayerPresence {
   status: 'menu' | 'lobby' | 'playing';
   roomCode?: string;
   gameType?: 'pisti' | 'uno';
+  stats?: UserProfile['stats'];
+  matchHistory?: MatchRecord[];
   lastSeen: number;
 }
 
@@ -216,6 +220,8 @@ class FriendNetworkManager {
       status: this.currentStatus,
       roomCode: this.currentRoomCode,
       gameType: this.currentGameType,
+      stats: profile.stats,
+      matchHistory: profile.matchHistory,
       lastSeen: Date.now()
     };
 

@@ -447,7 +447,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     compact: boolean = false
   ) => {
     const count = player.collectedCards.length;
-    const visibleLayers = Math.min(7, Math.ceil(Math.max(count, 1) / 4));
+    const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
 
     const hasCapturePulse =
       recentCapture && recentCapture.playerIdx === playerIdx && !recentCapture.isPisti;
@@ -463,7 +463,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             tableRefs.current.collectedEls[playerIdx] = el;
           }}
           className={`relative flex items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
-            hasCapturePulse ? 'scale-105 border-emerald-400 bg-emerald-950/40' : ''
+            hasCapturePulse ? 'scale-105 border-emerald-400 bg-emerald-950/40 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : ''
           } border-dashed border-white/15 bg-black/25`}
           title={`${player.name} Toplanan Kartlar: ${count}`}
         >
@@ -474,21 +474,25 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             </span>
           ) : (
             <div className="relative w-10 h-14 sm:w-13 sm:h-19">
-              {Array.from({ length: visibleLayers }).map((_, layerIdx) => (
-                <div
-                  key={layerIdx}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    transform: `translate3d(${layerIdx * -1.1}px, ${layerIdx * -1.4}px, 0) rotate(${
-                      (layerIdx % 2 === 0 ? 1 : -1) * 2
-                    }deg)`
-                  }}
-                  className="rounded-lg shadow-md"
-                >
-                  <CardBackSurface cardBack={cardBack} />
-                </div>
-              ))}
+              {Array.from({ length: visibleLayers }).map((_, layerIdx) => {
+                const jitterRot = ((layerIdx * 17) % 11) - 5;
+                const jitterX = ((layerIdx * 13) % 7) - 3;
+                const jitterY = layerIdx * -1.2;
+
+                return (
+                  <div
+                    key={layerIdx}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      transform: `translate3d(${jitterX}px, ${jitterY}px, 0) rotate(${jitterRot}deg)`
+                    }}
+                    className="rounded-lg shadow-md"
+                  >
+                    <CardBackSurface cardBack={cardBack} />
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -514,7 +518,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   ) => {
     const pistiCount = player.pistiCount;
     const pairs = player.pistiPairs || [];
-    const visiblePairs = pairs.slice(-6);
+    const visiblePairs = pairs.slice(-8);
     const hasPistiPulse =
       recentCapture && recentCapture.playerIdx === playerIdx && recentCapture.isPisti;
 
@@ -528,42 +532,40 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           tableRefs.current.pistiEls[playerIdx] = el;
         }}
         className={`relative flex flex-col items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
-          hasPistiPulse ? 'scale-105 border-amber-300 bg-amber-500/20' : ''
+          hasPistiPulse ? 'scale-105 border-amber-300 bg-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.5)]' : ''
         } ${
           pistiCount > 0
-            ? 'border-amber-400/70 bg-amber-950/35 shadow-[0_0_18px_rgba(245,158,11,0.3)]'
+            ? 'border-amber-400/80 bg-amber-950/40 shadow-[0_0_18px_rgba(245,158,11,0.35)]'
             : 'border-dashed border-white/10 bg-black/15'
         }`}
-        title={`${player.name} Pişti Destesi: ${pistiCount} adet (90° Çapraz Tersli Düzlü)`}
+        title={`${player.name} Piştileri: ${pistiCount} adet (Açık ve Üst Üste Kademeli)`}
       >
         {pistiCount === 0 ? (
           <div className="flex flex-col items-center justify-center opacity-25">
             <span className="text-base select-none font-sans font-light text-amber-200">✛</span>
           </div>
         ) : (
-          <div className="relative w-11 h-15 sm:w-13 sm:h-18 flex items-center justify-center">
-            {visiblePairs.map((pair, pairIdx) => (
-              <div
-                key={pairIdx}
-                style={{
-                  position: 'absolute',
-                  transform: `translate3d(0, ${pairIdx * -4.5}px, 0)`
-                }}
-                className="w-full h-full flex items-center justify-center pointer-events-none"
-              >
-                {/* Bottom card: 0 degrees, face-down (ters) */}
-                <div className="absolute inset-0 rounded-lg shadow-md">
-                  <CardBackSurface cardBack={cardBack} />
-                </div>
-                {/* Top card: 90 degrees crossed perpendicular, face-up (düz, bize bakıyor!) */}
+          <div className="relative w-10 h-14 sm:w-12 sm:h-17 flex items-center justify-center">
+            {visiblePairs.map((pair, pairIdx) => {
+              const xShift = (pairIdx - (visiblePairs.length - 1) / 2) * 8;
+              const yShift = pairIdx * -1.5;
+              const rot = (pairIdx - (visiblePairs.length - 1) / 2) * 4;
+
+              return (
                 <div
-                  style={{ transform: 'rotate(90deg) scale(0.95)' }}
-                  className="absolute inset-0 rounded-lg shadow-xl border-2 border-amber-400"
+                  key={pairIdx}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    transform: `translate3d(${xShift}px, ${yShift}px, 0) rotate(${rot}deg)`,
+                    zIndex: pairIdx + 1
+                  }}
+                  className="rounded-lg shadow-xl border border-amber-400/80 overflow-hidden pointer-events-none"
                 >
                   <CardFrontSurface card={pair.topCard} theme={theme} />
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -654,7 +656,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               <div
                 key={e.id}
                 style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
-                className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+                className="absolute top-1 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
               >
                 <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-amber-400 text-3xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-center animate-bounce">
                   {e.emoji}
@@ -1205,7 +1207,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                       const rotDeg = isSpread ? ((idx - 25.5) / 26) * 12 : 0;
                       const isHovered = hoveredCutIndex === idx;
 
-                      cardLeft = `calc(50% + ${offsetPercent}%)`;
+                      cardLeft = isSpread ? `calc(50% + ${offsetPercent}%)` : `calc(50% - ${pileOffset}px)`;
                       cardTransform = `translate(-50%, ${isHovered ? '-16px' : '0px'}) rotate(${rotDeg}deg) scale(${
                         isHovered ? 1.08 : 1
                       })`;

@@ -64,7 +64,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onStartSinglePlayer,
   onOpenMultiplayer,
   onOpenFriends,
-  isFriendsOpen = false,
+  isFriendsOpen: _isFriendsOpen = false,
   onOpenRules,
   onOpenSettings,
   onOpenProfile,
@@ -121,7 +121,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       </div>
 
       {/* Clean Top Navigation Bar */}
-      <header className={`relative z-20 w-full max-w-6xl flex items-center justify-between gap-3 px-2 py-1 transition-all duration-300 ${isFriendsOpen ? 'pr-20 xl:pr-96 2xl:pr-[420px]' : ''}`}>
+      <header className="relative z-20 w-full max-w-6xl flex items-center justify-between gap-3 px-2 py-1">
         {/* Brand Pill */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/15 shadow-lg">
           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center text-slate-950 font-black text-xs shadow-sm">
@@ -165,24 +165,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </span>
           </button>
 
-          {/* Social (Friends, Requests & Invites) Drawer Button */}
-          <button
-            onClick={() => handleClick(onOpenFriends)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/50 hover:border-emerald-300 text-xs font-black text-emerald-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer"
-            title="Sosyal — Arkadaşlar, İstekler & Canlı Maç Davetleri"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Sosyal</span>
-            {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 ? (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
-                {userProfile.incomingFriendRequests.length}
-              </span>
-            ) : userProfile.friends && userProfile.friends.length > 0 ? (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
-                {userProfile.friends.length}
-              </span>
-            ) : null}
-          </button>
+
 
           {/* Nasıl Oynanır (Rules) Modal Button */}
           <button
@@ -216,11 +199,30 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               <VolumeX className="w-3.5 h-3.5 text-rose-400" />
             )}
           </button>
+
+          {/* Social (Friends, Requests & Invites) Drawer Button */}
+          <button
+            onClick={() => handleClick(onOpenFriends)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/50 hover:border-emerald-300 text-xs font-black text-emerald-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer"
+            title="Sosyal — Arkadaşlar, İstekler & Canlı Maç Davetleri"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Sosyal</span>
+            {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
+                {userProfile.incomingFriendRequests.length}
+              </span>
+            ) : userProfile.friends && userProfile.friends.length > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
+                {userProfile.friends.length}
+              </span>
+            ) : null}
+          </button>
         </div>
       </header>
 
       {/* Main Hero & Clean 3-Card Mode Selector */}
-      <main className={`relative z-10 w-full max-w-5xl flex flex-col items-center my-auto py-4 transition-all duration-300 ${isFriendsOpen ? 'xl:mr-96 xl:max-w-4xl 2xl:max-w-5xl 2xl:mr-[420px]' : ''}`}>
+      <main className="relative z-10 w-full max-w-5xl flex flex-col items-center my-auto py-4">
         {/* Title & Emblem Header */}
         <div className="flex items-center justify-center gap-8 lg:gap-12 w-full mb-6">
           {/* Left Showcase Cards */}
@@ -437,7 +439,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-slate-300/80 bg-slate-950/70 px-2.5 py-1 rounded-lg border border-white/10 shadow-md backdrop-blur-sm">
-          v1.14.1
+          v1.14.2
         </span>
       </div>
     </div>

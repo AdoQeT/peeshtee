@@ -197,14 +197,6 @@ export default function App() {
     mySeat: number;
     startingTurn: number;
   } | null>(null);
-  const pendingDealContextRef = useRef<{
-    seedDeck: Card[];
-    configuredSettings: GameSettings;
-    isMp: boolean;
-    mySeat: number;
-    startingTurn: number;
-  } | null>(null);
-  pendingDealContextRef.current = pendingDealContext;
 
   // Turn Timer (Used strictly in multiplayer mode)
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(15);
@@ -424,11 +416,7 @@ export default function App() {
     const unsubNotice = friendNetwork.onFriendNotice(notice => {
       sound.playClick();
       setUserProfile(getUserProfile());
-      if (notice.id?.startsWith('fr-rem')) {
-        setDevToast(`👋 ${notice.fromName} (#${notice.fromFriendCode}) seni arkadaş listesinden çıkardı.`);
-      } else {
-        setDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) ile artık arkadaşsınız!`);
-      }
+      setDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) ile artık arkadaşsınız!`);
     });
 
     const unsubReq = friendNetwork.onFriendRequest(req => {
@@ -898,7 +886,6 @@ export default function App() {
       setIsMultiplayerHost(isHost);
       setScreen('game');
       setShuffleStyle(chosenShuffle);
-      setChatMessages([]);
 
       const newPlayers = createInitialPlayers(
         configuredSettings.playerCount as 2 | 4,
@@ -959,15 +946,13 @@ export default function App() {
       const shuffleDuration = getShuffleDuration(chosenShuffle);
       const t = window.setTimeout(() => {
         setIsShuffling(false);
-        const ctx = {
+        setPendingDealContext({
           seedDeck,
           configuredSettings,
           isMp: Boolean(isMp),
           mySeat: isMp ? mySeat : 0,
           startingTurn
-        };
-        pendingDealContextRef.current = ctx;
-        setPendingDealContext(ctx);
+        });
 
         // Determine cutter: "sadece başlayacak kişi kimse o keser"
         const isHuman = isMp ? (startingTurn === 0) : (startingTurn === 0);
@@ -987,10 +972,8 @@ export default function App() {
           revealedJackCards: []
         });
 
-        // Bot starting player auto-cuts (both Singleplayer AI and Multiplayer AI when local is host)
-        const isAiSlot = isMp ? (activeMultiplayerSlotsRef.current?.[cutterSeatIdx]?.isAI || false) : !isHuman;
-        const shouldAutoCut = (!isMp && !isHuman) || (isMp && multiplayerManager.isHost && isAiSlot);
-        if (shouldAutoCut) {
+        // Singleplayer Bot starting player auto-cuts after short delay
+        if (!isMp && !isHuman) {
           const botTimer = window.setTimeout(() => {
             const botCut = Math.floor(16 + Math.random() * 20);
             handleCutDeckAndProceed(botCut);
@@ -1005,16 +988,15 @@ export default function App() {
 
   const handleCutDeckAndProceed = useCallback(
     (cutIndex: number) => {
-      const activeCtx = pendingDealContextRef.current || pendingDealContext;
-      if (!activeCtx) return;
-      const { seedDeck, configuredSettings, isMp, mySeat, startingTurn } = activeCtx;
+      if (!pendingDealContext) return;
+      const { seedDeck, configuredSettings, isMp, mySeat, startingTurn } = pendingDealContext;
 
       // Slices and cuts the deck at the chosen position!
       const validIndex = Math.max(8, Math.min(cutIndex, seedDeck.length - 8));
       const cutDeck = [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
 
-      // In Multiplayer: If local cutter clicked or host acting for AI, broadcast MP_DECK_CUT to peers!
-      if (isMp && multiplayerManager.isConnected && (deckCutState?.isHumanCutter || multiplayerManager.isHost)) {
+      // In Multiplayer: If local cutter clicked, broadcast MP_DECK_CUT to peers!
+      if (isMp && multiplayerManager.isConnected && deckCutState?.isHumanCutter) {
         multiplayerManager.send({
           type: 'MP_DECK_CUT',
           cutIndex: validIndex,
@@ -1350,15 +1332,13 @@ export default function App() {
       const shuffleDuration = getShuffleDuration(chosenShuffle);
       const t = window.setTimeout(() => {
         setIsShuffling(false);
-        const ctx = {
+        setPendingDealContext({
           seedDeck,
           configuredSettings: currentSettings,
           isMp: Boolean(isMp),
           mySeat: isMp ? myMultiplayerSeatRef.current : 0,
           startingTurn: nextStartingTurn
-        };
-        pendingDealContextRef.current = ctx;
-        setPendingDealContext(ctx);
+        });
 
         const isHuman = isMp ? (nextStartingTurn === 0) : (nextStartingTurn === 0);
         const cutterSeatIdx = nextStartingTurn;
@@ -1377,9 +1357,7 @@ export default function App() {
           revealedJackCards: []
         });
 
-        const isAiSlot = isMp ? (activeMultiplayerSlotsRef.current?.[cutterSeatIdx]?.isAI || false) : !isHuman;
-        const shouldAutoCut = (!isMp && !isHuman) || (isMp && multiplayerManager.isHost && isAiSlot);
-        if (shouldAutoCut) {
+        if (!isMp && !isHuman) {
           const botTimer = window.setTimeout(() => {
             const botCut = Math.floor(16 + Math.random() * 20);
             handleCutDeckAndProceed(botCut);
@@ -1887,12 +1865,9 @@ export default function App() {
       if (msg.type === 'MP_GAME_START') {
         // Guest receives synchronized match launch from Host!
         if (!multiplayerManager.isHost) {
-          // Prevent double launch if already transitioning/in game
-          if (isMultiplayerGame && (screen === 'game' || screen === 'uno')) return;
           const mySlot = msg.slots.find(s => s.peerId === multiplayerManager.instanceId);
           const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
           setInitialJoinCode('');
-          setChatMessages([]);
 
           if (msg.gameType === 'uno') {
             setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
@@ -2605,7 +2580,6 @@ export default function App() {
     setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
     setRoundScores(null);
     setReadySeatsForNextRound(new Set());
-    setChatMessages([]);
     if (isMultiplayerGame) {
       setIsMultiplayerOpen(true);
     } else {
@@ -2652,7 +2626,6 @@ export default function App() {
     setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
     setRoundScores(null);
     setReadySeatsForNextRound(new Set());
-    setChatMessages([]);
     setScreen('menu');
   }, [userProfile.name]);
 
@@ -2700,7 +2673,6 @@ export default function App() {
     setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
     setRoundScores(null);
     setReadySeatsForNextRound(new Set());
-    setChatMessages([]);
     setScreen('menu');
   }, [userProfile.name, clearScheduledTimers]);
 
@@ -2930,7 +2902,7 @@ export default function App() {
             friendNetwork.announcePresence();
             setScreen('menu');
           }}
-          playerCount={isMultiplayerGame ? (activeMultiplayerSlots?.length || settings.playerCount || 4) : 4}
+          playerCount={isMultiplayerGame ? (settings.playerCount || 4) : 4}
           targetScore={250}
           isMultiplayer={isMultiplayerGame}
           isHost={isMultiplayerHost}
@@ -3088,7 +3060,7 @@ export default function App() {
           if (chosenGameType === 'uno') {
             const seedUno = shuffleUnoDeck(createUnoDeck());
             setMultiplayerSeedUnoDeck(seedUno);
-            multiplayerManager.sendReliable({
+            multiplayerManager.send({
               type: 'MP_GAME_START',
               gameType: 'uno',
               settings: lobbySettings,
@@ -3105,7 +3077,6 @@ export default function App() {
             setMyMultiplayerSeat(0);
             setActiveMultiplayerSlots(finalSlots);
             setIsMultiplayerOpen(false);
-            setChatMessages([]);
             setScreen('uno');
             return;
           }
@@ -3115,7 +3086,7 @@ export default function App() {
           const sharedSeedDeck = shuffleDeck(createDeck());
 
           // Broadcast MP_GAME_START with deterministic seedDeck to all Guests
-          multiplayerManager.sendReliable({
+          multiplayerManager.send({
             type: 'MP_GAME_START',
             gameType: 'pisti',
             settings: lobbySettings,

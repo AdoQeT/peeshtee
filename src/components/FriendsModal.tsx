@@ -146,10 +146,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   const handleSendFriendRequest = (target: { friendCode: string; name?: string }) => {
     sound.playClick();
-    const clean = target.friendCode.replace(/[^0-9A-Za-z]/g, '');
-    friendNetwork.sendFriendRequest({ friendCode: clean, name: target.name });
-    setSentRequests(prev => new Set(prev).add(clean));
-    showToast(`📨 #${clean} kullanıcısına arkadaşlık isteği gönderildi!`);
+    friendNetwork.sendFriendRequest({ friendCode: target.friendCode, name: target.name });
+    setSentRequests(prev => new Set(prev).add(target.friendCode));
+    showToast(`📨 #${target.friendCode} kullanıcısına arkadaşlık isteği gönderildi!`);
   };
 
   const handleAcceptRequest = (req: FriendContact) => {
@@ -168,12 +167,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     showToast('İstek reddedildi.');
   };
 
-  const handleRemoveFriend = (friendId: string, friendCode?: string, friendName?: string) => {
+  const handleRemoveFriend = (friendId: string, friendName: string) => {
     sound.playClick();
-    const updated = removeFriend(friendId, friendCode, friendName);
+    const updated = removeFriend(friendId);
     setProfile(updated);
-    friendNetwork.sendFriendRemovedNotice({ friendCode, name: friendName });
-    showToast(`${friendName || 'Arkadaş'} arkadaş listenden çıkarıldı.`);
+    showToast(`${friendName} arkadaş listenden çıkarıldı.`);
   };
 
   const handleInspectPlayer = (contact: any) => {
@@ -454,7 +452,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           ) : null}
 
                           <button
-                            onClick={() => handleRemoveFriend(friend.id, friend.friendCode, friend.name)}
+                            onClick={() => handleRemoveFriend(friend.id, friend.name)}
                             className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
                             title="Arkadaşı Sil"
                           >
@@ -537,30 +535,6 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/15 focus:border-cyan-400 focus:outline-none text-white text-xs"
                 />
               </div>
-
-              {/* Direct Code Action Card when entering a code */}
-              {searchQuery.trim().length >= 4 && (
-                <div className="p-3 rounded-2xl bg-cyan-950/40 border border-cyan-400/40 flex items-center justify-between gap-2 shadow-md animate-in fade-in">
-                  <div className="min-w-0">
-                    <span className="text-[10px] text-cyan-300 font-bold block">
-                      #{searchQuery.trim().replace(/^#/, '')} Koduna İstek Gönder
-                    </span>
-                    <span className="text-xs text-white font-mono font-bold">
-                      #{searchQuery.trim().replace(/^#/, '')}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const clean = searchQuery.trim().replace(/^#/, '');
-                      handleSendFriendRequest({ friendCode: clean });
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs shadow-md cursor-pointer flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>İstek Gönder</span>
-                  </button>
-                </div>
-              )}
 
               {/* Online Players List */}
               <div className="space-y-2">

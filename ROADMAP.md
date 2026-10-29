@@ -48,14 +48,6 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - **Ana Menü Buton Temizliği**: Ana menüdeki mükerrer yüzen sosyal butonu kaldırılarak yalnızca sağ üst header butonunun kalması.
   - **Online Maç İstatistikleri & Geçmiş Senkronizasyonu**: Tek el ve çok oyunculu maçlarda (Pişti & RENQ) maç sonu ve el bitiminde galibiyet/mağlubiyet, skor ve rakip adının profildeki kariyer istatistiklerine ve maç geçmişine anında eksiksiz kaydedilmesi.
   - **Pişti Kartları Yerleşim & Uçuş Fiziği**: Pişti yapıldığında eşleşen açık kartın pişti yuvasına, alt kartın toplanan kartlar destesine uçması; yuva içine yerleşen kartların aynı açıyla, okunabilir ve kademeli üst üste sergilenmesi.
-- [x] **Arkadaşlık Ağı, TR/EN Dil Seçeneği, Bot Kesim & 4 Kişilik RENQ Kararlılığı (v1.15.0)**:
-  - **Çift Taraflı Arkadaş Çıkarma & İstek Sistemi**: Arkadaş silindiğinde karşı taraftan da eşzamanlı bildirimle silinmesi; kodla doğrudan istek gönderme ve bildirim akışının kusursuzlaştırılması.
-  - **TR / EN Çok Dilli Dil Desteği**: Ana menü, oyun modları, butonlar ve yönlendirmelerin Türkçe ve İngilizce dilleri arasında dinamik değiştirilebilmesi (`🇹🇷 TR | 🇬🇧 EN`).
-  - **RENQ Maç Geçmişi & İstatistik Entegrasyonu**: Hem tek oyunculu hem de online RENQ maçlarının el ve oyun bitişlerinde eksiksiz olarak maç geçmişine ve oyuncu istatistiklerine kaydedilmesi.
-  - **Oyun İçi Sohbet Temizliği**: Her yeni maça başlandığında eski maçlardan kalan sohbet geçmişinin otomatik sıfırlanması.
-  - **Discord Topluluk Butonu & Yakında Modalı**: Header'da doğrudan Discord sunucusuna yönlendiren buton ve gelecek güncellemeleri sergileyen "Yakında / Coming Soon" yol haritası modalı.
-  - **Bot Deste Kesimi & Masa Temizliği**: Tek ve çok oyunculu modlarda botların beklemeden sırası geldiğinde desteyi kesmesi; deste kesimi esnasında ortadaki eski deste kutusunun gizlenerek pürüzsüz fiziksel his sağlanması.
-  - **4 Kişilik RENQ Freeze Giderimi**: 4 oyunculu RENQ modunda bot sıralarının kilitlenmesi ve koltuk koordinat hatalarının giderilmesi.
 
 - [x] **Fiziki Masa Kesimi, Sosyal İstekler, Seviye & Görev Sistemi (v1.14)**:
   - **Fiziki Masa Üstü Deste Kesme (In-Table Physical Deck Cut)**: Ayrı pencere yerine doğrudan masa çuhasında yayılan 52 kart; sadece tura başlayacak oyuncunun kesebilmesi; çok oyunculuda `MP_DECK_CUT` ile anlık senkronizasyon; kesilen 2 destenin kalınlıklarıyla masada ayrılması, 4 yer kartının dağıtımı (Vale kesene yarar ödülü) ve destelerin birleşimi.

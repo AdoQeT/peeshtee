@@ -239,7 +239,7 @@ export class MultiplayerManager {
   }
 
   public getTopic(code: string): string {
-    return `pisti/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
+    return `projectp_v11/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
   }
 
   private setupLocalBuses(code: string) {
@@ -283,7 +283,7 @@ export class MultiplayerManager {
       });
 
       client.on('connect', () => {
-        client.subscribe(topic, { qos: 0 }, (err: any) => {
+        client.subscribe(topic, { qos: 1 }, (err: any) => {
           if (err) console.warn('MQTT sub error:', brokerUrl, err);
         });
       });
@@ -393,7 +393,7 @@ export class MultiplayerManager {
       };
 
       announce();
-      pingInterval = window.setInterval(announce, 200);
+      pingInterval = window.setInterval(announce, 450);
 
       timeoutId = window.setTimeout(() => {
         finish(false);
@@ -417,12 +417,12 @@ export class MultiplayerManager {
 
         if (this.isConnected) {
           const elapsed = Date.now() - this.lastRemoteMessageTime;
-          // Grace Period if no packet for > 15s and <= 30s (prevents tab throttle false disconnects)
-          if (elapsed > 15000 && elapsed <= 30000) {
+          // Fast Disconnect Detection: Grace Period if no packet for > 3.5s and <= 8.5s
+          if (elapsed > 3500 && elapsed <= 8500) {
             this.isPeerReconnecting = true;
-            const secondsLeft = Math.max(1, Math.ceil((30000 - elapsed) / 1000));
+            const secondsLeft = Math.max(1, Math.ceil((8500 - elapsed) / 1000));
             this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft });
-          } else if (elapsed > 30000) {
+          } else if (elapsed > 8500) {
             this.isConnected = false;
             this.isPeerReconnecting = false;
             this.dispatch({ type: 'PEER_DISCONNECTED', peerId: this.instanceId });
@@ -438,6 +438,14 @@ export class MultiplayerManager {
     if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
+    // Discard replayed or out-of-order packets
+    if (typeof envelope.seq === 'number' && envelope.senderId) {
+      const last = this.lastSeenSeq.get(envelope.senderId) || 0;
+      if (envelope.seq <= last) {
+        return;
+      }
+      this.lastSeenSeq.set(envelope.senderId, envelope.seq);
+    }
 
     this.seenMsgIds.add(envelope.msgId);
     if (this.seenMsgIds.size > 500) {
@@ -480,7 +488,7 @@ export class MultiplayerManager {
     this.clients.forEach(c => {
       if (c.connected) {
         try {
-          c.publish(topic, str, { qos: 0 });
+          c.publish(topic, str, { qos: 1 });
         } catch {}
       }
     });
@@ -497,20 +505,6 @@ export class MultiplayerManager {
         localStorage.setItem(`pisti-pkt-${this.roomCode}`, str);
       } catch {}
     }
-  }
-
-  public sendReliable(payload: MultiplayerEvent, times = 5, intervalMs = 700) {
-    if (!this.roomCode) return;
-    this.send(payload);
-    let count = 1;
-    const timer = window.setInterval(() => {
-      if (count >= times || !this.roomCode) {
-        window.clearInterval(timer);
-        return;
-      }
-      this.send(payload);
-      count++;
-    }, intervalMs);
   }
 
   public leaveRoom() {

@@ -1326,13 +1326,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               </div>
             )}
 
-            <div
-              className={`flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 ${
-                deckCutState?.isActive && deckCutState.step !== 'stowing'
-                  ? 'opacity-0 pointer-events-none'
-                  : 'opacity-100'
-              }`}
-            >
+            <div className="flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 opacity-100">
             {/* Physical Deck Stack on the Left of the Pot (Exact scale(1) to match shuffle end) */}
             <div className="flex flex-col items-center">
               <div

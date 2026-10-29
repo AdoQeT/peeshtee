@@ -953,12 +953,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             }, 0);
 
             const newPlayerScore = actingPlayer.score + totalRoundPoints;
-            const isGameEnd = isMultiplayer ? true : (newPlayerScore >= targetScore);
+            const isGameEnd = true; // Her tamamlanan RENQ maçı/eli profile ve maç geçmişine kaydedilir
 
             if (isGameEnd) {
               const oppName = playerIdx === 0 ? (nextPlayers[1]?.name || 'Online Rakip') : (nextPlayers[playerIdx]?.name || 'Online Rakip');
               if (playerIdx === 0) {
-                recordMatchStats(true, newPlayerScore, 0, 0, true, oppName);
+                recordMatchStats(true, Math.max(50, newPlayerScore), 0, 0, true, oppName);
               } else {
                 recordMatchStats(false, nextPlayers[0]?.score || 0, 0, 0, true, oppName);
               }
@@ -1348,7 +1348,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     if (isMultiplayer && !isHost) return;
 
     const botIdx = gameState.currentTurn;
-    const bot = players[botIdx];
+    const bot = playersSyncRef.current[botIdx];
     if (!bot || !bot.isAI) return;
 
     botTurnTimerRef.current = window.setTimeout(() => {
@@ -1471,7 +1471,6 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     gameState.currentTurn,
     gameState.isRoundOver,
     isAnimatingAction,
-    players,
     drawCardsForPlayer,
     deliverPenaltyCardsToPlayer,
     executePlayCard,
@@ -1537,6 +1536,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // Confirm surrender in multiplayer
   const handleConfirmSurrender = () => {
     setIsSurrenderModalOpen(false);
+    recordMatchStats(false, 0, 0, 0, true, 'Online Rakip');
     if (isMultiplayer) {
       try {
         multiplayerManager.send({

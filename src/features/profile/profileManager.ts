@@ -425,9 +425,18 @@ export function addOrUpdateFriend(friend: Omit<FriendContact, 'lastPlayedAt'>): 
   return profile;
 }
 
-export function removeFriend(friendId: string): UserProfile {
+export function removeFriend(friendId: string, friendCode?: string, name?: string): UserProfile {
   const profile = getUserProfile();
-  profile.friends = (profile.friends || []).filter(f => f.id !== friendId && f.name !== friendId);
+  const cleanId = friendId?.trim().toLowerCase();
+  const cleanCode = friendCode?.replace(/[^0-9A-Za-z]/g, '').toLowerCase();
+  const cleanName = name?.trim().toLowerCase();
+
+  profile.friends = (profile.friends || []).filter(f => {
+    if (cleanId && f.id?.toLowerCase() === cleanId) return false;
+    if (cleanCode && f.friendCode?.replace(/[^0-9A-Za-z]/g, '').toLowerCase() === cleanCode) return false;
+    if (cleanName && f.name?.toLowerCase() === cleanName) return false;
+    return true;
+  });
   saveUserProfile(profile);
   return profile;
 }

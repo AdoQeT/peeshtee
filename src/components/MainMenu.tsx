@@ -12,13 +12,18 @@ import {
   Flame,
   Trophy,
   Globe,
-  UserPlus
+  UserPlus,
+  Shield,
+  Palette,
+  Mic,
+  X
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { Card, GameSetupConfig, TableTheme } from '../types/game';
 import { CardView } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
 import { UserProfile } from '../features/profile/profileManager';
+import { getLanguage, setLanguage, translations, Language } from '../utils/i18n';
 
 import { AmbientParticles } from './AmbientParticles';
 
@@ -75,10 +80,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const [botDifficulty] = useState<'easy' | 'medium' | 'hard'>(
     defaultSetup.botDifficulty || 'medium'
   );
+  const [isComingSoonOpen, setIsComingSoonOpen] = useState<boolean>(false);
+  const [lang, setLangState] = useState<Language>(getLanguage());
+  const t = translations[lang];
 
   const handleClick = (action: () => void) => {
     sound.playClick();
     action();
+  };
+
+  const toggleLanguage = () => {
+    sound.playClick();
+    const nextLang = lang === 'tr' ? 'en' : 'tr';
+    setLanguage(nextLang);
+    setLangState(nextLang);
   };
 
   const isSakura = theme === 'sakura';
@@ -136,12 +151,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Profile & Avatar Selector */}
           <button
             onClick={() => handleClick(onOpenProfile)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-amber-400/40 hover:border-amber-400 text-xs font-bold text-slate-200 transition-all shadow-md group cursor-pointer"
-            title="Oyuncu Profilini ve Sabit PP'yi Düzenle"
+            title={t.profile}
           >
             <AvatarBadge
               avatarId={userProfile.avatarId}
@@ -149,12 +164,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               size="xs"
               isOwner={userProfile.isOwner}
             />
-            <span className="text-amber-300 font-cyber font-black max-w-[85px] sm:max-w-[120px] truncate">
+            <span className="text-amber-300 font-cyber font-black max-w-[70px] sm:max-w-[110px] truncate">
               {userProfile.name}
             </span>
             {userProfile.isOwner && (
               <span
-                title="Kurucu"
+                title={t.founder}
                 className="text-amber-400 select-none text-sm drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
               >
                 👑
@@ -165,33 +180,67 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </span>
           </button>
 
+          {/* TR / EN Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
+            title={lang === 'tr' ? 'Switch to English' : 'Türkçe\'ye Geç'}
+          >
+            <span className="text-[11px] font-mono font-bold">
+              {lang === 'tr' ? '🇹🇷 TR' : '🇬🇧 EN'}
+            </span>
+          </button>
 
+          {/* Discord Community Button */}
+          <a
+            href="https://discord.gg/WSrKGWyGWd"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => sound.playClick()}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#5865F2]/20 hover:bg-[#5865F2]/40 border border-[#5865F2]/50 text-xs font-bold text-[#8ea1e1] hover:text-white transition-all shadow-md cursor-pointer"
+            title={t.discord}
+          >
+            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+            </svg>
+            <span className="hidden xl:inline">Discord</span>
+          </a>
+
+          {/* Coming Soon Modal Button */}
+          <button
+            onClick={() => handleClick(() => setIsComingSoonOpen(true))}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-indigo-950/85 hover:bg-indigo-900 border border-indigo-400/40 text-xs font-bold text-indigo-200 transition-colors shadow-md cursor-pointer"
+            title={t.comingSoon}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden md:inline">{t.comingSoon}</span>
+          </button>
 
           {/* Nasıl Oynanır (Rules) Modal Button */}
           <button
             onClick={() => handleClick(onOpenRules)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
             title="Nasıl Oynanır & Oyun Kuralları"
           >
             <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden md:inline">Nasıl Oynanır</span>
+            <span className="hidden lg:inline">{t.howToPlay}</span>
           </button>
 
           {/* Settings Modal Button */}
           <button
             onClick={() => handleClick(onOpenSettings)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
             title="Temalar, Kart Arkaları, Sesler ve Oyun Ayarları"
           >
             <SettingsIcon className="w-3.5 h-3.5 text-pink-400" />
-            <span className="hidden sm:inline">Ayarlar</span>
+            <span className="hidden lg:inline">{t.settings}</span>
           </button>
 
           {/* Sound Toggle */}
           <button
             onClick={onToggleSound}
-            className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
-            title={soundEnabled ? 'Sesi Kapat' : 'Sesi Aç'}
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
+            title={soundEnabled ? t.soundOff : t.soundOn}
           >
             {soundEnabled ? (
               <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -200,14 +249,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             )}
           </button>
 
-          {/* Social (Friends, Requests & Invites) Drawer Button */}
+          {/* Social (Friends, Requests & Invites) Button — Top Right */}
           <button
             onClick={() => handleClick(onOpenFriends)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/50 hover:border-emerald-300 text-xs font-black text-emerald-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/50 hover:border-emerald-300 text-xs font-black text-emerald-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.25)] cursor-pointer"
             title="Sosyal — Arkadaşlar, İstekler & Canlı Maç Davetleri"
           >
             <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Sosyal</span>
+            <span className="hidden sm:inline">{t.social}</span>
             {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 ? (
               <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
                 {userProfile.incomingFriendRequests.length}
@@ -295,17 +344,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
-                TEK OYUNCULU PİŞTİ
+                {t.spTitle}
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                Kurnaz Bot ve Muhtar'a karşı 1v1 veya Dayı ile 4 kişilik eşli masa. 3D kart sayma ve sıfır ışınlanma fiziği!
+                {t.spDesc}
               </p>
 
               {/* Target Score Selector inside card */}
               <div className="mb-4 flex items-center justify-between bg-slate-900/90 p-2 rounded-2xl border border-white/10">
                 <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                  Hedef:
+                  {lang === 'tr' ? 'Hedef:' : 'Target:'}
                 </span>
                 <div className="flex items-center gap-1">
                   {TARGET_SCORES.map(score => (
@@ -344,7 +393,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
-                <span>1v1 DÜELLO</span>
+                <span>{lang === 'tr' ? '1v1 DÜELLO' : '1v1 DUEL'}</span>
               </button>
 
               <button
@@ -361,7 +410,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/40 hover:border-amber-400 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>4 KİŞİLİK</span>
+                <span>{lang === 'tr' ? '4 KİŞİLİK' : '4 PLAYERS'}</span>
               </button>
             </div>
           </div>
@@ -374,14 +423,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   <Globe className="w-6 h-6" />
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                  Online Lobi
+                  {lang === 'tr' ? 'Online Lobi' : 'Online Lobby'}
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
-                ONLINE ÇOK OYUNCULU
+                {t.mpTitle}
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                6 haneli oda koduyla arkadaşlarınla canlı oyna! Pişti ve Renq destekli online lobi, canlı sohbet ve emote sistemi.
+                {t.mpDesc}
               </p>
             </div>
 
@@ -390,7 +439,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-transform active:scale-95 cursor-pointer mt-4"
             >
               <Globe className="w-4 h-4" />
-              <span>ONLINE LOBİYE KATIL</span>
+              <span>{t.mpBtn}</span>
             </button>
           </div>
 
@@ -403,14 +452,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   RENQ
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-400/40 animate-pulse">
-                  Özel Mod
+                  {t.specialMode}
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
-                🌈 RENQ (Renk Savaşı)
+                {t.renqTitle}
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                108 kartlık efsanevi renk kapışması! +2, +4 Joker, Pas, Yön Değiştir ve 3D kavisli el. Tek kart kalınca <strong>"RENQ!"</strong> demeyi unutma!
+                {t.renqDesc}
               </p>
             </div>
 
@@ -419,7 +468,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 hover:from-red-500 hover:to-emerald-400 text-white font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(239,68,68,0.45)] transition-transform active:scale-95 cursor-pointer mt-4"
             >
               <Flame className="w-4 h-4 text-yellow-300" />
-              <span>RENQ OYNA</span>
+              <span>{t.renqBtn}</span>
             </button>
           </div>
         </div>
@@ -431,17 +480,143 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             className="px-4 py-2 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-white/10 hover:border-white/25 text-xs font-bold text-slate-300 hover:text-white flex items-center gap-2 transition-all cursor-pointer"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-pink-400" />
-            <span>Detaylı Özel Masa Kurulumu</span>
+            <span>{t.customSetup}</span>
           </button>
         </div>
       </main>
 
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
-        <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-slate-300/80 bg-slate-950/70 px-2.5 py-1 rounded-lg border border-white/10 shadow-md backdrop-blur-sm">
-          v1.14.3
+        <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
+          v1.15.0
         </span>
       </div>
+
+      {/* Coming Soon Showcase Modal */}
+      {isComingSoonOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setIsComingSoonOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl rounded-3xl bg-slate-950 border border-indigo-400/40 p-6 sm:p-8 shadow-[0_0_50px_rgba(99,102,241,0.25)] flex flex-col max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div>
+                <h3 className="text-lg sm:text-xl font-cyber font-black text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-400" />
+                  <span>{t.comingSoonTitle}</span>
+                </h3>
+                <p className="text-xs text-indigo-300/80 mt-1">
+                  {t.comingSoonSubtitle}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsComingSoonOpen(false)}
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Future Features List */}
+            <div className="space-y-3.5 my-5">
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-400/30 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                  <Trophy className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-amber-200 font-cyber">
+                    {t.rankedTitle}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    {t.rankedDesc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-emerald-400/30 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-200 font-cyber">
+                    {t.guildsTitle}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    {t.guildsDesc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-pink-400/30 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center text-pink-300 shrink-0">
+                  <Palette className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-pink-200 font-cyber">
+                    {t.skinsTitle}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    {t.skinsDesc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-cyan-400/30 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shrink-0">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-cyan-200 font-cyber">
+                    {t.voiceTitle}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    {t.voiceDesc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-violet-400/30 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-400/40 flex items-center justify-center text-violet-300 shrink-0">
+                  <Swords className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-violet-200 font-cyber">
+                    {t.moreGamesTitle}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    {t.moreGamesDesc}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+              <a
+                href="https://discord.gg/WSrKGWyGWd"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => sound.playClick()}
+                className="text-xs text-[#8ea1e1] hover:text-white flex items-center gap-1.5 transition-colors font-semibold"
+              >
+                <span>💬 Discord Topluluğumuza Katıl</span>
+              </a>
+              <button
+                onClick={() => setIsComingSoonOpen(false)}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-cyber font-bold text-xs transition-colors cursor-pointer"
+              >
+                {t.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

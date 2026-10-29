@@ -1,6 +1,8 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { Card, ShuffleStyle, TableTheme } from '../types/game';
 import { CARD_DIMENSIONS, CardBackSurface, CardFrontSurface } from './CardView';
+import { gsapCardEngine } from '../core/animation/gsapCardEngine';
+import gsap from 'gsap';
 
 export interface FlyingCardData {
   id: string;
@@ -55,120 +57,48 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
   onCompleteRef.current = fc.onComplete;
 
   const size = fc.size || 'md';
-  const duration = fc.duration ?? 400;
+  const duration = (fc.duration ?? 400) / 1000; // convert ms to seconds for GSAP
   const startScale = fc.startScale ?? 1;
   const targetScale = fc.targetScale ?? 1;
-  const arcHeight = fc.arcHeight ?? 38;
+  const arcHeight = fc.arcHeight ?? 42;
 
   useLayoutEffect(() => {
     const el = outerRef.current;
     const inner = inner3DRef.current;
     if (!el) return;
 
-    const dx = fc.targetX - fc.startX;
-    const dy = fc.targetY - fc.startY;
-    const dist = Math.hypot(dx, dy);
+    let isCancelled = false;
 
-    const nx = dist > 1 ? -dy / dist : 0;
-    const ny = dist > 1 ? dx / dist : 0;
-    const curveMag = Math.min(24, dist * 0.07);
-    const liftY = Math.min(arcHeight, Math.max(16, dist * 0.15));
-
-    let keyframes: Keyframe[];
-
-    if (fc.waypointX !== undefined && fc.waypointY !== undefined) {
-      const wpOffset = fc.waypointOffset ?? 0.35;
-      const wpRot = fc.waypointRotation ?? fc.startRotation + (fc.targetRotation - fc.startRotation) * 0.35;
-      const wpScale = fc.waypointScale ?? Math.max(startScale, targetScale) * 1.06;
-
-      const midArcX = (fc.waypointX + fc.targetX) * 0.5 + nx * curveMag;
-      const midArcY = (fc.waypointY + fc.targetY) * 0.5 + ny * curveMag - liftY;
-      const midArcRot = wpRot + (fc.targetRotation - wpRot) * 0.65;
-
-      keyframes = [
-        {
-          transform: `translate3d(${fc.startX}px, ${fc.startY}px, 0) translate(-50%, -50%) rotate(${fc.startRotation}deg) scale(${startScale})`,
-          offset: 0
-        },
-        {
-          transform: `translate3d(${fc.waypointX}px, ${fc.waypointY}px, 0) translate(-50%, -50%) rotate(${wpRot}deg) scale(${wpScale})`,
-          offset: wpOffset
-        },
-        {
-          transform: `translate3d(${midArcX}px, ${midArcY}px, 0) translate(-50%, -50%) rotate(${midArcRot}deg) scale(${wpScale})`,
-          offset: wpOffset + (1 - wpOffset) * 0.5
-        },
-        {
-          transform: `translate3d(${fc.targetX}px, ${fc.targetY}px, 0) translate(-50%, -50%) rotate(${fc.targetRotation}deg) scale(${targetScale})`,
-          offset: 1
-        }
-      ];
-    } else {
-      const apexX = fc.startX + dx * 0.5 + nx * curveMag;
-      const apexY = fc.startY + dy * 0.5 - liftY;
-
-      // Generate a true, continuous quadratic Bezier arc sampled uniformly across 12 steps
-      // with dynamic 3D elevation drop-shadow and apex scale boost!
-      const steps = 12;
-      keyframes = [];
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const oneMinusT = 1 - t;
-        const curX = oneMinusT * oneMinusT * fc.startX + 2 * oneMinusT * t * apexX + t * t * fc.targetX;
-        const curY = oneMinusT * oneMinusT * fc.startY + 2 * oneMinusT * t * apexY + t * t * fc.targetY;
-        const curRot = fc.startRotation + (fc.targetRotation - fc.startRotation) * t;
-        const arcSine = Math.sin(t * Math.PI);
-        const curScale = startScale + (targetScale - startScale) * t + arcSine * 0.11;
-        const shadowY = Math.round(6 + arcSine * 22);
-        const shadowBlur = Math.round(10 + arcSine * 28);
-
-        keyframes.push({
-          offset: t,
-          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) scale(${curScale.toFixed(3)})`,
-          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,0.62))`
-        });
-      }
-    }
-
-    const flightAnim = el.animate(keyframes, {
+    const tl = gsapCardEngine.flyCard({
+      element: el,
+      innerElement: inner,
+      startX: fc.startX,
+      startY: fc.startY,
+      targetX: fc.targetX,
+      targetY: fc.targetY,
+      startRotation: fc.startRotation,
+      targetRotation: fc.targetRotation,
+      startFaceUp: fc.startFaceUp,
+      endFaceUp: fc.endFaceUp,
+      startScale,
+      targetScale,
       duration,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-      fill: 'forwards'
+      arcHeight,
+      waypointX: fc.waypointX,
+      waypointY: fc.waypointY,
+      waypointRotation: fc.waypointRotation,
+      onComplete: () => {
+        if (!isCancelled) {
+          onCompleteRef.current?.();
+        }
+      }
     });
 
-    let flipAnim: Animation | null = null;
-    if (inner && fc.startFaceUp !== fc.endFaceUp) {
-      const startYRot = fc.startFaceUp ? 0 : 180;
-      const endYRot = fc.endFaceUp ? 0 : 180;
-      flipAnim = inner.animate(
-        [
-          { transform: `rotateY(${startYRot}deg)`, offset: 0 },
-          { transform: `rotateY(${endYRot}deg)`, offset: 1 }
-        ],
-        {
-          duration,
-          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-          fill: 'forwards'
-        }
-      );
-    }
-
-    let finished = false;
-    const triggerComplete = () => {
-      if (!finished) {
-        finished = true;
-        onCompleteRef.current?.();
-      }
-    };
-
-    flightAnim.onfinish = triggerComplete;
-    const fallbackTimer = window.setTimeout(triggerComplete, duration + 30);
-
     return () => {
-      finished = true;
-      window.clearTimeout(fallbackTimer);
-      flightAnim.cancel();
-      flipAnim?.cancel();
+      isCancelled = true;
+      tl.kill();
+      gsap.killTweensOf(el);
+      if (inner) gsap.killTweensOf(inner);
     };
   }, [
     fc.startX,

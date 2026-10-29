@@ -427,8 +427,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
       {/* Minimal Footer & Version Tag */}
       <footer className="relative z-10 w-full max-w-6xl flex items-center justify-end px-2 py-1 pointer-events-none">
-        <span className="text-[11px] font-mono font-bold text-slate-500/80 tracking-wider">
-          v1.8
+        <span className="text-xs sm:text-[13px] font-mono font-bold text-slate-400/90 tracking-widest">
+          v1.9
         </span>
       </footer>
     </div>

@@ -163,13 +163,23 @@ interface PacketEnvelope {
   payload: MultiplayerEvent;
 }
 
+export function getCryptoRandomString(len: number = 8): string {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint8Array(len);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('').slice(0, len);
+  }
+  return Math.random().toString(36).slice(2, 2 + len);
+}
+
 export class MultiplayerManager {
-  public instanceId: string = `peer-${Math.random().toString(36).slice(2, 9)}-${Date.now()}`;
+  public instanceId: string = `peer-${getCryptoRandomString(8)}-${Date.now()}`;
   public client: MqttClient | null = null;
   public clients: MqttClient[] = [];
   public broadcastChannel: BroadcastChannel | null = null;
   private eventListeners: ((event: MultiplayerEvent) => void)[] = [];
   private seenMsgIds: Set<string> = new Set();
+  private lastSeenSeq: Map<string, number> = new Map();
   private storageListener: ((ev: StorageEvent) => void) | null = null;
   private heartbeatTimer: number | null = null;
   private lastRemoteMessageTime: number = 0;
@@ -416,6 +426,15 @@ export class MultiplayerManager {
     if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
+    // Discard replayed or out-of-order packets
+    if (typeof envelope.seq === 'number' && envelope.senderId) {
+      const last = this.lastSeenSeq.get(envelope.senderId) || 0;
+      if (envelope.seq <= last) {
+        return;
+      }
+      this.lastSeenSeq.set(envelope.senderId, envelope.seq);
+    }
+
     this.seenMsgIds.add(envelope.msgId);
     if (this.seenMsgIds.size > 500) {
       const toRemove = this.seenMsgIds.size - 250;
@@ -442,7 +461,7 @@ export class MultiplayerManager {
 
     const envelope: PacketEnvelope = {
       __pistiEnvelope: true,
-      msgId: `${this.instanceId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      msgId: `${this.instanceId}-${Date.now()}-${getCryptoRandomString(6)}`,
       roomCode: this.roomCode,
       roomToken: this.roomToken || undefined,
       seq: ++this.seq,
@@ -468,7 +487,8 @@ export class MultiplayerManager {
       } catch {}
     }
 
-    if (typeof window !== 'undefined') {
+    // Do NOT write periodic heartbeats to localStorage (avoids disk I/O & storage event spam)
+    if (typeof window !== 'undefined' && payload.type !== 'PEER_HEARTBEAT') {
       try {
         localStorage.setItem(`pisti-pkt-${this.roomCode}`, str);
       } catch {}

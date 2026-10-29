@@ -1,160 +1,141 @@
-# 🎴 Project Pişti: Overdrive (Pişti Arcade)
+# 🎴 Project P: Pişti & RENQ Overdrive
 
-> **Klasik Türk Kart Oyunu Pişti'nin "Arcade & Juicy" Görsel Efektler ve Modern Mimariyle Yeniden Doğuşu.**
+[![Version](https://img.shields.io/badge/version-v1.11-blue.svg)](./package.json)
+[![React](https://img.shields.io/badge/React-18.x-61dafb.svg?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.x-38b2ac.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Multiplayer](https://img.shields.io/badge/Multiplayer-Dual_MQTT_%2B_BroadcastChannel-brightgreen.svg)](#-güçlü-çevrimiçi-multiplayer-mimarisi)
+[![License](https://img.shields.io/badge/license-MIT-purple.svg)](#-lisans)
+
+> **Geleneksel Türk Kart Oyunu Pişti ve Heyecan Dolu Kart Düellosu RENQ'in; Arcade Görsel Efektler, Prosedürel Web Audio, 60–240Hz Adaptif WAAPI Fiziği ve P2P/MQTT Ağ Mimarisiyle Yeniden Doğuşu.**
 
 ---
 
 ## 🌟 Proje Özeti & Vizyon
 
-**Project Pişti: Overdrive**, yüzyıllardır kahvehanelerde ve evlerde oynanan geleneksel 52'lik Türk iskambil oyunu Pişti'yi alıp; **dramatik animasyonlar, ekran sarsıntıları, parçacık şok dalgaları, sinematik "Pişti Slam" sekansları ve procedürel ses efektleriyle** modern bir video oyunu hissiyle harmanlayan üst düzey bir web/masaüstü projesidir.
+**Project P**, klasik kart oyunlarını sıradan 2D düzlemden çıkarıp, her hamlenin tatmin ettiği bir **"Juicy Arcade"** deneyimine dönüştüren modern bir web oyunudur. İki amiral gemisi oyun modunu tek çatı altında buluşturur:
 
-Mekanik kurallara %100 sadık kalınırken, his ve atmosfer olarak gerçekçiliğin ötesine geçilmiş; her kart atışında hissedilen ağırlık, Vale darbeleri ve Pişti patlamaları saf bir tatmin ("game juice") sunacak şekilde kurgulanmıştır.
-
----
-
-## 🕹️ Oyun Mekanikleri & Kurallar
-
-Pişti standart 52 kartlık tek deste ile oynanır.
-
-### Dağıtım ve Başlangıç
-1. Dağıtıcı her oyuncuya 4'er kart verir.
-2. Masanın ortasına 4 kart açılır: İlk 3 kart kapalı (gizli), en üstteki 4. kart açık konulur.
-3. El bittiğinde destede kart kaldığı sürece oyunculara dörder kart dağıtılmaya devam eder (toplam 6 el dağıtımı = 48 kart + yerdeki 4 kart = 52 kart).
-
-### Tur Akışı
-- Sırası gelen oyuncu elindeki bir kartı ortaya atar.
-- Yerdeki en üstteki kart ile **aynı değerde** bir kart atan oyuncu yerdeki tüm kartları toplar.
-- **Vale (J)** her zaman yerdeki tüm kartları toplar ("Süpürme").
-- Masada **tek bir kart** varken, rakip aynı değerdeki kartı atarsa **PİŞTİ** yapılmış olur!
-- Masada **tek bir Vale** varken, rakip Vale atarsa bu **ÇİFT PİŞTİ** (Süper Pişti - 20 Puan) sayılır!
-
-### Puanlama & Özel Kurallar
-| Kart / Durum | Puan | Açıklama |
-| :--- | :---: | :--- |
-| **Pişti (Normal)** | **10** | Boş masadaki tek karta aynı değerde kart basıldığında |
-| **Vale Piştisi (Çift Pişti)** | **20** | Masada tek Vale varken Vale basıldığında |
-| **5'e Basmalı (Özel Varyant)** | **KAZANMA** | Masada tek 5 varken 5 ile Pişti yapan skora bakılmaksızın maçı anında kazanır! |
-| **Karo 10 (Onlu)** | **3** | "Büyük Pişti Parası" |
-| **Sinek 2 (İkili)** | **2** | "Küçük Pişti Parası" |
-| **Aslar (A)** | **1** | Toplam 4 adet As (her biri 1 puan) |
-| **Valeler (J)** | **1** | Toplam 4 adet Vale (her biri 1 puan) |
-| **Kart Çoğunluğu** | **3** | 26'dan fazla kart toplayan oyuncuya ek 3 puan verilir |
-| **Oyun Bitişi** | **51 / 101 / 151 / 201** | Belirlenen hedef skora ilk ulaşan oyunu kazanır |
+1. **Pişti: Overdrive**: Yüzyıllardır kahvehanelerde ve evlerde oynanan 52'lik geleneksel Türk iskambil oyunu; dramatik kart sarsıntıları, 5 farklı profesyonel deste karma sekansı, Vale girdapları, altın şok dalgaları ve canlı masa sayım töreniyle taçlandırılmıştır.
+2. **RENQ**: Stratejik renk, sayı ve aksiyon kartlarının (+2, +4, Pas, Yön Değiştirme, Renk Seçici) yarıştığı, hızlı tempolu ve dinamik bir parti kart oyunu.
 
 ---
 
-## ⚡ "Overdrive" Görsellik & Animasyon Şöleni (Game Feel / Juice)
+## 🎮 Oyun Modları & Mekanikler
 
-Sıradan 2D kart oyunlarının aksine bu projede kartlar sadece kaymaz; masa canlanır!
+### 1. Pişti: Overdrive
+- **Klasik & 5'e Basmalı Varyantı**: Standart puanlamanın yanı sıra tek 5'e 5 basıldığında maçı anında kazandıran opsiyonel kahvehane kuralı.
+- **2 ve 4 Kişilik (Eşli Takım)**: Teke tek düello veya karşılıklı ortaklı eşli mücadele.
+- **Canlı Masa Sayım Töreni**: 52 kart bittiğinde kartlar masaya dökülür; prosedürel ses efektleriyle tek tek sayılarak puan kartları (♦10, ♣2, As, Vale) ve çoğunluk bonusu canlı hesaplanır.
+- **Çapraz Pişti Yığını**: Yapılan Piştiler sıradan desteye karışmaz; masanın kenarında 90 derece dik açıyla istiflenir.
 
-```
-      [ Oyun Başı ] ──> Deste Bölünmesi & Gerçekçi Kart Karma (Riffle Shuffle) Sesi & Animasyonu
-             │
-      [ Dağıtma ] ──> Desteden Masaya ve Oyuncuların Eline 4'er 4'er Süzülen Uçan Kartlar
-             │
-      [ Kart Atışı ] ──> Oyuncunun Elinden Masanın Merkezine Yörüngeli 3D Uçuş & Tok Ahşap Vuruşu
-             │
-      [ Vale Hamlesi ] ──> Altın Girdap (Vortex) Efekti + Masadaki Kartların Havalanması
-             │
-      [ P İ Ş T İ ! ] ──> 💥 SLOW-MOTION MİKRO DURAKLAMA (Hit-stop)
-                          💥 EKRAN SARSINTISI (Screen Shake)
-                          💥 ŞOK DALGASI & PARÇACIK PATLAMASI (Shockwave FX)
-                          💥 3D KABARAN DİNAMİK LOGO: "P İ Ş T İ ! +10" / "5'E BASTI! +KAZANDI"
-                          💥 WEBAUDIO PROSEDÜREL BAS PATLAMASI & FANFAR
-```
-
-### Öne Çıkan Görsel ve Hissiyat Öğeleri:
-1. **5 Farklı Deste Karma Animasyonu (Rastgele Seçim)**:
-   - *1. Klasik Harman & Şelale Köprüsü (Riffle & Bridge Cascade)*: Deste ikiye ayrılır, birbirine geçer ve yay gibi bükülerek şelale gibi akar.
-   - *2. Hindu / Üstten Paket Çekme (Packet Slide)*: Sağ eldeki desteden 4'erli paketler çekilerek sol eldeki desteye bindirilir.
-   - *3. Kahvehane 3'lü Masa Kesimi (Triple Cut)*: Deste masaya 3 parça halinde vurulup çapraz şekilde birleştirilir.
-   - *4. Masa Üstü Çorba Karıştırma (Casino Table Wash Scramble)*: 24 kart masanın dört bir yanına saçılıp girdap gibi dönerek düzgünce toplanır.
-   - *5. Kavisli Yelpaze & Dalga Şelalesi (Farot S-Curve Wave)*: İki yarım deste yelpaze gibi kavis açıp dalga hareketiyle kapanır.
-2. **Pişti Kartlarının 90 Derece Çapraz (Tersli Düzlü) Ayrı Yığını**:
-   - Pişti veya Çift Pişti yapıldığında kartlar normal toplanan kartların içine karışmaz! Yan taraftaki özel "Pişti Destesi"ne biri 0 derece, diğeri tam **90 derece dik açı** ile üst üste çapraz yerleşir.
-3. **El Bitimi Canlı "Tık Tık Tık" Sayım Töreni**:
-   - 52 kart bittiğinde kartlar doğrudan pop-up tablosuyla kapanmaz; masaya dökülüp gerçekçi "tık tık tık" sesleriyle canlı olarak sayılır. Puan kartları (`♦10`, `♣2`, `As`, `Vale`) ayrılır, 27 kartı geçen tarafın çoğunluk bonusu havai fişekle kutlanır.
-4. **Faz 1 Canlı Multiplayer (P2P WebRTC)**:
-   - 6 haneli oda kodu ile bağlanma, 15 saniyelik hamle geri sayım barı ve masaya fırlatılabilen interaktif emojiler (Çay ☕, Alev 🔥, Kahkaha 😂, vb.).
-3. **Masa Temaları**:
-   - 🌲 *Geleneksel Kıraathane Lüksü*: Zümrüt yeşili çuha, ceviz ağacı kaplama, nostaljik çay bardağı tıkırtısı atmosferi.
-   - ⚡ *Cyberpunk Neon Grid*: Tron tarzı ışıldayan hatlar, hologram kartlar, mor/cyan lazer patlamaları.
-   - 🌌 *Galaktik Kozmos*: Yıldız tozu, yerçekimsiz süzülen kartlar ve nebula şok dalgaları.
-4. **Prosedürel Web Audio Ses Tasarımı**:
-   - Dışarıdan MP3 indirme bağımlılığı olmadan, HTML5 Web Audio API ile sıfır gecikmeli üretilen kart fışırtıları, ahşap vuruşları, bas patlamaları ve zafer arpejleri.
+### 2. RENQ
+- **Dinamik Kart Çekme ve Eşleme**: Renk, sembol veya aksiyon eşlemesi.
+- **Ceza ve Pas Senkronizasyonu**: Masadaki biriken +2 / +4 cezaları, pas geçme ve renk seçimi anlık olarak tüm rakiplere senkronize edilir.
+- **Son Kart Uyarısı**: Elinde tek kart kalan oyuncunun "RENQ!" butonuna basma zorunluluğu; unutursa +2 ceza kartı çekme mekaniği.
 
 ---
 
-## 🏗️ Mimari & Kod Yapısı
+## ⚡ "Overdrive" Görsellik ve Fizik Motoru
 
-Sistem, gelecekteki **Çok Oyunculu (Multiplayer)** yapısını sıfır zahmetle entegre edebilmek için **Event-Driven / Headless State Machine** prensibiyle inşa edilmiştir.
+Sıradan kart oyunlarının aksine **Project P**, her hamlede dokunsal ve görsel geri bildirim sunar:
+
+- **60–240Hz Adaptif WAAPI Fizik Motoru**: Monitör yenileme hızına duyarlı Web Animations API tabanlı yörüngeli 3D kart uçuşları.
+- **5 Farklı Gerçekçi Deste Karma Stili**:
+  1. *Harman & Şelale Köprüsü (Riffle & Bridge Cascade)*
+  2. *Hindu / Üstten Paket Çekme (Packet Slide)*
+  3. *Kahvehane 3'lü Masa Kesimi (Triple Cut)*
+  4. *Masa Üstü Çorba Karıştırma (Casino Table Wash)*
+  5. *Kavisli Yelpaze & Dalga Şelalesi (Farot S-Curve)*
+- **Prosedürel Web Audio**: Dışarıdan MP3 indirmeden, HTML5 Web Audio API ile sıfır gecikmeli üretilen kart fışırtıları, ahşap vuruşları, bas patlamaları ve zafer arpejleri.
+- **7 Dinamik Masa Teması**: Kıraathane Lüksü, Zümrüt Yeşili, Gece Mavisi, Cyberpunk Neon Grid, Galaktik Kozmos, Sonbahar Meşesi ve Minimalist Slate.
+- **Parçacık Efektleri**: Sakura yaprakları, neon kıvılcımlar, alev dalgaları ve zafer konfetisi.
+
+---
+
+## 🌐 Güçlü Çevrimiçi Multiplayer Mimarisi
+
+- **Çift Broker Yedekliliği (Dual MQTT Fallback)**: HiveMQ ve EMQX genel WebSocket broker'ları arasında otomatik geçiş ve yedekleme.
+- **Yerel Sekmeler Arası Ağ**: Aynı tarayıcıda veya yerel ağda `BroadcastChannel` ile anında sıfır gecikmeli test imkanı.
+- **Güvenli Oda Kodları**: `PST-xxxxxx` ve `RNQ-xxxxxx` formatında 2 milyardan fazla kombinasyona sahip kriptografik oda anahtarları.
+- **Paket Doğrulama & Anti-Replay**:
+  - Koltuk ve Gönderici Kimlik Doğrulaması (`senderSlot.peerId === msg.senderPeerId`).
+  - Sıra kontrolü ve yetkisiz hamle engelleme.
+  - Monoton dizi numarası (`seq`) takibiyle tekrarlanan/sahte paketlerin filtrelenmesi.
+- **Sosyal Etkileşim**: Canlı emoji fırlatma (☕ Çay, 🔥 Alev, 😂 Kahkaha vb.) ve 80 karakter sınırlı sanitize edilmiş masa içi sohbet.
+
+---
+
+## 🏗️ Mimari Şema
 
 ```mermaid
 graph TD
-    subgraph UI_Layer["Görsel & Sunum Katmanı (React + Canvas FX)"]
+    subgraph UI_Presentation["Görsel & Sunum Katmanı (React 18 + Canvas)"]
         Menu["Ana Menü & Ayarlar"]
-        Table["3D Kart Masası"]
+        TablePisti["3D Pişti Masası (TableSurface)"]
+        TableRenq["RENQ Masası (UnoGameView)"]
         FXEngine["Canvas Parçacık & Sarsıntı Motoru"]
-        AudioEngine["WebAudio FX Synthesizer"]
+        AudioEngine["WebAudio Prosedürel Sentezleyici"]
     end
 
-    subgraph Core_Engine["Çekirdek Oyun Mantığı (Headless)"]
-        StateManager["PistiGame State Manager"]
-        Deck["Deste & Kart Kuralları"]
-        Scorer["Puanlama & Pişti Dedektörü"]
+    subgraph Core_Engine["Çekirdek Mantık (Deterministik & Headless)"]
+        PistiEngine["Pişti Rules & State Machine"]
+        RenqEngine["RENQ Round & Deck Manager"]
+        BotAI["Yapay Zeka (Acemi, Kurnaz, Usta)"]
     end
 
-    subgraph Controller_Layer["Kontrol & Ağ Katmanı"]
-        SinglePlayerAdapter["Yerel Adaptör (Singleplayer AI)"]
-        AI["Yapay Zeka (Kolay/Orta/Usta)"]
-        MultiPlayerAdapter["WebSocket Adaptörü (Hazırlık)"]
+    subgraph Network_Layer["Ağ Katmanı (peerManager)"]
+        MQTTPrimary["HiveMQ WSS"]
+        MQTTFallback["EMQX WSS"]
+        BroadcastCh["BroadcastChannel (Local)"]
+        PacketValidator["Seq & Peer ID Doğrulayıcı"]
     end
 
-    Table -->|Action: PLAY_CARD| StateManager
-    StateManager -->|Event: PISTI_OCCURRED| FXEngine
-    StateManager -->|Event: PISTI_OCCURRED| AudioEngine
-    StateManager -->|State Update| Table
-
-    StateManager <--> SinglePlayerAdapter
-    SinglePlayerAdapter <--> AI
-    StateManager -.-> MultiPlayerAdapter
+    TablePisti --> PistiEngine
+    TableRenq --> RenqEngine
+    PistiEngine --> FXEngine
+    PistiEngine --> AudioEngine
+    PistiEngine <--> Network_Layer
+    RenqEngine <--> Network_Layer
+    Network_Layer <--> PacketValidator
 ```
-
-### Katman Açıklamaları:
-- **`src/core/engine/`**: Oyunun kurallarının işletildiği, arayüzden ve DOM'dan tamamen bağımsız TypeScript motoru. Tek bir `dispatch({ type: 'PLAY_CARD', cardId, playerId })` fonksiyonu ile çalışır.
-- **`src/core/ai/`**: Kolay (rastgele/acemi), Normal (hafıza ve el takibi) ve Usta (kart sayan, rakibin pişti ihtimalini minimize eden ve karo 10 / sinek 2 saklayan) botlar.
-- **`src/core/audio/`**: Synthesizer tabanlı dinamik ses motoru.
-- **`src/core/particles/`**: Özel 60 FPS HTML5 Canvas parçacık motoru (konfeti, alev, elektrik, duman).
-- **`src/features/multiplayer/`**: İleride eklenecek Socket.io / WebRTC multiplayer için arayüz (Interface) tanımları.
 
 ---
 
 ## 🚀 Hızlı Başlangıç
 
 ### Gereksinimler
-- Node.js (v18 veya üzeri önerilir - test edilen v24+)
-- npm veya yarn
+- Node.js v18 veya üzeri (v20+ önerilir)
+- npm, pnpm veya yarn
 
 ### Kurulum ve Çalıştırma
+
 ```bash
-# Proje bağımlılıklarını kurun
+# 1. Bağımlılıkları yükleyin
 npm install
 
-# Geliştirme sunucusunu başlatın
+# 2. Geliştirme sunucusunu başlatın
 npm run dev
 
-# Tarayıcınızda açın: http://localhost:5173
+# 3. Tarayıcınızda açın:
+# http://localhost:5173
+```
+
+### Üretim (Build) Alma
+
+```bash
+npm run build
+npm run preview
 ```
 
 ---
 
-## 👥 Gelecek Planı: Multiplayer (Çok Oyunculu)
+## 🗺️ Gelecek Yol Haritası
 
-Projenin mevcut fazında Singleplayer (Gelişmiş Yapay Zeka ile) tam teşekküllü olarak hayata geçirilecek; ardından **Faz 5** kapsamında:
-1. Oda kurma / Odaya katılma (Room Code),
-2. Eşzamanlı kart atma ve ping kompanzasyonu,
-3. Canlı emoji / hızlı sohbet fırlatma,
-4. Çevrimiçi liderlik tablosu
-kolaylıkla eklenecektir.
+Gelecek sürümlerde hedeflenen yetkili sunucu mimarisi, maç replay motoru, günlük tohum bulmacaları, mobil haptik dokunmatik kontroller ve daha fazlası için lütfen [ROADMAP.md](./ROADMAP.md) belgesini inceleyin.
 
-Detaylı aşamalar için lütfen [ROADMAP.md](file:///c:/Users/Ado/Desktop/project%20P/ROADMAP.md) dosyasını inceleyin.
+---
+
+## 📄 Lisans
+
+Bu proje MIT lisansı kapsamında korunmaktadır. Detaylar için `LICENSE` dosyasına başvurabilirsiniz.

@@ -154,6 +154,7 @@ export interface DetailedRoundScore {
   doublePistiPoints: number;
   majorityPoints: number;
   specialCardPoints: number;
+  bonusPoints?: number;
   acesPoints: number;
   jacksPoints: number;
   diamonds10Points: number;
@@ -193,15 +194,17 @@ export function calculateRoundBreakdown(
   const pistiPoints = player.pistiCount * 10;
   const doublePistiPoints = player.doublePistiCount * 20;
   const majorityPoints = hasMajority ? 3 : 0;
+  const bonusPoints = player.bonusPoints || 0;
 
   const totalRoundPoints =
-    pistiPoints + doublePistiPoints + majorityPoints + specialCardPoints;
+    pistiPoints + doublePistiPoints + majorityPoints + specialCardPoints + bonusPoints;
 
   return {
     pistiPoints,
     doublePistiPoints,
     majorityPoints,
     specialCardPoints,
+    bonusPoints,
     acesPoints,
     jacksPoints,
     diamonds10Points,

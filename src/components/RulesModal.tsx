@@ -34,7 +34,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">OYUN KURALLARI</h2>
-            <p className="text-[11px] text-slate-400">Pişti & UNO Puanlama ve Mekanik Rehberi</p>
+            <p className="text-[11px] text-slate-400">Pişti & RENQ Puanlama ve Mekanik Rehberi</p>
           </div>
         </div>
 

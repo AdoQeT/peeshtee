@@ -222,7 +222,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const handleWhatsAppInvite = (friendName: string) => {
     sound.playClick();
     const url = window.location.origin + window.location.pathname;
-    const text = `🔥 Selam ${friendName}! Pişti & UNO masasına gel, benim Oyuncu ID'm: #${profile.friendCode}\nHemen katıl: ${url}`;
+    const text = `🔥 Selam ${friendName}! Pişti & RENQ masasına gel, benim Oyuncu ID'm: #${profile.friendCode}\nHemen katıl: ${url}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -750,14 +750,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 avatarId={selectedPlayer.avatarId || 'wolf'}
                 customAvatarUrl={selectedPlayer.customAvatarUrl}
                 size="lg"
-                isOwner={selectedPlayer.isOwner || selectedPlayer.name.toLowerCase() === 'ado'}
+                isOwner={Boolean(selectedPlayer.isOwner)}
               />
               <div>
                 <div className="flex items-center justify-center gap-1.5">
                   <h3 className="text-lg font-black text-white font-cyber tracking-tight">
                     {selectedPlayer.name}
                   </h3>
-                  {(selectedPlayer.isOwner || selectedPlayer.name.toLowerCase() === 'ado') && (
+                  {Boolean(selectedPlayer.isOwner) && (
                     <span
                       title="Kurucu"
                       className="text-amber-400 select-none text-base drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"

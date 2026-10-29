@@ -26,4 +26,9 @@ dist-ssr
 # Build outputs & caches
 tsconfig.tsbuildinfo
 .gemini
-çalışan online
+çalışan online/
+
+# Environment variables
+.env
+.env.*
+!.env.example

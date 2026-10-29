@@ -270,6 +270,8 @@ export default function App() {
   const dealTimersRef = useRef<number[]>([]);
 
   const [currentTurn, setCurrentTurn] = useState<number>(0);
+  const currentTurnRef = useRef<number>(currentTurn);
+  currentTurnRef.current = currentTurn;
   const [round, setRound] = useState<number>(1);
   const [dealerIndex, setDealerIndex] = useState<number>(1);
   const [lastCollectorIndex, setLastCollectorIndex] = useState<number | null>(null);
@@ -1463,6 +1465,8 @@ export default function App() {
                       pistiPairs: pistiPair ? [...p.pistiPairs, pistiPair] : p.pistiPairs,
                       pistiCount: isPisti ? p.pistiCount + 1 : p.pistiCount,
                       doublePistiCount: isDouble ? p.doublePistiCount + 1 : p.doublePistiCount,
+                      bonusPoints:
+                        (p.bonusPoints || 0) + (evaluation.pointsAwarded || 0),
                       collectedCards:
                         isPisti || isDouble
                           ? p.collectedCards
@@ -1549,8 +1553,31 @@ export default function App() {
       } else if (msg.type === 'MP_CARD_PLAYED') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
 
+        // 1. Validate that msg.senderPeerId matches the assigned seat
+        const senderSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === msg.seatIndex);
+        if (
+          senderSlot &&
+          senderSlot.peerId &&
+          msg.senderPeerId &&
+          senderSlot.peerId !== msg.senderPeerId
+        ) {
+          console.warn(
+            `Unauthorized card play: peer ${msg.senderPeerId} attempted play for seat ${msg.seatIndex}!`
+          );
+          return;
+        }
+
         const N = settingsRef.current.playerCount;
         const targetLocalIdx = (msg.seatIndex - myMultiplayerSeatRef.current + N) % N;
+
+        // 2. Validate that it is currently this player's turn
+        if (currentTurnRef.current !== targetLocalIdx) {
+          console.warn(
+            `Out-of-turn card play attempt: seat ${msg.seatIndex} played but turn is ${currentTurnRef.current}!`
+          );
+          return;
+        }
+
         const targetPlayer = playersRef.current[targetLocalIdx];
         if (!targetPlayer) return;
 
@@ -1589,14 +1616,16 @@ export default function App() {
         });
       } else if (msg.type === 'MP_CHAT_MESSAGE') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
+        const safeText = typeof msg.text === 'string' ? msg.text.trim().slice(0, 80) : '';
+        if (!safeText) return;
         setChatMessages(prev => [
           ...prev,
           {
-            id: `msg-${Date.now()}-${Math.random()}`,
-            senderName: msg.senderName,
+            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            senderName: msg.senderName.slice(0, 20),
             senderAvatarId: msg.senderAvatarId,
             senderAvatarEmoji: msg.senderAvatar,
-            text: msg.text,
+            text: safeText,
             timestamp: msg.timestamp,
             isMe: false
           }

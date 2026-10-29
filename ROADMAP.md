@@ -1,102 +1,103 @@
-# 🗺️ Project Pişti: İleriye Yönelik Yol Haritası (Next-Gen Roadmap)
+# 🗺️ Project P: İleriye Yönelik Yol Haritası (Product Roadmap)
 
-Bu belge, oyunun mevcut sağlam tek oyunculu ve animasyon temelleri üzerine inşa edilecek **gelecek geliştirme fazlarını** ve eklenebilecek en heyecan verici özellikleri detaylandırmaktadır.
-
----
-
-## 📍 Mevcut Durum (Tamamlananlar)
-- [x] %100 Kurallara Uygun Deterministik Pişti Motoru (2 ve 4 Kişilik Eşli Takım Modu).
-- [x] 5'e Basmalı Özel Kahvehane Varyantı (Anında Galibiyet Mekaniği).
-- [x] 60 FPS Web Animations API ile Gerçekçi 3D Kart Uçuş Fiziği ve 3D Havada Yüz Çevirme.
-- [x] **5 Farklı Kaliteli Deste Karma Animasyonu (Rastgele 1/5 Seçim: Şelale, Hindu, 3'lü Kesim, Çorba Wash, Dalga)**.
-- [x] **Pişti Kartlarının 90 Derece Açıyla (Tersli Düzlü) Ayrı Yığında İstiflenmesi**.
-- [x] **El Bitimi Masada Kartları Döndürüp "Tık Tık Tık" Canlı Sayım & Puan Ayırma Töreni**.
-- [x] **Faz 1 Canlı Multiplayer (P2P WebRTC / BroadcastChannel, 15s Sayaç, Çay/İfade Fırlatma)**.
-- [x] **🌸 Sakura Cherry Blossom Spirit** Teması, Dökülen Çentikli Kiraz Çiçeği Yaprakları & Ruh Küreleri.
-- [x] 5 Farklı Masa Teması & 4 Farklı Özel Kart Arkası Koleksiyonu.
-- [x] 3 Farklı Yapay Zeka Kişiliği (Acemi, Kurnaz, Kart Sayan Şampiyon).
-- [x] Görüşü Engellemeyen Optimize Edilmiş Arcade Pişti Bildirim Banner'ı.
+Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilometre taşlarını, planlanan ana geliştirme fazlarını ve geleceğe yönelik inovasyon fikirleri havuzunu detaylandırmaktadır.
 
 ---
 
-## 🚀 İleriye Yönelik Faz Planı
+## 📍 Tamamlanan Kilometre Taşları (v1.0 – v1.11)
+
+- [x] **Çekirdek Pişti Motoru (v1.0 - v1.9)**:
+  - %100 kurallara uygun deterministik Pişti motoru (2 ve 4 kişilik eşli mod).
+  - 5'e Basmalı Özel Kahvehane Varyantı (tek 5'e basıldığında anında galibiyet).
+  - 60–240Hz uyumlu Web Animations API (WAAPI) ile gerçekçi 3D kart uçuş fiziği ve havada yüz çevirme.
+  - **5 Farklı Profesyonel Deste Karma Animasyonu**: Şelale Köprüsü (Riffle), Hindu Paket Çekme, Kahvehane 3'lü Kesim, Çorba Wash ve Dalga Yelpaze.
+  - Pişti kartlarının 90 derece dik açıyla (çapraz) ayrı yığında istiflenmesi.
+  - El bitimi masada kartların açılıp *"Tık Tık Tık"* sesleriyle tek tek canlı sayıldığı puan ayırma töreni.
+  - Prosedürel Web Audio API ses motoru (sıfır harici ses dosyası bağımlılığı, sentetik fışırtı, tokmak ve patlama sesleri).
+  - 7 farklı dinamik masa teması (Kıraathane, Gece Mavisi, Zümrüt Yeşili, Cyberpunk Neon, Galaktik Kozmos, Sonbahar Meşesi, Minimalist Slate) ve Sakura yaprak parçacıkları.
+- [x] **RENQ Oyun Modu & Çift Broker Hibrit Multiplayer (v1.10)**:
+  - Renk ve sayı eşleme kart oyunu RENQ'in tam teşekküllü entegrasyonu (+2, +4, Pas, Yön Değiştirme, Renk Seçimi ve Ceza çarkı).
+  - HiveMQ + EMQX genel MQTT WebSocket broker'ları arasında otomatik yedekleme (failover) ve yerel `BroadcastChannel` hibrit ağı.
+  - Kriptografik 6 haneli oda kodları (`PST-xxxxxx` / `RNQ-xxxxxx`), canlı emoji fırlatma ve masa içi sohbet.
+- [x] **Güvenlik, Denge ve v1.11 Stabilizasyonu (v1.11)**:
+  - **RENQ Online Sıra Senkronizasyonu**: Koltuk rotasyonuyla eşzamanlı sıra çakışması (`currentTurn = 0`) çözüldü; çekilen kart oynanamadığında karşı tarafa `MP_UNO_PASS` anlık iletilerek kilitlenmeler giderildi.
+  - **Global RENQ Markalaması**: Tüm arayüz, sohbet şablonları, masa halkası, WhatsApp davetleri ve kural kitapçığı UNO'dan RENQ'e uyarlandı.
+  - **Ağ Güvenliği & Paket Doğrulama**: `senderPeerId` ile koltuk eşleştirmesi doğrulandı; sırası olmayan oyuncunun kart oynaması engellendi; monoton dizi numarası (`seq`) ile yinelenen paketler elendi.
+  - **Storage & Disk Optimizasyonu**: Periyodik heartbeat paketlerinin `localStorage` ve sekme `storage` event'lerini gereksiz tetiklemesi önlendi.
+  - **Puanlama Doğruluğu**: 5'e basmalı ve kurallardan gelen bonus puanlar (`bonusPoints`) detaylı döküm ve toplam skora dahil edildi.
+  - **Yetki Güvenliği**: İsim bazlı sahte kurucu rozeti açığı kapatıldı; kriptografik oturum doğrulaması getirildi.
+  - **Build & Paketleme**: Versiyon numarası `package.json` üzerinden dinamik okundu, bundle bölündü ve `.gitignore` temizlendi.
+
+---
+
+## 🚀 Geliştirme Fazları Planı
 
 ```mermaid
 flowchart TD
-    M1["1. Canlı Multiplayer (WebRTC / Socket)"] --> M2["2. Dinamik Spiker & Ses Dünyası"]
-    M2 --> M3["3. Kahvehane Kariyer & Turnuva Modu"]
-    M3 --> M4["4. Kozmetik Sandık & Koleksiyon Sistemi"]
-    M4 --> M5["5. Mobil PWA, Sürükle-Bırak & Titreşim"]
+    F1["FAZ 1: Yetkili Sunucu Mimarisi & Anti-Cheat"] --> F2["FAZ 2: Replay, Maç Analizi & Günlük Tohumlar"]
+    F2 --> F3["FAZ 3: Sosyal Kulüpler & Seyirci Modu"]
+    F3 --> F4["FAZ 4: Sezonluk İlerleme & Kart Koleksiyonu"]
+    F4 --> F5["FAZ 5: Mobil PWA, Sürükle-Bırak & Dokunmatik Haptikler"]
 
-    style M1 fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    style M2 fill:#ec4899,stroke:#be185d,color:#fff
-    style M3 fill:#f59e0b,stroke:#b45309,color:#fff
-    style M4 fill:#8b5cf6,stroke:#6d28d9,color:#fff
-    style M5 fill:#10b981,stroke:#047857,color:#fff
+    style F1 fill:#2563eb,stroke:#1d4ed8,color:#fff
+    style F2 fill:#7c3aed,stroke:#6d28d9,color:#fff
+    style F3 fill:#db2777,stroke:#be185d,color:#fff
+    style F4 fill:#d97706,stroke:#b45309,color:#fff
+    style F5 fill:#059669,stroke:#047857,color:#fff
 ```
 
 ---
 
-### 🌐 FAZ 1: Canlı Çok Oyunculu (Multiplayer) & Eşzamanlı Ağ
-> **Hedef:** Arkadaşlarınla 6 haneli oda koduyla sıfır gecikmeli Pişti düelloları ve 2v2 Eşli maçlar yapmak.
+## 💡 Gelecek Fikirleri & İnovasyon Havuzu (Topluluk Önerileri)
 
-- [ ] **Sunucusuz P2P WebRTC (PeerJS) veya Hafif WebSocket Sunucusu**:
-  - Oyuncu "Oda Aç" dediğinde 6 haneli kod üretilir (`PST-8492`).
-  - İkinci (veya 4 kişilikte 3. ve 4.) oyuncu bağlantı linkiyle veya kodu girerek odaya katılır.
-- [ ] **Sıra Zamanlayıcısı (Turn Timer)**:
-  - Hamle başına 15 saniye geri sayım barı (süre bitince rastgele kart oynama cezası).
-- [ ] **Canlı Sosyal İfadeler & Hızlı Çatışma (Emotes)**:
-  - Masaya fırlatılabilen interaktif emojiler: Çay bardağı tıkırdatma ☕, alev 🔥, kahkaha 🤣, gözyaşı 😭, kafaya vurma 🤦‍♂️.
-- [ ] **Bağlantı Kopma Koruması (Reconnect Handling)**:
-  - İnterneti kopan oyuncunun yerine botun geçici olarak devam etmesi ve oyuncu dönünce devralması.
+Gelecek sürümlerde değerlendirilmek üzere kaydedilen 12 stratejik iyileştirme ve inovasyon maddesi:
 
----
+### 1. 🛡️ Yetkili Sunucu Mimarisi (Authoritative Backend & Anti-Cheat)
+- **Açıklama:** Mevcut P2P/MQTT yapısında istemciler deste tohumunu (`seedDeck`) paylaşmaktadır. Gelecekte Cloudflare Workers, Go veya Node.js tabanlı hafif bir sunucu ile destenin ve rakiplerin ellerinin yalnızca sunucuda saklandığı ("Fog of War") mimariye geçiş.
+- **Kazanım:** Konsoldan veya ağ trafiğinden kartların okunmasını %100 engeller, resmi dereceli (ranked) lig maçlarına zemin hazırlar.
 
-### 🎙️ FAZ 2: Dinamik Spiker Nidası & Tema Müzikleri
-> **Hedef:** Oyundaki arcade hissiyatını ve mizahı tavan yaptıracak ses atmosferi.
+### 2. 🎬 Replay & Öne Çıkanlar (Highlights Engine)
+- **Açıklama:** Oynanan her turun hamlelerinin hafif bir JSON veri yapısı olarak kaydedilmesi.
+- **Kazanım:** Maç sonunda oyuncuların oyunu baştan sona animasyonlu tekrar izleyebilmesi, "Son Çift Pişti" veya "Büyük Süpürme" gibi anların GIF veya kısa video olarak sosyal medyaya aktarılabilmesi.
 
-- [ ] **Arcade Spiker / Kahvehane Nida Sesleri**:
-  - Pişti anında: *"PİŞTİİİ!", "NE VURDU BE!", "OTURDU!", "VALE GELDİ SÜPÜRDÜ!"*.
-  - 5'e basıldığında: *"5'E BASTI! DAĞILIN!", "KELLE GİTTİ!"*.
-  - Web Audio osilatörleri veya yüksek kaliteli hafif sıkıştırılmış nida klipleri.
-- [ ] **Temaya Göre Ortam Fon Müziği (Ambient Soundscape)**:
-  - *Sakura Spirit*: Arka planda derinden gelen huzurlu Koto ve Shakuhachi ezgileri.
-  - *Zümrüt Kıraathane*: Arkada hafif çay kaşığı şıngırtısı ve kahve sohbet uğultusu.
-  - *Siber Neon*: Retro synthwave bas yürüyüşleri.
+### 3. 🧩 Günlük Bulmaca / Daily Seed Challenge
+- **Açıklama:** Her gün gece yarısı tüm oyunculara aynı karıştırılmış deste tohumunun (daily seed) sunulması.
+- **Kazanım:** "Günün Destesinde En Çok Piştiyi Kim Yapar?" konseptiyle oyuncuların aynı kart dağılımında botlara karşı stratejilerini yarıştırıp günlük global liderlik tablosunda sıralanması.
 
----
+### 4. 🧠 Bot Kişilikleri ve Maç Sonu Analizörü (AI Match Insights & Coaching)
+- **Açıklama:** Botlara farklı oyun tarzları kazandırılması (Örn: *Agresif Aslan*, *Garantici Memur*, *Ters Köşe Kurnaz*) ve maç bitiminde mini yapay zeka koçu analizi.
+- **Kazanım:** *"5. turda elindeki Vale yerine 8'liyi atsaydın rakibin Pişti yapmasını engelleyebilirdin (+10 puan farkı)"* gibi öğretici maç sonu analiz raporları.
 
-### 🏆 FAZ 3: Kahvehane Kariyer & Turnuva Modu
-> **Hedef:** Tek oyunculu deneyimi sadece tek maçtan çıkarıp uzun soluklu bir maceraya dönüştürmek.
+### 5. 🔄 Reconnect & Bot Devralma (Drop-in AI Handover)
+- **Açıklama:** Çevrimiçi maç sırasında interneti kopan, sekmeyi kazara kapatan veya çağrı gelen bir oyuncunun yerine saniyeler içinde geçici yapay zekanın (Bot) oturması.
+- **Kazanım:** Oyuncu geri bağlandığında kesintisiz elini devralabilir; kalan oyuncuların maçı düşme/donma sebebiyle yarıda kalmaz.
 
-- [ ] **Türkiye & Dünya Pişti Turnuvası**:
-  - *Masa 1:* Mahalle Çay Ocağı (Rakip: Acemi Çırak)
-  - *Masa 2:* Kadıköy Kıraathanesi (Rakip: Kurnaz Emekli Memur)
-  - *Masa 3:* Boğaz Kulübü (Rakip: Kart Sayan Analist)
-  - *Masa 4:* Kyoto Sakura Tapınağı Özel Turnuvası (Usta Pişti Üstadı)
-- [ ] **Farklı Bot Karakterleri & Replikleri**:
-  - Botların hamle yaparken ekranda küçük konuşma baloncukları çıkarması (*"O kartı atmayacaktın evlat..."*, *"Elimde bir şey kalmadı ya"*).
+### 6. 👁️ Seyirci Modu (Spectator Mode & Delay Buffer)
+- **Açıklama:** Odalara oyuncu dışında "İzleyici" olarak katılma seçeneği (`spectator: true`).
+- **Kazanım:** Turnuva yayıncıları veya arkadaşlar için masayı dışarıdan canlı izleme imkanı; kopya çekmeyi (ghosting) engellemek adına opsiyonel 10-15 saniyelik yayın gecikmesi tamponu.
 
----
+### 7. 🗣️ Sesli Sohbet & Otantik Replikler (Audio Emotes & WebRTC Voice)
+- **Açıklama:** Masada atmosferi yükseltecek Türkçe kahvehane nida ses efektleri (*"Kelle gitti!"*, *"Ne vurdu be!"*, *"Dağılın!"*) ve arkadaşlar arası opsiyonel bas-konuş WebRTC ses kanalı.
+- **Kazanım:** Oyun içi samimiyeti ve rekabet coşkusunu üst seviyeye taşır.
 
-### 🎁 FAZ 4: Kozmetik Kilit Açma & Koleksiyon Sandığı
-> **Hedef:** Maç kazandıkça ve Pişti yaptıkça açılan ödül döngüsü.
+### 8. 🎨 Sezonluk Başarım ve Kart Koleksiyonu (Pass & Skin Laboratory)
+- **Açıklama:** Görevler tamamlandıkça veya galibiyet aldıkça açılan kozmetik vitrini.
+- **Kazanım:** Özel kart arka desenleri (Nazar Boncuğu, Göktürk Motifleri, Altın Varak, Cyber Neon), masa halıları, özel efektli kart vurma animasyonları ve profil unvanları.
 
-- [ ] **Çip & Puan Sistemi**:
-  - Yapılan her normal Pişti için +100 Çip, Çift Pişti için +250 Çip, maç galibiyetine +500 Çip.
-- [ ] **Kilit Açılabilir Kozmetikler**:
-  - *Yeni Kart Arkaları:* Türk Bayrağı / Nazar Boncuğu deseni, Samuray Kılıcı, Cyber Glitch.
-  - *Masa Halıları:* Osmanlı Lale Deseni Çuha, Gece Yarısı Mat Siyah Deri.
-  - *Kart Atma Efektleri:* Masaya kart vurunca çıkan alev patlaması, yıldırım çakması veya sakura fırtınası.
+### 9. 📱 Mobil PWA & Dokunmatik Sürükle-Bırak (Haptic Touch & Fling)
+- **Açıklama:** Service Worker ve Web App Manifest ile ana ekrana tam ekran uygulama olarak yüklenebilme, mobilde kartları parmakla masanın ortasına fırlatma (fling) fiziği.
+- **Kazanım:** Web Vibration API ile kart masaya indiğinde hafif vuruş hissi, Pişti anında ise güçlü çift titreşimle native mobil oyun hissi.
 
----
+### 10. ⚡ Yeni Oyun Modları & Varyasyonlar (Blitz Pişti & Kaos RENQ)
+- **Açıklama:**
+  - *Blitz Pişti:* Tur başına sadece 5 saniye düşünme süresi olan aşırı hızlı tempolu mod.
+  - *Kaos RENQ:* Her 3 turda bir masa renginin veya oyun yönünün rastgele değiştiği sürpriz kural kartları.
+- **Kazanım:** Oyuncular için alternatif parti eğlenceleri.
 
-### 📱 FAZ 5: Mobil PWA, Sürükle-Bırak & Dokunmatik Hissiyat
-> **Hedef:** Mobilde tıpkı App Store / Google Play'den indirilmiş bir native oyun gibi kusursuz deneyim.
+### 11. 👥 Kulüp / Klan Sistemi (Sosyal Masalar)
+- **Açıklama:** Oyuncuların kendi arkadaş gruplarıyla özel kulüp odaları oluşturması, kulüp içi haftalık skor tahtaları ve turnuva fikstürleri.
+- **Kazanım:** Kalıcı bir oyuncu topluluğu ve organik bağlılık.
 
-- [ ] **Kart Sürükle-Bırak (Touch Drag & Drop)**:
-  - Parmağınla elindeki kartı tutup masanın ortasına fiziksel olarak fırlatma.
-- [ ] **Haptik Titreşim (Vibration API)**:
-  - Kart masaya oturduğunda hafif titreşim, Pişti patladığında güçlü çift titreşim.
-- [ ] **PWA Kurulum Desteği**:
-  - Tarayıcıda "Uygulamayı Ana Ekrana Ekle" butonuyla tam ekran, çubuksuz mobil uygulama açılışı.
+### 12. ♿ Gelişmiş Erişilebilirlik & Sesli Betimleme (Screen Reader & High Contrast)
+- **Açıklama:** Görme engelli veya az gören oyuncular için ekran okuyucu uyumluluğunun tam sesli oyun betimlemesine dönüştürülmesi (*"Masa: Karo 7, Elinizde: Sinek 7, Kupa Vale..."*).
+- **Kazanım:** Renk körü filtreleri, yüksek kontrast modu ve klavye/kumanda kısayollarıyla herkes için %100 erişilebilir kart oyunu standardı.

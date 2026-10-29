@@ -44,6 +44,7 @@ export interface Player {
   pistiPairs: PistiPair[]; // Tersli düzlü 90 derece çapraz Pişti çiftleri!
   pistiCount: number;
   doublePistiCount: number;
+  bonusPoints?: number; // 5-rule or custom bonus points
   score: number;
   roundScore: number;
   level: number;

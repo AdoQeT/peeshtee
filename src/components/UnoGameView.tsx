@@ -234,14 +234,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     deck: [],
     discardPile: [],
     currentColor: 'red',
-    currentTurn: 0,
+    currentTurn: isMultiplayer ? (0 - mySeatIndex + playerCount) % playerCount : 0,
     direction: 1,
     targetScore,
     winner: null,
     roundWinner: null,
     isRoundOver: false,
     isGameOver: false,
-    lastActionMessage: 'UNO Masasına Hoş Geldiniz!'
+    lastActionMessage: 'RENQ Masasına Hoş Geldiniz!'
   }));
 
   // Synchronous mirrors to prevent React 18 batching closure bugs
@@ -593,19 +593,25 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             }
           ]);
 
-          let startingTurn = 0;
+          // Calculate global starting seat (Host = global seat 0)
+          let globalStartSeat = 0;
           let startingDirection: 1 | -1 = 1;
           let startingPenalty = 0;
 
-          // Official UNO Opening Card Rules
+          // Official RENQ Opening Card Rules
           if (initialCard.value === 'draw2') {
             startingPenalty = 2;
           } else if (initialCard.value === 'skip') {
-            startingTurn = 1 % totalP;
+            globalStartSeat = 1 % totalP;
           } else if (initialCard.value === 'reverse') {
             startingDirection = -1;
-            startingTurn = (totalP - 1) % totalP;
+            globalStartSeat = (totalP - 1) % totalP;
           }
+
+          // Map globalStartSeat to this client's local player index
+          const startingTurn = isMultiplayer
+            ? (globalStartSeat - mySeatIndex + totalP) % totalP
+            : globalStartSeat;
 
           const nextGameState: UnoGameState = {
             ...gameStateSyncRef.current,
@@ -968,27 +974,27 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             return;
           }
 
-          // Check UNO declaration when dropping to exactly 1 card!
+          // Check RENQ declaration when dropping to exactly 1 card!
           if (remainingHandCount === 1) {
             const hadCalled = actingPlayer.hasCalledUno;
             if (playerIdx === 0) {
               if (!hadCalled) {
-                // User forgot to declare UNO! Auto +2 penalty!
+                // User forgot to declare RENQ! Auto +2 penalty!
                 sound.playUnoDrawPenalty();
                 drawCardsForPlayer(0, 2);
-                showSeatBubble(0, '⚠️ UNO Demedin! (+2 Kart)', 2600);
-                triggerBanner('⚠️ "UNO!" demeyi unuttun! Ceza olarak 2 kart çektin!', 'draw', 3000);
+                showSeatBubble(0, '⚠️ RENQ Demedin! (+2 Kart)', 2600);
+                triggerBanner('⚠️ "RENQ!" demeyi unuttun! Ceza olarak 2 kart çektin!', 'draw', 3000);
               } else {
-                showSeatBubble(0, '🔥 UNO!', 2400);
+                showSeatBubble(0, '🔥 RENQ!', 2400);
               }
             } else {
               if (!hadCalled) {
                 sound.playUnoDrawPenalty();
                 drawCardsForPlayer(playerIdx, 2);
-                showSeatBubble(playerIdx, '⚠️ UNO Demedi! (+2 Kart)', 2400);
-                triggerBanner(`⚠️ ${actingPlayer.name} "UNO!" demeyi unuttu ve 2 kart çekti!`, 'draw', 3000);
+                showSeatBubble(playerIdx, '⚠️ RENQ Demedi! (+2 Kart)', 2400);
+                triggerBanner(`⚠️ ${actingPlayer.name} "RENQ!" demeyi unuttu ve 2 kart çekti!`, 'draw', 3000);
               } else {
-                showSeatBubble(playerIdx, '🔥 UNO!', 2400);
+                showSeatBubble(playerIdx, '🔥 RENQ!', 2400);
               }
             }
           }
@@ -1262,11 +1268,25 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           showSeatBubble(0, `📥 ${cardTitle} Çekildi`, 1800);
           window.setTimeout(() => {
             setIsAnimatingAction(false);
+            if (isMultiplayer) {
+              multiplayerManager.send({
+                type: 'MP_UNO_PASS',
+                seatIndex: mySeatIndex,
+                senderPeerId: multiplayerManager.instanceId
+              });
+            }
             advanceTurn(1);
           }, 700);
         }
       } else {
         setIsAnimatingAction(false);
+        if (isMultiplayer) {
+          multiplayerManager.send({
+            type: 'MP_UNO_PASS',
+            seatIndex: mySeatIndex,
+            senderPeerId: multiplayerManager.instanceId
+          });
+        }
         advanceTurn(1);
       }
     });
@@ -1602,7 +1622,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               </span>
               {opp.hasCalledUno && (
                 <span className="px-1.5 py-0.5 rounded bg-gradient-to-r from-red-600 to-amber-500 text-[9px] font-black text-white animate-pulse">
-                  🔥 UNO!
+                  🔥 RENQ!
                 </span>
               )}
             </div>
@@ -1704,8 +1724,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             <span className="hidden sm:inline">Menü</span>
           </button>
           <div className="flex items-center gap-2 px-1">
-            <span className="text-lg sm:text-xl font-black italic tracking-tighter text-amber-300 font-sans drop-shadow-md">
-              UNO
+            <span className="text-lg sm:text-xl font-black italic tracking-tighter text-amber-300 font-cyber drop-shadow-md">
+              RENQ
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
               {isMultiplayer ? 'Online Çok Oyunculu' : '3D İnteraktif Masa'}

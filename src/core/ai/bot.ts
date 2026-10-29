@@ -40,9 +40,7 @@ export function chooseAICard(
     const jack = hand.find(c => c.value === 11);
     if (jack) {
       // If pile has 3+ cards, or any special point card (Karo 10, Sinek 2, As), sweep it!
-      const hasValuableCard = tableCards.some(
-        c => c.basePoints > 0 || (c.suit === 'diamonds' && c.value === 10)
-      );
+      const hasValuableCard = tableCards.some(c => c.basePoints > 0);
 
       const shouldJack =
         difficulty === 'hard'

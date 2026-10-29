@@ -9,6 +9,7 @@ interface AvatarBadgeProps {
   showBorder?: boolean;
   isOwner?: boolean;
   className?: string;
+  customTitle?: string;
 }
 
 const SIZE_CLASSES = {
@@ -26,7 +27,8 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
   size = 'md',
   showBorder = true,
   isOwner = false,
-  className = ''
+  className = '',
+  customTitle
 }) => {
   const [imgError, setImgError] = React.useState(false);
   const preset = getAvatarPreset(avatarId);
@@ -38,6 +40,12 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
 
   const hasValidCustomImg = Boolean(customAvatarUrl && !imgError);
 
+  const tooltipText = customTitle
+    ? `${isOwner ? '👑 [KURUCU] ' : ''}${customTitle}`
+    : hasValidCustomImg
+    ? `${isOwner ? '👑 [KURUCU] ' : ''}Özel Profil Fotoğrafı`
+    : `${isOwner ? '👑 [KURUCU] ' : ''}${preset.name} — ${preset.title}`;
+
   return (
     <div
       className={`relative inline-flex items-center justify-center shrink-0 select-none shadow-md ${
@@ -47,7 +55,7 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
       } ${
         showBorder ? (isOwner ? 'border-2 border-yellow-300' : `border-2 ${preset.borderColor}`) : ''
       } ${sizeClass} ${className}`}
-      title={`${isOwner ? '👑 [KURUCU] ' : ''}${preset.name} — ${preset.title}`}
+      title={tooltipText}
     >
       {/* Floating Gold Crown for Game Owner */}
       {isOwner && (

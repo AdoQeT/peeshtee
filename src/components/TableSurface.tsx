@@ -2,9 +2,10 @@ import React, { useMemo } from 'react';
 import { Card, TableTheme, Player, OnTableCountState } from '../types/game';
 import { CardView, CardBackSurface, CardFrontSurface, CARD_DIMENSIONS } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
-import { Flame, Clock, Sparkles, RotateCcw } from 'lucide-react';
+import { Flame, Clock, Sparkles, RotateCcw, Scissors } from 'lucide-react';
 import { DetailedRoundScore } from '../core/rules';
 import { AmbientParticles } from './AmbientParticles';
+import { getAvatarPreset } from '../features/profile/profileManager';
 
 export interface TableDomRefs {
   deckEl: HTMLDivElement | null;
@@ -310,6 +311,20 @@ interface TableSurfaceProps {
   totalHumanPlayersCount?: number;
   slotsReadiness?: SlotReadinessInfo[];
   onToggleReady?: () => void;
+
+  // In-table physical deck cut
+  deckCutState?: {
+    isActive: boolean;
+    cutterSeat: number;
+    cutterName: string;
+    isHumanCutter: boolean;
+    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging';
+    cutIndex?: number;
+    pileACount: number;
+    pileBCount: number;
+    revealedJackCards?: Card[];
+  } | null;
+  onCutDeck?: (cutIndex: number) => void;
 }
 
 export const TableSurface: React.FC<TableSurfaceProps> = ({
@@ -344,10 +359,13 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   readySeatsCount = 0,
   totalHumanPlayersCount = 0,
   slotsReadiness = [],
-  onToggleReady
+  onToggleReady,
+  deckCutState = null,
+  onCutDeck
 }) => {
   const [showEmotePicker, setShowEmotePicker] = React.useState(false);
   const [hoveredHandCardId, setHoveredHandCardId] = React.useState<string | null>(null);
+  const [hoveredCutIndex, setHoveredCutIndex] = React.useState<number | null>(null);
   const isFourPlayers = players.length === 4;
   const user = players[0];
   const isCountingActive = Boolean(onTableCountState?.isActive);
@@ -652,11 +670,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 showBorder={false}
               />
               <span>{topOpponent.name}</span>
-              {topOpponent.customTitle && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
-                  {topOpponent.customTitle}
-                </span>
-              )}
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
+                {topOpponent.customTitle || getAvatarPreset(topOpponent.avatarId || 'wolf').title}
+              </span>
               {isFourPlayers && (
                 <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
                   Ortağın
@@ -742,11 +758,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   showBorder={false}
                 />
                 <span>{players[3].name}</span>
-                {players[3].customTitle && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
-                    {players[3].customTitle}
-                  </span>
-                )}
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
+                  {players[3].customTitle || getAvatarPreset(players[3].avatarId || 'wolf').title}
+                </span>
               </span>
               <div
                 ref={el => {
@@ -1138,6 +1152,137 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               )}
             </div>
           </div>
+        ) : deckCutState?.isActive ? (
+          /* IN-TABLE PHYSICAL DECK CUT VIEW (MASADA YAYILAN FİZİKİ DESTE KESME) */
+          <div className="relative w-full max-w-xl sm:max-w-2xl min-h-[140px] flex flex-col items-center justify-center select-none py-2 px-2 animate-in zoom-in-95 duration-200">
+            {/* Instruction Banner on table felt */}
+            <div className="mb-2 px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wide flex items-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.6)] z-40 animate-pulse">
+              <Scissors className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span>
+                {deckCutState.step === 'waiting_cut'
+                  ? deckCutState.isHumanCutter
+                    ? '✂️ DESTEYİ KES: Kartlardan birine dokunarak desteyi ikiye böl (Vale kesene yarar!)'
+                    : `✂️ ${deckCutState.cutterName} desteyi kesiyor...`
+                  : deckCutState.step === 'splitting'
+                  ? `✂️ DESTE BÖLÜNDÜ: ${deckCutState.pileACount} & ${deckCutState.pileBCount} Kart`
+                  : deckCutState.step === 'dealing_pot'
+                  ? '🎴 ORTAYA 4 KART DAĞITILIYOR (3 Kapalı + 1 Açık)'
+                  : '✨ DESTE BİRLEŞTİRİLİYOR...'}
+              </span>
+            </div>
+
+            {deckCutState.step === 'waiting_cut' ? (
+              /* FANNED 52 CARDS SPREAD ACROSS TABLE FELT */
+              <div className="relative w-full h-24 sm:h-28 flex items-center justify-center">
+                {Array.from({ length: 52 }).map((_, idx) => {
+                  const offsetPercent = ((idx - 25.5) / 26) * 44; // -44% to +44%
+                  const rotationDeg = ((idx - 25.5) / 26) * 12;
+                  const isHovered = hoveredCutIndex === idx;
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        if (deckCutState.isHumanCutter && onCutDeck) {
+                          onCutDeck(idx);
+                        }
+                      }}
+                      onMouseEnter={() => deckCutState.isHumanCutter && setHoveredCutIndex(idx)}
+                      onMouseLeave={() => deckCutState.isHumanCutter && setHoveredCutIndex(null)}
+                      style={{
+                        position: 'absolute',
+                        left: `calc(50% + ${offsetPercent}%)`,
+                        transform: `translate(-50%, ${isHovered ? '-14px' : '0px'}) rotate(${rotationDeg}deg) scale(${isHovered ? 1.08 : 1})`,
+                        zIndex: isHovered ? 60 : idx + 1,
+                        transition: 'transform 0.15s ease-out'
+                      }}
+                      className={`w-12 sm:w-14 h-16 sm:h-20 rounded-lg shadow-md ${
+                        deckCutState.isHumanCutter
+                          ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(245,158,11,0.9)] ring-1 hover:ring-2 ring-amber-400/80'
+                          : 'pointer-events-none opacity-90'
+                      }`}
+                    >
+                      <CardBackSurface cardBack={cardBack} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : deckCutState.step === 'splitting' || deckCutState.step === 'dealing_pot' ? (
+              /* TWO DISTINCT PHYSICAL PILES SIDE BY SIDE ON THE TABLE */
+              <div className="flex items-center justify-center gap-8 sm:gap-16 my-2 animate-in fade-in duration-200">
+                {/* Pile A (Cut portion) */}
+                <div className="flex flex-col items-center animate-in slide-in-from-left duration-300">
+                  <div className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl shadow-xl ring-2 ring-amber-400/50`}>
+                    {Array.from({ length: Math.min(8, Math.ceil(deckCutState.pileACount / 6)) }).map((_, layerIdx) => (
+                      <div
+                        key={layerIdx}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          transform: `translate3d(${layerIdx * -1.2}px, ${layerIdx * -1.5}px, 0)`
+                        }}
+                        className="rounded-xl shadow-md"
+                      >
+                        <CardBackSurface cardBack={cardBack} />
+                      </div>
+                    ))}
+                  </div>
+                  <span className="mt-2 text-[10px] font-cyber text-amber-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-amber-400/30 shadow-md">
+                    Kesen Parça: {deckCutState.pileACount}
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center text-amber-400">
+                  <Scissors className="w-6 h-6 animate-pulse" />
+                  <span className="text-[10px] font-bold mt-1 text-slate-300">KESİLDİ</span>
+                </div>
+
+                {/* Pile B (Remaining portion) */}
+                <div className="flex flex-col items-center animate-in slide-in-from-right duration-300">
+                  <div className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl shadow-xl ring-2 ring-cyan-400/50`}>
+                    {Array.from({ length: Math.min(8, Math.ceil(deckCutState.pileBCount / 6)) }).map((_, layerIdx) => (
+                      <div
+                        key={layerIdx}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          transform: `translate3d(${layerIdx * -1.2}px, ${layerIdx * -1.5}px, 0)`
+                        }}
+                        className="rounded-xl shadow-md"
+                      >
+                        <CardBackSurface cardBack={cardBack} />
+                      </div>
+                    ))}
+                  </div>
+                  <span className="mt-2 text-[10px] font-cyber text-cyan-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-cyan-400/30 shadow-md">
+                    Kalan Parça: {deckCutState.pileBCount}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              /* MERGING BACK INTO ACTIVE DECK */
+              <div className="flex flex-col items-center animate-in zoom-in-90 duration-300">
+                <div className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl shadow-2xl ring-2 ring-emerald-400/80`}>
+                  {Array.from({ length: 8 }).map((_, layerIdx) => (
+                    <div
+                      key={layerIdx}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        transform: `translate3d(${layerIdx * -1.2}px, ${layerIdx * -1.5}px, 0)`
+                      }}
+                      className="rounded-xl shadow-md"
+                    >
+                      <CardBackSurface cardBack={cardBack} />
+                    </div>
+                  ))}
+                </div>
+                <span className="mt-2 text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-emerald-400/30 shadow-md">
+                  Deste Birleştirildi (52 Kart)
+                </span>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex items-center justify-center gap-6 sm:gap-12 mx-auto">
             {/* Physical Deck Stack on the Left of the Pot (Exact scale(1) to match shuffle end) */}
@@ -1317,11 +1462,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   showBorder={false}
                 />
                 <span>{players[1].name}</span>
-                {players[1].customTitle && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
-                    {players[1].customTitle}
-                  </span>
-                )}
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
+                  {players[1].customTitle || getAvatarPreset(players[1].avatarId || 'wolf').title}
+                </span>
               </span>
               <div
                 ref={el => {

@@ -19,6 +19,7 @@ export interface LobbyPlayerSlot {
   avatarId?: string;
   customAvatarUrl?: string;
   customTitle?: string;
+  level?: number;
   isHost: boolean;
   isAI?: boolean;
 }
@@ -30,6 +31,8 @@ export type MultiplayerEvent =
       guestAvatar: string;
       guestAvatarId?: string;
       guestCustomAvatarUrl?: string;
+      guestCustomTitle?: string;
+      guestLevel?: number;
       guestPeerId: string;
     }
   | {
@@ -38,11 +41,19 @@ export type MultiplayerEvent =
       hostAvatar: string;
       hostAvatarId?: string;
       hostCustomAvatarUrl?: string;
+      hostCustomTitle?: string;
+      hostLevel?: number;
       gameType?: 'pisti' | 'uno';
       settings: GameSettings;
       slots: LobbyPlayerSlot[];
       seedUnoDeck?: any[];
       roomToken?: string;
+    }
+  | {
+      type: 'MP_DECK_CUT';
+      cutIndex: number;
+      cutterSeat: number;
+      senderPeerId?: string;
     }
   | {
       type: 'MP_GAME_START';
@@ -406,19 +417,19 @@ export class MultiplayerManager {
 
         if (this.isConnected) {
           const elapsed = Date.now() - this.lastRemoteMessageTime;
-          // Grace Period: If no packet for > 6.5s and <= 25s
-          if (elapsed > 6500 && elapsed <= 25000) {
+          // Fast Disconnect Detection: Grace Period if no packet for > 3.5s and <= 8.5s
+          if (elapsed > 3500 && elapsed <= 8500) {
             this.isPeerReconnecting = true;
-            const secondsLeft = Math.max(1, Math.ceil((25000 - elapsed) / 1000));
+            const secondsLeft = Math.max(1, Math.ceil((8500 - elapsed) / 1000));
             this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft });
-          } else if (elapsed > 25000) {
+          } else if (elapsed > 8500) {
             this.isConnected = false;
             this.isPeerReconnecting = false;
             this.dispatch({ type: 'PEER_DISCONNECTED', peerId: this.instanceId });
           }
         }
       }
-    }, 2500);
+    }, 1500);
   }
 
   private handleRawIncoming(envelope: any) {

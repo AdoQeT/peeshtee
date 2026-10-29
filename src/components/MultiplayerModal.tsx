@@ -19,7 +19,8 @@ import {
   getUserProfile,
   saveUserProfile,
   addOrUpdateFriend,
-  isDefaultPlayerName
+  isDefaultPlayerName,
+  getAvatarPreset
 } from '../features/profile/profileManager';
 import { friendNetwork } from '../features/friends/friendNetwork';
 import { AvatarBadge } from './AvatarBadge';
@@ -99,6 +100,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         avatar: hAvatar || '😎',
         avatarId: hAvatarId || 'wolf',
         customAvatarUrl: hCustomUrl,
+        customTitle: profile.customTitle || getAvatarPreset(hAvatarId || 'wolf').title,
+        level: profile.level || 1,
         isHost: true
       },
       {
@@ -179,6 +182,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     if (!isOpen) {
       setCreatedRoomCode(null);
       setInvitedRoomCode(null);
+      setJoinCodeInput('');
       setLobbyRole('none');
       setErrorMsg(null);
       setSlots(createInitialSlots(playerCount, localName, localAvatar, localAvatarId, localCustomAvatarUrl));
@@ -191,6 +195,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         initialJoinCode.trim().replace(/\D/g, '').slice(0, 6) || initialJoinCode.trim();
       setJoinCodeInput(cleanDigits);
       setInvitedRoomCode(cleanDigits);
+    } else {
+      setJoinCodeInput('');
+      setInvitedRoomCode(null);
     }
   }, [initialJoinCode]);
 
@@ -263,7 +270,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 name: event.guestName,
                 avatar: event.guestAvatar,
                 avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
-                customAvatarUrl: event.guestCustomAvatarUrl
+                customAvatarUrl: event.guestCustomAvatarUrl,
+                customTitle: event.guestCustomTitle,
+                level: event.guestLevel || 1
               };
             } else {
               const emptyIdx = next.findIndex(
@@ -277,6 +286,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   avatar: event.guestAvatar,
                   avatarId: event.guestAvatarId || 'wolf',
                   customAvatarUrl: event.guestCustomAvatarUrl,
+                  customTitle: event.guestCustomTitle,
+                  level: event.guestLevel || 1,
                   isHost: false
                 };
               }
@@ -385,6 +396,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
   const handleClose = () => {
     sound.playClick();
+    handleResetLobby();
     onClose();
   };
 
@@ -539,6 +551,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         guestAvatar: localAvatar,
         guestAvatarId: localAvatarId,
         guestCustomAvatarUrl: localCustomAvatarUrl,
+        guestCustomTitle: profile.customTitle || getAvatarPreset(localAvatarId).title,
+        guestLevel: profile.level || 1,
         guestPeerId: multiplayerManager.instanceId
       });
     } else {

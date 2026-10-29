@@ -17,7 +17,7 @@ import {
 } from '../features/uno/unoRules';
 import { UnoCardView, UnoCardBack } from './UnoCardView';
 import { AvatarBadge } from './AvatarBadge';
-import { getUserProfile, recordMatchStats } from '../features/profile/profileManager';
+import { getUserProfile, recordMatchStats, getAvatarPreset } from '../features/profile/profileManager';
 import { sound } from '../core/audio/soundEngine';
 import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLayer';
 import { UnoGrandShuffleLayer } from './UnoGrandShuffleLayer';
@@ -957,9 +957,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
             if (isGameEnd) {
               if (playerIdx === 0) {
-                recordMatchStats(true, newPlayerScore, 0, 0, true);
+                recordMatchStats(true, newPlayerScore, 0, 0, true, nextPlayers[1]?.name || 'Rakip');
               } else {
-                recordMatchStats(false, nextPlayers[0]?.score || 0, 0, 0, true);
+                recordMatchStats(false, nextPlayers[0]?.score || 0, 0, 0, true, nextPlayers[playerIdx]?.name || 'Rakip');
               }
             }
 
@@ -1634,6 +1634,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 </span>
               )}
             </div>
+            <span className="text-[9px] font-bold text-amber-300/90 truncate max-w-[110px]">
+              {opp.customTitle || getAvatarPreset(opp.avatarId || 'wolf').title}
+            </span>
             <div className="flex items-center gap-1.5 text-[10px] font-mono">
               <span className="text-amber-300 font-bold">{opp.score}P</span>
               <span className="text-slate-400">•</span>
@@ -2038,11 +2041,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   <span className="text-xs font-black text-white font-cyber">
                     {user.name} (Sen)
                   </span>
-                  {userProfile.customTitle && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/15 text-amber-300 font-bold border border-amber-400/30">
-                      {userProfile.customTitle}
-                    </span>
-                  )}
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/15 text-amber-300 font-bold border border-amber-400/30">
+                    {userProfile.customTitle || getAvatarPreset(userProfile.avatarId || 'wolf').title}
+                  </span>
                   {userProfile.isOwner && (
                     <span
                       title="Kurucu"

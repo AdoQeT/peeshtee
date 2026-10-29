@@ -178,8 +178,31 @@ export interface FriendContact {
   name: string;
   avatarId: string;
   customAvatarDataUrl?: string;
+  customTitle?: string;
   roomCode?: string;
   lastPlayedAt: number;
+}
+
+export interface MatchRecord {
+  id: string;
+  gameType: 'pisti' | 'uno';
+  result: 'win' | 'loss' | 'abort';
+  score: number;
+  opponentName: string;
+  pistiCount?: number;
+  doublePistiCount?: number;
+  date: number; // timestamp
+}
+
+export interface DailyTask {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  target: number;
+  current: number;
+  rewardXp: number;
+  claimed: boolean;
 }
 
 export interface UserProfile {
@@ -190,6 +213,14 @@ export interface UserProfile {
   customAvatarDataUrl?: string; // Base64 uploaded custom profile picture
   customTitle?: string;
   isOwner?: boolean; // Creator & Owner VIP badge and golden crown
+  xp?: number;
+  level?: number;
+  matchHistory?: MatchRecord[];
+  dailyTasks?: {
+    lastResetDate: string; // YYYY-MM-DD
+    tasks: DailyTask[];
+  };
+  incomingFriendRequests?: FriendContact[];
   friends?: FriendContact[];
   stats: {
     matchesPlayed: number;
@@ -409,7 +440,14 @@ export function saveUserProfile(profile: UserProfile): void {
   }
 }
 
-export function recordMatchStats(isWin: boolean, score: number, pistis: number, doublePistis: number, isUno = false): void {
+export function recordMatchStats(
+  isWin: boolean,
+  score: number,
+  pistis: number,
+  doublePistis: number,
+  isUno = false,
+  opponentName = 'Rakip'
+): { xpEarned: number; newLevel: number; leveledUp: boolean } {
   const profile = getUserProfile();
   if (isUno) {
     profile.stats.unoMatchesPlayed += 1;
@@ -427,5 +465,220 @@ export function recordMatchStats(isWin: boolean, score: number, pistis: number, 
       profile.stats.highestScore = score;
     }
   }
+
+  // Calculate XP gained from match performance
+  let xp = isUno ? (isWin ? 150 : 60) : (isWin ? 160 : 70);
+  xp += pistis * 30 + doublePistis * 60;
+
+  // Add Match History Record (keep up to 30)
+  const historyRecord: MatchRecord = {
+    id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    gameType: isUno ? 'uno' : 'pisti',
+    result: isWin ? 'win' : 'loss',
+    score,
+    opponentName,
+    pistiCount: pistis,
+    doublePistiCount: doublePistis,
+    date: Date.now()
+  };
+
+  const history = profile.matchHistory || [];
+  profile.matchHistory = [historyRecord, ...history].slice(0, 30);
+
+  // Update Daily Tasks Progress
+  if (!isUno && isWin) {
+    updateDailyTaskProgress('pisti_win', 1, profile);
+  }
+  if (!isUno && (pistis > 0 || doublePistis > 0)) {
+    updateDailyTaskProgress('pisti_count', pistis + doublePistis, profile);
+  }
+  if (isUno) {
+    updateDailyTaskProgress('uno_play', 1, profile);
+  }
+
+  const xpResult = addXpToProfile(profile, xp);
   saveUserProfile(profile);
+
+  return {
+    xpEarned: xp,
+    newLevel: xpResult.newLevel,
+    leveledUp: xpResult.leveledUp
+  };
+}
+
+/**
+ * Calculates current level and progress from total XP
+ * Level curve: Level 1 requires 100 XP, Level 2 requires 200 XP, etc.
+ */
+export function calculateLevel(totalXp: number = 0): {
+  level: number;
+  currentLevelXp: number;
+  xpForNextLevel: number;
+  progressPercent: number;
+} {
+  let level = 1;
+  let remainingXp = Math.max(0, totalXp);
+
+  while (true) {
+    const needed = level * 120; // 120, 240, 360, 480...
+    if (remainingXp < needed) {
+      return {
+        level,
+        currentLevelXp: remainingXp,
+        xpForNextLevel: needed,
+        progressPercent: Math.min(100, Math.round((remainingXp / needed) * 100))
+      };
+    }
+    remainingXp -= needed;
+    level++;
+  }
+}
+
+function addXpToProfile(
+  profile: UserProfile,
+  amount: number
+): { newTotalXp: number; newLevel: number; leveledUp: boolean } {
+  const currentTotal = profile.xp || 0;
+  const oldLevelInfo = calculateLevel(currentTotal);
+
+  const newTotal = currentTotal + amount;
+  const newLevelInfo = calculateLevel(newTotal);
+
+  profile.xp = newTotal;
+  profile.level = newLevelInfo.level;
+
+  return {
+    newTotalXp: newTotal,
+    newLevel: newLevelInfo.level,
+    leveledUp: newLevelInfo.level > oldLevelInfo.level
+  };
+}
+
+export function addXp(amount: number): {
+  newTotalXp: number;
+  newLevel: number;
+  leveledUp: boolean;
+} {
+  const profile = getUserProfile();
+  const res = addXpToProfile(profile, amount);
+  saveUserProfile(profile);
+  return res;
+}
+
+// Default Daily Tasks template
+function createInitialDailyTasks(): DailyTask[] {
+  return [
+    {
+      id: 'task_pisti_win',
+      title: 'Zirveye Oyna',
+      description: 'Günün en az 1 Pişti maçını kazan',
+      icon: '🏆',
+      target: 1,
+      current: 0,
+      rewardXp: 120,
+      claimed: false
+    },
+    {
+      id: 'task_pisti_count',
+      title: 'Pişti Avcısı',
+      description: 'Toplam 3 adet Pişti yap',
+      icon: '⚡',
+      target: 3,
+      current: 0,
+      rewardXp: 150,
+      claimed: false
+    },
+    {
+      id: 'task_uno_play',
+      title: 'Renk Ustası',
+      description: '1 adet RENQ (UNO) maçı tamamla',
+      icon: '🔥',
+      target: 1,
+      current: 0,
+      rewardXp: 100,
+      claimed: false
+    }
+  ];
+}
+
+export function getOrInitDailyTasks(forcedProfile?: UserProfile): DailyTask[] {
+  const profile = forcedProfile || getUserProfile();
+  const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  if (!profile.dailyTasks || profile.dailyTasks.lastResetDate !== todayStr) {
+    profile.dailyTasks = {
+      lastResetDate: todayStr,
+      tasks: createInitialDailyTasks()
+    };
+    if (!forcedProfile) saveUserProfile(profile);
+  }
+
+  return profile.dailyTasks.tasks;
+}
+
+export function updateDailyTaskProgress(
+  taskIdSuffix: 'pisti_win' | 'pisti_count' | 'uno_play',
+  increment: number = 1,
+  forcedProfile?: UserProfile
+): void {
+  const profile = forcedProfile || getUserProfile();
+  getOrInitDailyTasks(profile);
+
+  if (profile.dailyTasks) {
+    const fullId = `task_${taskIdSuffix}`;
+    profile.dailyTasks.tasks = profile.dailyTasks.tasks.map(t => {
+      if (t.id === fullId && !t.claimed) {
+        return {
+          ...t,
+          current: Math.min(t.target, t.current + increment)
+        };
+      }
+      return t;
+    });
+    if (!forcedProfile) saveUserProfile(profile);
+  }
+}
+
+export function claimDailyTaskReward(taskId: string): { rewardXp: number; leveledUp: boolean } | null {
+  const profile = getUserProfile();
+  getOrInitDailyTasks(profile);
+
+  if (!profile.dailyTasks) return null;
+
+  const task = profile.dailyTasks.tasks.find(t => t.id === taskId);
+  if (!task || task.claimed || task.current < task.target) return null;
+
+  task.claimed = true;
+  const xpRes = addXpToProfile(profile, task.rewardXp);
+  saveUserProfile(profile);
+
+  return {
+    rewardXp: task.rewardXp,
+    leveledUp: xpRes.leveledUp
+  };
+}
+
+// Friend Request management
+export function addIncomingFriendRequest(request: FriendContact): UserProfile {
+  const profile = getUserProfile();
+  const list = profile.incomingFriendRequests || [];
+  if (!list.some(r => r.friendCode === request.friendCode || r.id === request.id)) {
+    profile.incomingFriendRequests = [request, ...list].slice(0, 20);
+    saveUserProfile(profile);
+  }
+  return profile;
+}
+
+export function removeIncomingFriendRequest(friendCodeOrId: string): UserProfile {
+  const profile = getUserProfile();
+  profile.incomingFriendRequests = (profile.incomingFriendRequests || []).filter(
+    r => r.friendCode !== friendCodeOrId && r.id !== friendCodeOrId
+  );
+  saveUserProfile(profile);
+  return profile;
+}
+
+export function acceptIncomingFriendRequest(friend: FriendContact): UserProfile {
+  removeIncomingFriendRequest(friend.friendCode || friend.id);
+  return addOrUpdateFriend(friend);
 }

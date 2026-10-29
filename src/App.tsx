@@ -28,7 +28,6 @@ import { FriendsModal } from './components/FriendsModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { InGameChat, ChatMessage } from './components/InGameChat';
 import { UnoGameView } from './components/UnoGameView';
-import { DeckCutRibbon } from './components/DeckCutRibbon';
 import {
   getUserProfile,
   UserProfile,
@@ -132,6 +131,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [inspectedProfile, setInspectedProfile] = useState<UserProfile | null>(null);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
   const [activeMatchRecovery, setActiveMatchRecovery] = useState<string | null>(null);
@@ -178,12 +178,23 @@ export default function App() {
   const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
   const [recentCapture, setRecentCapture] = useState<RecentCaptureFeedback | null>(null);
   const [isShaking, setIsShaking] = useState(false);
-  const [isCuttingDeck, setIsCuttingDeck] = useState(false);
+  const [deckCutState, setDeckCutState] = useState<{
+    isActive: boolean;
+    cutterSeat: number;
+    cutterName: string;
+    isHumanCutter: boolean;
+    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging';
+    cutIndex?: number;
+    pileACount: number;
+    pileBCount: number;
+    revealedJackCards?: Card[];
+  } | null>(null);
   const [pendingDealContext, setPendingDealContext] = useState<{
     seedDeck: Card[];
     configuredSettings: GameSettings;
     isMp: boolean;
     mySeat: number;
+    startingTurn: number;
   } | null>(null);
 
   // Turn Timer (Used strictly in multiplayer mode)
@@ -404,12 +415,19 @@ export default function App() {
     const unsubNotice = friendNetwork.onFriendNotice(notice => {
       sound.playClick();
       setUserProfile(getUserProfile());
-      setDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) seni arkadaş ekledi!`);
+      setDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) ile artık arkadaşsınız!`);
+    });
+
+    const unsubReq = friendNetwork.onFriendRequest(req => {
+      sound.playMatchSweep();
+      setUserProfile(getUserProfile());
+      setDevToast(`📨 ${req.fromName} (#${req.fromFriendCode}) sana arkadaşlık isteği gönderdi!`);
     });
 
     return () => {
       unsubInvite();
       unsubNotice();
+      unsubReq();
     };
   }, []);
 
@@ -927,9 +945,35 @@ export default function App() {
           seedDeck,
           configuredSettings,
           isMp: Boolean(isMp),
-          mySeat: isMp ? mySeat : 0
+          mySeat: isMp ? mySeat : 0,
+          startingTurn
         });
-        setIsCuttingDeck(true);
+
+        // Determine cutter: "sadece başlayacak kişi kimse o keser"
+        const isHuman = isMp ? (startingTurn === 0) : (startingTurn === 0);
+        const cutterSeatIdx = startingTurn;
+        const cName = playersRef.current[cutterSeatIdx]?.name || 'Oyuncu';
+
+        setDeckCutState({
+          isActive: true,
+          cutterSeat: cutterSeatIdx,
+          cutterName: cName,
+          isHumanCutter: isHuman,
+          step: 'waiting_cut',
+          cutIndex: 26,
+          pileACount: 26,
+          pileBCount: 26,
+          revealedJackCards: []
+        });
+
+        // Singleplayer Bot starting player auto-cuts after short delay
+        if (!isMp && !isHuman) {
+          const botTimer = window.setTimeout(() => {
+            const botCut = Math.floor(16 + Math.random() * 20);
+            handleCutDeckAndProceed(botCut);
+          }, 1200);
+          dealTimersRef.current.push(botTimer);
+        }
       }, shuffleDuration);
       dealTimersRef.current.push(t);
     },
@@ -939,53 +983,111 @@ export default function App() {
   const handleCutDeckAndProceed = useCallback(
     (cutIndex: number) => {
       if (!pendingDealContext) return;
-      const { seedDeck, configuredSettings, isMp, mySeat } = pendingDealContext;
-      setIsCuttingDeck(false);
-      setPendingDealContext(null);
+      const { seedDeck, configuredSettings, isMp, mySeat, startingTurn } = pendingDealContext;
 
       // Slices and cuts the deck at the chosen position!
-      const validIndex = Math.max(1, Math.min(cutIndex, seedDeck.length - 2));
+      const validIndex = Math.max(8, Math.min(cutIndex, seedDeck.length - 8));
       const cutDeck = [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
 
-      const initialDeal = dealInitialGame(cutDeck, configuredSettings.playerCount, true);
-      const orientedHands = orientHandsForPerspective(
-        initialDeal.playerHands,
-        isMp ? mySeat : 0
-      );
-
-      setSeenCards([
-        ...initialDeal.tableCards.filter(c => c.faceUp),
-        ...orientedHands[0]
-      ]);
-
-      // If opening 4th card was Jack, reward cutter!
-      if (initialDeal.jacksAwardedToCutter && initialDeal.jacksAwardedToCutter.length > 0) {
-        sound.playJackSweep();
-        showDevToast(
-          `✂️ VALE KESENE YARAR! Masadaki Vale (${initialDeal.jacksAwardedToCutter.length} adet) kesenin oldu!`
-        );
-        setPlayers(prev =>
-          prev.map((p, idx) => {
-            if (idx === 0) {
-              return {
-                ...p,
-                collectedCards: [...p.collectedCards, ...initialDeal.jacksAwardedToCutter],
-                bonusPoints: (p.bonusPoints || 0) + initialDeal.jacksAwardedToCutter.length
-              };
-            }
-            return p;
-          })
-        );
+      // In Multiplayer: If local cutter clicked, broadcast MP_DECK_CUT to peers!
+      if (isMp && multiplayerManager.isConnected && deckCutState?.isHumanCutter) {
+        multiplayerManager.send({
+          type: 'MP_DECK_CUT',
+          cutIndex: validIndex,
+          cutterSeat: mySeat,
+          senderPeerId: multiplayerManager.instanceId
+        });
       }
 
-      runDealChoreography(
-        initialDeal.tableCards,
-        orientedHands,
-        initialDeal.remainingDeck,
-        configuredSettings.playerCount
+      // Step 1: Splitting animation on the felt
+      sound.playTripleCut();
+      setDeckCutState(prev =>
+        prev
+          ? {
+              ...prev,
+              step: 'splitting',
+              cutIndex: validIndex,
+              pileACount: validIndex,
+              pileBCount: seedDeck.length - validIndex
+            }
+          : null
       );
+
+      // Step 2: Dealing pot cards (3 closed + 1 open, Vale Kesene Yarar rule)
+      const timerPot = window.setTimeout(() => {
+        const initialDeal = dealInitialGame(cutDeck, configuredSettings.playerCount, true);
+        const orientedHands = orientHandsForPerspective(
+          initialDeal.playerHands,
+          isMp ? mySeat : 0
+        );
+
+        setSeenCards([
+          ...initialDeal.tableCards.filter(c => c.faceUp),
+          ...orientedHands[0]
+        ]);
+
+        // If opening 4th card was Jack, reward cutter!
+        const jacks = initialDeal.jacksAwardedToCutter;
+        if (jacks && jacks.length > 0) {
+          sound.playJackSweep();
+          const cutterName = playersRef.current[startingTurn]?.name || 'Kesen Oyuncu';
+          showDevToast(
+            `✂️ VALE KESENE YARAR! Masadaki Vale (${jacks.length} adet) ${cutterName}'e verildi!`
+          );
+          setPlayers(prev =>
+            prev.map((p, idx) => {
+              if (idx === startingTurn) {
+                return {
+                  ...p,
+                  collectedCards: [...p.collectedCards, ...jacks],
+                  bonusPoints: (p.bonusPoints || 0) + jacks.length
+                };
+              }
+              return p;
+            })
+          );
+        }
+
+        setDeckCutState(prev =>
+          prev
+            ? {
+                ...prev,
+                step: 'dealing_pot'
+              }
+            : null
+        );
+
+        // Step 3: Merging remaining cut portions back into main deck
+        const timerMerge = window.setTimeout(() => {
+          sound.playCardDeal();
+          setDeckCutState(prev =>
+            prev
+              ? {
+                  ...prev,
+                  step: 'merging'
+                }
+              : null
+          );
+
+          // Step 4: Deal cards to player hands and start game
+          const timerComplete = window.setTimeout(() => {
+            setDeckCutState(null);
+            setPendingDealContext(null);
+
+            runDealChoreography(
+              initialDeal.tableCards,
+              orientedHands,
+              initialDeal.remainingDeck,
+              configuredSettings.playerCount
+            );
+          }, 600);
+          dealTimersRef.current.push(timerComplete);
+        }, 800);
+        dealTimersRef.current.push(timerMerge);
+      }, 700);
+      dealTimersRef.current.push(timerPot);
     },
-    [pendingDealContext, runDealChoreography, showDevToast]
+    [pendingDealContext, deckCutState, runDealChoreography, showDevToast]
   );
 
   // Standard Singleplayer Start
@@ -1081,13 +1183,37 @@ export default function App() {
           seedDeck,
           configuredSettings: currentSettings,
           isMp: Boolean(isMp),
-          mySeat: isMp ? myMultiplayerSeatRef.current : 0
+          mySeat: isMp ? myMultiplayerSeatRef.current : 0,
+          startingTurn: nextStartingTurn
         });
-        setIsCuttingDeck(true);
+
+        const isHuman = isMp ? (nextStartingTurn === 0) : (nextStartingTurn === 0);
+        const cutterSeatIdx = nextStartingTurn;
+        const cName = playersRef.current[cutterSeatIdx]?.name || 'Oyuncu';
+
+        setDeckCutState({
+          isActive: true,
+          cutterSeat: cutterSeatIdx,
+          cutterName: cName,
+          isHumanCutter: isHuman,
+          step: 'waiting_cut',
+          cutIndex: 26,
+          pileACount: 26,
+          pileBCount: 26,
+          revealedJackCards: []
+        });
+
+        if (!isMp && !isHuman) {
+          const botTimer = window.setTimeout(() => {
+            const botCut = Math.floor(16 + Math.random() * 20);
+            handleCutDeckAndProceed(botCut);
+          }, 1200);
+          dealTimersRef.current.push(botTimer);
+        }
       }, shuffleDuration);
       dealTimersRef.current.push(t);
     },
-    [clearScheduledTimers, runDealChoreography]
+    [clearScheduledTimers, handleCutDeckAndProceed]
   );
 
   const handleNextRound = useCallback(() => {
@@ -1383,7 +1509,7 @@ export default function App() {
               card: placedCard,
               playerId: actingPlayer.id,
               playerName: actingPlayer.name,
-              pointsAwarded: 50,
+              pointsAwarded: 0,
               timestamp: Date.now()
             });
 
@@ -1572,6 +1698,7 @@ export default function App() {
         if (!multiplayerManager.isHost) {
           const mySlot = msg.slots.find(s => s.peerId === multiplayerManager.instanceId);
           const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
+          setInitialJoinCode('');
 
           if (msg.gameType === 'uno') {
             setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
@@ -1687,6 +1814,9 @@ export default function App() {
             reason: 'disconnect'
           });
         }
+      } else if (msg.type === 'MP_DECK_CUT') {
+        if (msg.senderPeerId === multiplayerManager.instanceId) return;
+        handleCutDeckAndProceed(msg.cutIndex);
       } else if (msg.type === 'MP_MATCH_ABORTED') {
         if (msg.gameType && msg.gameType !== 'pisti') return;
         setPeerReconnectingSeconds(null);
@@ -1698,7 +1828,7 @@ export default function App() {
     });
 
     return unsubscribe;
-  }, [startMatchWithDeck, handlePlayCardWithAnimation, startNextRoundWithDeck, triggerEmote]);
+  }, [startMatchWithDeck, handlePlayCardWithAnimation, startNextRoundWithDeck, triggerEmote, handleCutDeckAndProceed]);
 
   // Turn Countdown Timer: ONLY active in Multiplayer mode!
   useEffect(() => {
@@ -1815,13 +1945,17 @@ export default function App() {
       if (gameOver) {
         matchWinner = newUserScore > newOppScore ? userSideAggregate : oppSideAggregate;
         const isUserWin = newUserScore > newOppScore;
-        recordMatchStats(
+        const xpRes = recordMatchStats(
           isUserWin,
           newUserScore,
           userSideAggregate.pistiCount,
           userSideAggregate.doublePistiCount,
-          false
+          false,
+          oppSideAggregate.name || 'Rakip'
         );
+        if (xpRes.leveledUp) {
+          showDevToast(`🎉 SEVİYE ATLADIN! Yeni Seviye: Level ${xpRes.newLevel} (+${xpRes.xpEarned} XP)`);
+        }
         if (newUserScore > newOppScore) {
           confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 } });
         }
@@ -2319,6 +2453,10 @@ export default function App() {
       setMyMultiplayerSeat(0);
       myMultiplayerSeatRef.current = 0;
     }
+    friendNetwork.setStatus('menu', undefined);
+    setInitialJoinCode('');
+    setActiveMultiplayerSlots([]);
+    setMultiplayerSeedUnoDeck(null);
     clearScheduledTimers();
     sound.playClick();
     setFlyingCards([]);
@@ -2641,6 +2779,8 @@ export default function App() {
             totalHumanPlayersCount={totalHumanPlayersCount}
             slotsReadiness={slotsReadiness}
             onToggleReady={handleToggleReady}
+            deckCutState={deckCutState}
+            onCutDeck={handleCutDeckAndProceed}
           />
 
           {/* Semi-Transparent Floating In-Game Chat */}
@@ -2707,6 +2847,7 @@ export default function App() {
           finalSlots,
           chosenGameType = 'pisti'
         ) => {
+          setInitialJoinCode('');
           if (chosenGameType === 'uno') {
             const seedUno = shuffleUnoDeck(createUnoDeck());
             setMultiplayerSeedUnoDeck(seedUno);
@@ -2784,6 +2925,10 @@ export default function App() {
           setIsFriendsOpen(false);
           setIsMultiplayerOpen(true);
         }}
+        onInspectProfile={inspected => {
+          setInspectedProfile(inspected);
+          setIsProfileOpen(true);
+        }}
         onClose={() => {
           setUserProfile(getUserProfile());
           setIsFriendsOpen(false);
@@ -2849,8 +2994,12 @@ export default function App() {
       <ProfileModal
         isOpen={isProfileOpen}
         profile={userProfile}
+        inspectedProfile={inspectedProfile}
         onUpdateProfile={handleUpdateProfile}
-        onClose={() => setIsProfileOpen(false)}
+        onClose={() => {
+          setIsProfileOpen(false);
+          setInspectedProfile(null);
+        }}
       />
 
       {/* First-time Visitor Onboarding Welcome Modal */}
@@ -2863,18 +3012,14 @@ export default function App() {
         }}
       />
 
-      {/* Interactive Traditional Deck Cut Ribbon ("Deste Kesme & Vale Kesene Yarar") */}
-      <DeckCutRibbon
-        isOpen={isCuttingDeck}
-        cutterName={userProfile.name}
-        isHumanCutter={true}
-        onCutDeck={handleCutDeckAndProceed}
-      />
-
-      {/* Dev Macro Notification Toast */}
+      {/* Dev Macro & Game Notification Toast */}
       {devToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="px-4 py-2 rounded-full bg-slate-900/95 border-2 border-cyan-400 text-cyan-300 font-mono text-xs font-black shadow-[0_0_25px_rgba(6,182,212,0.5)] flex items-center gap-2">
+        <div
+          onClick={() => setDevToast(null)}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer animate-in fade-in slide-in-from-top-4 duration-300"
+          title="Kapatmak için tıkla"
+        >
+          <div className="px-4 py-2 rounded-full bg-slate-900/95 border-2 border-cyan-400 text-cyan-300 font-mono text-xs font-black shadow-[0_0_25px_rgba(6,182,212,0.5)] flex items-center gap-2 hover:bg-slate-800 transition-colors">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
             {devToast}
           </div>

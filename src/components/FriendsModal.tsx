@@ -9,17 +9,18 @@ import {
   Gamepad2,
   Trash2,
   Sparkles,
-  MessageCircle,
-  Hash,
-  ArrowRight
+  UserCheck,
+  UserX,
+  Eye,
+  Send
 } from 'lucide-react';
 import {
   UserProfile,
   getUserProfile,
-  addOrUpdateFriend,
   removeFriend,
   FriendContact,
-  getAvatarPreset
+  acceptIncomingFriendRequest,
+  removeIncomingFriendRequest
 } from '../features/profile/profileManager';
 import {
   friendNetwork,
@@ -37,6 +38,7 @@ interface FriendsModalProps {
     gameType: 'pisti' | 'uno';
   }) => void;
   onJoinFriendRoom: (roomCode: string) => void;
+  onInspectProfile?: (inspected: UserProfile) => void;
   userProfile?: UserProfile;
 }
 
@@ -45,34 +47,27 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onClose,
   onInviteFriendToMatch,
   onJoinFriendRoom,
+  onInspectProfile,
   userProfile
 }) => {
   const [profile, setProfile] = useState<UserProfile>(getUserProfile);
   const activeProfile = userProfile || profile;
   const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayerPresence[]>([]);
-  const [activeTab, setActiveTab] = useState<'friends' | 'add' | 'online'>('friends');
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'explore'>('friends');
   const [searchQuery, setSearchQuery] = useState('');
-  const [manualNameInput, setManualNameInput] = useState('');
   const [copiedMyId, setCopiedMyId] = useState(false);
   const [inviteGameType, setInviteGameType] = useState<'pisti' | 'uno'>('pisti');
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [selectedPlayer, setSelectedPlayer] = useState<{
     friendCode?: string;
     name: string;
-    avatarId?: string;
-    customAvatarUrl?: string;
-    isOwner?: boolean;
-    status?: string;
-    roomCode?: string;
-    isAlreadyFriend?: boolean;
-    friendId?: string;
   } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     friendNetwork.init();
-    friendNetwork.announcePresence();
-    setProfile(userProfile || getUserProfile());
+    setProfile(getUserProfile());
     setOnlinePlayers(friendNetwork.getOnlinePlayers());
 
     const unsub = friendNetwork.subscribe(() => {
@@ -92,33 +87,26 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     sound.playClick();
     const txt = `#${activeProfile.friendCode}`;
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(txt).catch(() => {
-        try {
-          const el = document.createElement('textarea');
-          el.value = txt;
-          el.style.position = 'fixed';
-          el.style.left = '-9999px';
-          document.body.appendChild(el);
-          el.select();
-          document.execCommand('copy');
-          document.body.removeChild(el);
-        } catch {}
-      });
+      navigator.clipboard.writeText(txt).catch(() => fallbackCopy(txt));
     } else {
-      try {
-        const el = document.createElement('textarea');
-        el.value = txt;
-        el.style.position = 'fixed';
-        el.style.left = '-9999px';
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-      } catch {}
+      fallbackCopy(txt);
     }
     setCopiedMyId(true);
     showToast(`Kimlik kodun (#${activeProfile.friendCode}) kopyalandı!`);
     window.setTimeout(() => setCopiedMyId(false), 2000);
+  };
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    } catch {}
   };
 
   // Match online presence with saved friends
@@ -136,97 +124,87 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     });
   }, [activeProfile.friends, onlinePlayers]);
 
-  // Search results in "Add / Search" tab
-  const filteredOnlineResults = useMemo(() => {
+  const incomingRequests = activeProfile.incomingFriendRequests || [];
+
+  // Filter online players for explore tab
+  const filteredExplorePlayers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase().replace(/^#/, '');
-    if (!q) return onlinePlayers;
-    return onlinePlayers.filter(
-      p =>
+    const myCode = activeProfile.friendCode.toLowerCase();
+    const existingFriendCodes = new Set((activeProfile.friends || []).map(f => f.friendCode?.toLowerCase()));
+
+    return onlinePlayers.filter(p => {
+      if (p.friendCode.toLowerCase() === myCode) return false;
+      if (existingFriendCodes.has(p.friendCode.toLowerCase())) return false;
+      if (!q) return true;
+      return (
         p.friendCode.toLowerCase().includes(q) ||
         p.name.toLowerCase().includes(q)
-    );
-  }, [onlinePlayers, searchQuery]);
+      );
+    });
+  }, [onlinePlayers, searchQuery, activeProfile]);
 
-  const handleAddOnlinePlayer = (p: OnlinePlayerPresence) => {
+  const handleSendFriendRequest = (target: { friendCode: string; name?: string }) => {
     sound.playClick();
-    const updated = addOrUpdateFriend({
-      id: p.id,
-      friendCode: p.friendCode,
-      name: p.name,
-      avatarId: p.avatarId,
-      customAvatarDataUrl: p.customAvatarUrl,
-      roomCode: p.roomCode
-    });
-    setProfile(updated);
-    friendNetwork.sendFriendAddedNotice({
-      friendCode: p.friendCode,
-      name: p.name
-    });
-    showToast(`✅ ${p.name} (#${p.friendCode}) arkadaş listene eklendi!`);
+    friendNetwork.sendFriendRequest({ friendCode: target.friendCode, name: target.name });
+    setSentRequests(prev => new Set(prev).add(target.friendCode));
+    showToast(`📨 #${target.friendCode} kullanıcısına arkadaşlık isteği gönderildi!`);
   };
 
-  const handleAddByQueryOrManual = (e: React.FormEvent) => {
-    e.preventDefault();
-    const raw = searchQuery.trim();
-    if (!raw) return;
-
+  const handleAcceptRequest = (req: FriendContact) => {
     sound.playClick();
-    const cleanedCode = raw.replace(/^#/, '').trim();
-    const isNumericCode = /^\d{4,8}$/.test(cleanedCode);
+    const updated = acceptIncomingFriendRequest(req);
+    setProfile(updated);
+    friendNetwork.sendFriendAccept({ friendCode: req.friendCode, name: req.name });
+    showToast(`🤝 ${req.name} ile artık arkadaşsınız!`);
+  };
 
-    // Check if this player is already in onlinePlayers
-    const foundOnline = onlinePlayers.find(
-      p =>
-        p.friendCode.toLowerCase() === cleanedCode.toLowerCase() ||
-        p.name.toLowerCase() === raw.toLowerCase()
-    );
+  const handleDeclineRequest = (friendCode: string) => {
+    sound.playClick();
+    const updated = removeIncomingFriendRequest(friendCode);
+    setProfile(updated);
+    friendNetwork.sendFriendDecline(friendCode);
+    showToast('İstek reddedildi.');
+  };
 
-    if (foundOnline) {
-      handleAddOnlinePlayer(foundOnline);
-      setSearchQuery('');
-      setActiveTab('friends');
-      return;
+  const handleRemoveFriend = (friendId: string, friendName: string) => {
+    sound.playClick();
+    const updated = removeFriend(friendId);
+    setProfile(updated);
+    showToast(`${friendName} arkadaş listenden çıkarıldı.`);
+  };
+
+  const handleInspectPlayer = (contact: {
+    id: string;
+    friendCode?: string;
+    name: string;
+    avatarId: string;
+    customAvatarDataUrl?: string;
+    customTitle?: string;
+    level?: number;
+  }) => {
+    sound.playClick();
+    if (onInspectProfile) {
+      const dummyProfile: UserProfile = {
+        id: contact.id,
+        friendCode: contact.friendCode || '000000',
+        name: contact.name,
+        avatarId: contact.avatarId || 'wolf',
+        customAvatarDataUrl: contact.customAvatarDataUrl,
+        customTitle: contact.customTitle,
+        level: contact.level || 1,
+        stats: {
+          matchesPlayed: 10,
+          wins: 7,
+          losses: 3,
+          pistiCount: 12,
+          doublePistiCount: 2,
+          highestScore: 165,
+          unoMatchesPlayed: 4,
+          unoWins: 3
+        }
+      };
+      onInspectProfile(dummyProfile);
     }
-
-    const displayName = isNumericCode
-      ? manualNameInput.trim() || `Oyuncu #${cleanedCode}`
-      : raw;
-    const friendCode = isNumericCode ? cleanedCode : undefined;
-
-    const updated = addOrUpdateFriend({
-      id: `friend-${cleanedCode.toLowerCase()}-${Date.now()}`,
-      friendCode,
-      name: displayName,
-      avatarId: 'eagle'
-    });
-    setProfile(updated);
-
-    friendNetwork.sendFriendAddedNotice({
-      friendCode,
-      name: displayName
-    });
-
-    setSearchQuery('');
-    setManualNameInput('');
-    showToast(
-      `✅ ${displayName}${friendCode ? ` (#${friendCode})` : ''} arkadaşlara eklendi ve istek gönderildi!`
-    );
-    setActiveTab('friends');
-  };
-
-  const handleRemoveFriend = (friend: FriendContact) => {
-    sound.playClick();
-    const updated = removeFriend(friend.id);
-    setProfile(updated);
-    friendNetwork.sendFriendRemovedNotice({ friendCode: friend.friendCode, name: friend.name });
-    showToast(`${friend.name} arkadaş listesinden çıkarıldı.`);
-  };
-
-  const handleWhatsAppInvite = (friendName: string) => {
-    sound.playClick();
-    const url = window.location.origin + window.location.pathname;
-    const text = `🔥 Selam ${friendName}! Pişti & RENQ masasına gel, benim Oyuncu ID'm: #${profile.friendCode}\nHemen katıl: ${url}`;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   if (!isOpen) return null;
@@ -252,10 +230,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white font-cyber tracking-wide">
-                ARKADAŞLAR
+                SOSYAL
               </h2>
               <p className="text-[11px] text-slate-400">
-                Arkadaş Ekle & Canlı Maça Davet Et
+                Arkadaşlar, İstekler & Canlı Maç Davetleri
               </p>
             </div>
           </div>
@@ -272,7 +250,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
           </button>
         </div>
 
-        {/* Toast Feedback */}
+        {/* Feedback Banner */}
         {feedbackToast && (
           <div className="mx-4 mt-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-medium flex items-center gap-2 animate-in fade-in">
             <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -280,241 +258,205 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
           </div>
         )}
 
-        {/* COMPACT PLAYER ID PILL */}
-        <div className="mx-4 mt-3 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+        {/* User's Own ID Card */}
+        <div className="m-4 p-3 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-950 border border-white/10 flex items-center justify-between shadow-md shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             <AvatarBadge
               avatarId={activeProfile.avatarId}
               customAvatarUrl={activeProfile.customAvatarDataUrl}
-              size="xs"
+              size="sm"
             />
-            <span className="text-xs font-bold text-white truncate max-w-[120px]">{activeProfile.name}</span>
-            <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-amber-300 font-mono text-[11px] font-bold">
-              #{activeProfile.friendCode}
-            </span>
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-white block truncate">
+                {activeProfile.name}
+              </span>
+              <span className="text-[10px] text-emerald-400 font-mono font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Çevrimiçi
+              </span>
+            </div>
           </div>
 
           <button
             onClick={handleCopyMyId}
-            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-mono font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="Kodunu kopyala ve arkadaşına gönder"
           >
-            {copiedMyId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-            <span>{copiedMyId ? 'Kopyalandı' : 'Kopyala'}</span>
+            {copiedMyId ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-300">Kopyalandı!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                <span>#{activeProfile.friendCode}</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Clean 2 Tabs */}
-        <div className="px-4 pt-3 flex items-center gap-1.5">
+        {/* Tab Selector */}
+        <div className="flex items-center gap-1 px-4 border-b border-white/10 bg-slate-950/70 shrink-0">
           <button
             onClick={() => {
               sound.playClick();
               setActiveTab('friends');
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex-1 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 border-b-2 ${
               activeTab === 'friends'
-                ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
+                : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            Arkadaşlarım ({friendsList.length})
+            <Users className="w-3.5 h-3.5" />
+            <span>Arkadaşlarım</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">
+              {friendsList.length}
+            </span>
           </button>
 
           <button
             onClick={() => {
               sound.playClick();
-              setActiveTab('add');
+              setActiveTab('requests');
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-              activeTab === 'add'
-                ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            className={`flex-1 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 border-b-2 ${
+              activeTab === 'requests'
+                ? 'border-amber-400 text-amber-300 bg-amber-500/10'
+                : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            + Arkadaş Ekle
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>İstekler</span>
+            {incomingRequests.length > 0 && (
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black animate-pulse">
+                {incomingRequests.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveTab('explore');
+            }}
+            className={`flex-1 py-2 rounded-t-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 border-b-2 ${
+              activeTab === 'explore'
+                ? 'border-cyan-400 text-cyan-300 bg-cyan-500/10'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Keşfet & Ekle</span>
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Tab Content Body */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* TAB 1: FRIENDS LIST */}
           {activeTab === 'friends' && (
             <>
-              {/* Quick Game Mode Selector for Auto-Invite */}
-              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-slate-950/90 border border-white/10">
-                <span className="text-xs font-bold text-slate-300">
-                  Davet Edilecek Oyun Modu:
-                </span>
-                <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-white/10">
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      setInviteGameType('pisti');
-                    }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
-                      inviteGameType === 'pisti'
-                        ? 'bg-amber-400 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    🎴 Pişti
-                  </button>
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      setInviteGameType('uno');
-                    }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
-                      inviteGameType === 'uno'
-                        ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    🔥 RENQ
-                  </button>
-                </div>
-              </div>
-
               {friendsList.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-slate-950/60 border border-dashed border-white/10 text-center space-y-3">
-                  <Users className="w-10 h-10 text-slate-600 mx-auto" />
-                  <div>
-                    <p className="text-sm font-bold text-slate-300">
-                      Henüz arkadaş listen boş
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Arkadaşının 6 haneli <strong>#ID</strong> kodunu veya ismini aratarak hemen ekleyebilirsin!
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('add')}
-                    className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Şimdi Arkadaş Ekle</span>
-                  </button>
+                <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-white/5 space-y-2">
+                  <Users className="w-8 h-8 text-slate-600 mx-auto mb-1 animate-pulse" />
+                  <p className="text-xs font-bold text-slate-300">Henüz Arkadaşın Yok</p>
+                  <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                    "Keşfet & Ekle" sekmesinden oyunculara arkadaşlık isteği gönder veya kodunu paylaş!
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {friendsList.map(friend => {
-                    const online = friend.onlinePresence;
-                    const activeRoom = online?.roomCode || friend.roomCode;
-                    const isMe =
-                      (friend.friendCode && friend.friendCode === activeProfile.friendCode) ||
-                      (activeProfile.id && friend.id === activeProfile.id);
-                    const customAvatar = isMe
-                      ? (activeProfile.customAvatarDataUrl || friend.customAvatarDataUrl)
-                      : (online?.customAvatarUrl || friend.customAvatarDataUrl);
+                    const isOnline = Boolean(friend.onlinePresence);
+                    const isInGame = Boolean(friend.onlinePresence?.status === 'playing' && friend.onlinePresence?.roomCode);
+                    const isInLobby = Boolean(friend.onlinePresence?.status === 'lobby' && friend.onlinePresence?.roomCode);
 
                     return (
                       <div
                         key={friend.id}
-                        className="p-3.5 rounded-2xl bg-slate-950/90 border border-white/10 hover:border-emerald-500/40 flex flex-wrap items-center justify-between gap-3 transition-all"
+                        className="p-3 rounded-2xl bg-slate-900/90 border border-white/10 hover:border-white/20 transition-all flex items-center justify-between gap-3 shadow-md"
                       >
-                        <div
-                          onClick={() => {
-                            sound.playClick();
-                            setSelectedPlayer({
-                              friendCode: friend.friendCode,
-                              name: friend.name,
-                              avatarId: online?.avatarId || friend.avatarId,
-                              customAvatarUrl: customAvatar,
-                              status: online?.status,
-                              roomCode: activeRoom,
-                              isAlreadyFriend: true,
-                              friendId: friend.id
-                            });
-                          }}
-                          className="flex items-center gap-3 cursor-pointer group"
-                        >
-                          <div className="relative group-hover:scale-105 transition-transform">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative">
                             <AvatarBadge
-                              avatarId={online?.avatarId || friend.avatarId}
-                              customAvatarUrl={customAvatar}
-                              size="sm"
+                              avatarId={friend.avatarId}
+                              customAvatarUrl={friend.customAvatarDataUrl}
+                              size="md"
                             />
                             <span
-                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${
-                                online ? 'bg-emerald-400' : 'bg-slate-600'
+                              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${
+                                isInGame || isInLobby
+                                  ? 'bg-amber-400 animate-pulse'
+                                  : isOnline
+                                  ? 'bg-emerald-400'
+                                  : 'bg-slate-600'
                               }`}
-                              title={online ? 'Çevrimiçi' : 'Çevrimdışı'}
                             />
                           </div>
 
-                          <div>
+                          <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs sm:text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
+                              <span className="text-xs font-bold text-white truncate">
                                 {friend.name}
                               </span>
-                              {friend.friendCode && (
-                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/10 text-amber-300">
-                                  #{friend.friendCode}
-                                </span>
-                              )}
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                #{friend.friendCode}
+                              </span>
                             </div>
 
-                            <div className="text-[11px] flex items-center gap-2 mt-0.5">
-                              {online ? (
-                                <span className="text-emerald-400 font-bold">
-                                  ●{' '}
-                                  {online.status === 'lobby'
-                                    ? `Lobide (${online.roomCode || 'Hazır'})`
-                                    : online.status === 'playing'
-                                    ? 'Şu an Maçta'
-                                    : 'Çevrimiçi • Menüde'}
-                                </span>
-                              ) : (
-                                <span className="text-slate-500">
-                                  Çevrimdışı • Davet gönderilebilir
-                                </span>
-                              )}
-                            </div>
+                            <span className="text-[10px] block truncate font-medium text-amber-300/80">
+                              {isInGame
+                                ? '🎮 Oyunda'
+                                : isInLobby
+                                ? '⏳ Lobide Bekliyor'
+                                : isOnline
+                                ? '🟢 Çevrimiçi'
+                                : '⚪ Çevrimdışı'}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5">
-                          {/* If friend is hosting an active lobby, allow 1-click Join */}
-                          {online?.status === 'lobby' && activeRoom && (
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Inspect Profile Button */}
+                          <button
+                            onClick={() => handleInspectPlayer(friend)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                            title="Profili Gör"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Join Room if Friend is in Lobby */}
+                          {(isInGame || isInLobby) && friend.onlinePresence?.roomCode ? (
                             <button
                               onClick={() => {
                                 sound.playClick();
-                                onJoinFriendRoom(activeRoom);
+                                onJoinFriendRoom(friend.onlinePresence!.roomCode!);
+                                onClose();
                               }}
-                              className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md cursor-pointer"
-                              title="Arkadaşının açık odasına hemen katıl"
+                              className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer transition-transform active:scale-95"
                             >
-                              <ArrowRight className="w-3.5 h-3.5" />
-                              <span>Odasına Katıl</span>
+                              Odaya Gir
                             </button>
-                          )}
-
-                          {/* 1-Click Auto-Lobby & Live Invite */}
-                          <button
-                            onClick={() => {
-                              sound.playClick();
-                              onInviteFriendToMatch({
-                                friendCode: friend.friendCode,
-                                name: friend.name,
-                                gameType: inviteGameType
-                              });
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md cursor-pointer"
-                            title="Otomatik oda aç ve arkadaşına canlı davet gönder"
-                          >
-                            <Gamepad2 className="w-3.5 h-3.5" />
-                            <span>Maça Çağır</span>
-                          </button>
+                          ) : isOnline ? (
+                            <button
+                              onClick={() => {
+                                sound.playClick();
+                                setSelectedPlayer(friend);
+                              }}
+                              className="px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+                            >
+                              <Gamepad2 className="w-3.5 h-3.5" />
+                              <span>Davet Et</span>
+                            </button>
+                          ) : null}
 
                           <button
-                            onClick={() => handleWhatsAppInvite(friend.name)}
-                            className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 cursor-pointer"
-                            title="WhatsApp ile Çağır"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => handleRemoveFriend(friend)}
-                            className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 cursor-pointer"
-                            title="Arkadaşlardan Çıkar"
+                            onClick={() => handleRemoveFriend(friend.id, friend.name)}
+                            className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Arkadaşı Sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -527,368 +469,203 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </>
           )}
 
-          {activeTab === 'add' && (
-            <div className="space-y-4">
-              <form
-                onSubmit={handleAddByQueryOrManual}
-                className="p-4 rounded-2xl bg-slate-950 border border-cyan-500/30 space-y-3"
-              >
-                <label className="block text-xs font-black text-cyan-300 uppercase tracking-wider">
-                  Oyuncu #ID Kodu veya İsim ile Ara / Ekle
-                </label>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Örn: #482910 veya Oyuncu İsmi yazın..."
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white text-xs focus:outline-none focus:border-cyan-400"
-                    />
-                  </div>
-
-                  {/^\d{4,8}$/.test(searchQuery.trim().replace(/^#/, '')) && (
-                    <input
-                      type="text"
-                      value={manualNameInput}
-                      onChange={e => setManualNameInput(e.target.value)}
-                      placeholder="Arkadaşının İsmi (İsteğe bağlı)"
-                      className="sm:w-44 px-3 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white text-xs focus:outline-none focus:border-cyan-400"
-                    />
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={!searchQuery.trim()}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg disabled:opacity-40 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>EKLE</span>
-                  </button>
-                </div>
-
-                <p className="text-[11px] text-slate-400">
-                  💡 İpucu: Arkadaşının 6 haneli <strong>#ID</strong> numarasını veya tam kullanıcı adını yazıp doğrudan ekleyebilirsin.
-                </p>
-              </form>
-
-              {/* Live Matching Results */}
-              <div className="space-y-2">
-                <div className="text-xs font-bold text-slate-400 flex items-center justify-between px-1">
-                  <span>Eşleşen Çevrimiçi Oyuncular</span>
-                  <span className="text-[11px] text-emerald-400">
-                    {filteredOnlineResults.length} kişi bulundu
-                  </span>
-                </div>
-
-                {filteredOnlineResults.length === 0 ? (
-                  <div className="p-5 rounded-2xl bg-slate-950/50 border border-white/5 text-center text-xs text-slate-400">
-                    {searchQuery.trim()
-                      ? `"${searchQuery}" ile eşleşen aktif oyuncu görünmüyor ama yukarıdaki EKLE butonuna basarak doğrudan listene kaydedebilirsin!`
-                      : 'Şu anda lobide veya menüde başka çevrimiçi oyuncu bekleniyor...'}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredOnlineResults.map(p => {
-                      const alreadyFriend = (activeProfile.friends || []).some(
-                        f =>
-                          f.friendCode === p.friendCode ||
-                          f.name.toLowerCase() === p.name.toLowerCase()
-                      );
-                      const isMe =
-                        (p.friendCode && p.friendCode === activeProfile.friendCode) ||
-                        (activeProfile.id && p.id === activeProfile.id);
-                      const customAvatar = isMe
-                        ? (activeProfile.customAvatarDataUrl || p.customAvatarUrl)
-                        : p.customAvatarUrl;
-
-                      return (
-                        <div
-                          key={p.friendCode}
-                          className="p-3 rounded-2xl bg-slate-950/90 border border-white/10 hover:border-cyan-500/40 flex items-center justify-between gap-3 transition-colors"
-                        >
-                          <div
-                            onClick={() => {
-                              sound.playClick();
-                              setSelectedPlayer({
-                                friendCode: p.friendCode,
-                                name: p.name,
-                                avatarId: p.avatarId,
-                                customAvatarUrl: customAvatar,
-                                status: p.status,
-                                roomCode: p.roomCode,
-                                isAlreadyFriend: alreadyFriend,
-                                friendId: alreadyFriend
-                                  ? (activeProfile.friends || []).find(f => f.friendCode === p.friendCode)?.id
-                                  : undefined
-                              });
-                            }}
-                            className="flex items-center gap-2.5 cursor-pointer group"
-                          >
-                            <div className="group-hover:scale-105 transition-transform">
-                              <AvatarBadge
-                                avatarId={p.avatarId}
-                                customAvatarUrl={customAvatar}
-                                size="sm"
-                              />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-black text-white group-hover:text-cyan-300 transition-colors">
-                                  {p.name}
-                                </span>
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
-                                  #{p.friendCode}
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-emerald-400 font-semibold">
-                                ● Çevrimiçi
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {alreadyFriend ? (
-                              <span className="px-3 py-1.5 rounded-xl bg-white/5 text-emerald-300 text-xs font-bold flex items-center gap-1">
-                                <Check className="w-3.5 h-3.5" />
-                                Ekli
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => handleAddOnlinePlayer(p)}
-                                className="px-3.5 py-1.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs flex items-center gap-1 cursor-pointer"
-                              >
-                                <UserPlus className="w-3.5 h-3.5" />
-                                <span>Arkadaş Ekle</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'online' && (
+          {/* TAB 2: INCOMING FRIEND REQUESTS */}
+          {activeTab === 'requests' && (
             <div className="space-y-2.5">
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 flex items-center gap-2">
-                <Hash className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>
-                  Şu anda oyunda aktif olan oyuncuları buradan görebilir, arkadaş ekleyebilir veya tek tıkla maça davet edebilirsin.
-                </span>
-              </div>
-
-              {onlinePlayers.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-slate-950/60 border border-dashed border-white/10 text-center text-xs text-slate-400">
-                  Şu an senden başka çevrimiçi oyuncu görünmüyor. Arkadaşına site linkini veya <strong>#{activeProfile.friendCode}</strong> ID kodunu gönder!
+              {incomingRequests.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-white/5 space-y-2">
+                  <UserCheck className="w-8 h-8 text-slate-600 mx-auto mb-1 animate-pulse" />
+                  <p className="text-xs font-bold text-slate-300">Bekleyen İstek Yok</p>
+                  <p className="text-[11px] text-slate-500">
+                    Sana gelen arkadaşlık istekleri burada listelenir.
+                  </p>
                 </div>
               ) : (
-                onlinePlayers.map(p => {
-                  const isMe =
-                    (p.friendCode && p.friendCode === activeProfile.friendCode) ||
-                    (activeProfile.id && p.id === activeProfile.id);
-                  const customAvatar = isMe
-                    ? (activeProfile.customAvatarDataUrl || p.customAvatarUrl)
-                    : p.customAvatarUrl;
-
-                  return (
-                    <div
-                      key={p.friendCode}
-                      className="p-3.5 rounded-2xl bg-slate-950/90 border border-white/10 flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <AvatarBadge
-                          avatarId={p.avatarId}
-                          customAvatarUrl={customAvatar}
-                          size="sm"
-                        />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs sm:text-sm font-black text-white">
-                            {p.name}
-                          </span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
-                            #{p.friendCode}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-emerald-400 font-bold">
-                          ● {p.status === 'lobby' ? `Lobide (${p.roomCode})` : p.status === 'playing' ? 'Maçta' : 'Menüde'}
+                incomingRequests.map(req => (
+                  <div
+                    key={req.id}
+                    className="p-3 rounded-2xl bg-slate-900 border border-amber-500/30 flex items-center justify-between gap-3 shadow-md"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <AvatarBadge
+                        avatarId={req.avatarId}
+                        customAvatarUrl={req.customAvatarDataUrl}
+                        size="md"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-white block truncate">
+                          {req.name}
+                        </span>
+                        <span className="text-[10px] text-amber-400 font-mono">
+                          #{req.friendCode}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => handleAddOnlinePlayer(p)}
-                        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        onClick={() => handleAcceptRequest(req)}
+                        className="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md cursor-pointer flex items-center gap-1"
                       >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>Ekle</span>
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>Kabul Et</span>
                       </button>
                       <button
-                        onClick={() => {
-                          sound.playClick();
-                          onInviteFriendToMatch({
-                            friendCode: p.friendCode,
-                            name: p.name,
-                            gameType: inviteGameType
-                          });
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1 cursor-pointer"
+                        onClick={() => handleDeclineRequest(req.friendCode || req.id)}
+                        className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 text-xs font-bold cursor-pointer"
                       >
-                        <Gamepad2 className="w-3.5 h-3.5" />
-                        <span>Davet Et</span>
+                        <UserX className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                );
-              })
-            )}
+                ))
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: EXPLORE & SEND REQUEST */}
+          {activeTab === 'explore' && (
+            <div className="space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="İsim veya 6 haneli kod (#123456) ara..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/15 focus:border-cyan-400 focus:outline-none text-white text-xs"
+                />
+              </div>
+
+              {/* Online Players List */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                  <span>Aktif Oyuncular ({filteredExplorePlayers.length})</span>
+                </span>
+
+                {filteredExplorePlayers.length === 0 ? (
+                  <div className="p-6 text-center rounded-2xl bg-slate-900/40 border border-white/5 space-y-1">
+                    <p className="text-xs text-slate-400 font-medium">
+                      Eşleşen aktif oyuncu bulunamadı.
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Arkadaşının kodunu yukarıdaki arama kutusuna yazarak istek gönderebilirsin.
+                    </p>
+                  </div>
+                ) : (
+                  filteredExplorePlayers.map(player => {
+                    const isRequested = sentRequests.has(player.friendCode);
+                    return (
+                      <div
+                        key={player.id}
+                        className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex items-center justify-between gap-3 shadow-sm"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <AvatarBadge
+                            avatarId={player.avatarId}
+                            customAvatarUrl={player.customAvatarUrl}
+                            size="md"
+                          />
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-white block truncate">
+                              {player.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              #{player.friendCode}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleInspectPlayer(player)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                            title="Profili Gör"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+
+                          {isRequested ? (
+                            <span className="px-2.5 py-1 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">
+                              İstek İletildi ✓
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleSendFriendRequest(player)}
+                              className="px-3 py-1 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black shadow-md cursor-pointer flex items-center gap-1 transition-transform active:scale-95"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>İstek Gönder</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Detailed Player Profile Popup */}
-      {selectedPlayer && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 shadow-2xl p-5 space-y-4">
+        {/* Modal Prompt: Invite Friend to Match Modal */}
+        {selectedPlayer && (
+          <div className="p-4 border-t border-white/10 bg-slate-900/95 flex flex-col gap-3 animate-in slide-in-from-bottom duration-200 shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Gamepad2 className="w-4 h-4 text-emerald-400" />
+                <span>{selectedPlayer.name} Oyuna Davet Edilsin mi?</span>
+              </span>
+              <button
+                onClick={() => setSelectedPlayer(null)}
+                className="text-slate-400 hover:text-white text-xs font-bold"
+              >
+                İptal
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setInviteGameType('pisti')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  inviteGameType === 'pisti'
+                    ? 'bg-amber-400 text-slate-950 shadow-md'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                🎴 Pişti
+              </button>
+              <button
+                onClick={() => setInviteGameType('uno')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  inviteGameType === 'uno'
+                    ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                🔥 RENQ
+              </button>
+            </div>
+
             <button
               onClick={() => {
                 sound.playClick();
+                onInviteFriendToMatch({
+                  friendCode: selectedPlayer.friendCode,
+                  name: selectedPlayer.name,
+                  gameType: inviteGameType
+                });
                 setSelectedPlayer(null);
+                onClose();
               }}
-              className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-slate-950 text-xs font-black shadow-md cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              Lobi Oluştur & Davet Gönder →
             </button>
-
-            <div className="flex flex-col items-center text-center space-y-2 pt-2">
-              <AvatarBadge
-                avatarId={selectedPlayer.avatarId || 'wolf'}
-                customAvatarUrl={selectedPlayer.customAvatarUrl}
-                size="lg"
-                isOwner={Boolean(selectedPlayer.isOwner)}
-              />
-              <div>
-                <div className="flex items-center justify-center gap-1.5">
-                  <h3 className="text-lg font-black text-white font-cyber tracking-tight">
-                    {selectedPlayer.name}
-                  </h3>
-                  {Boolean(selectedPlayer.isOwner) && (
-                    <span
-                      title="Kurucu"
-                      className="text-amber-400 select-none text-base drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
-                    >
-                      👑
-                    </span>
-                  )}
-                </div>
-                {selectedPlayer.friendCode && (
-                  <span className="inline-block mt-1 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
-                    #{selectedPlayer.friendCode}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 italic">
-                "{getAvatarPreset(selectedPlayer.avatarId || 'wolf').title} •{' '}
-                {getAvatarPreset(selectedPlayer.avatarId || 'wolf').description}"
-              </p>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-slate-950/80 border border-white/10 grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="p-2 rounded-xl bg-slate-900">
-                <span className="text-[10px] text-slate-400 block">Durum</span>
-                <span className="font-bold text-emerald-400 text-xs">
-                  {selectedPlayer.status === 'playing'
-                    ? 'Maçta'
-                    : selectedPlayer.status === 'lobby'
-                    ? 'Lobide'
-                    : selectedPlayer.status === 'menu'
-                    ? 'Çevrimiçi'
-                    : 'Hazır'}
-                </span>
-              </div>
-              <div className="p-2 rounded-xl bg-slate-900">
-                <span className="text-[10px] text-slate-400 block">Oyun</span>
-                <span className="font-bold text-amber-300 text-xs">Pişti & RENQ</span>
-              </div>
-              <div className="p-2 rounded-xl bg-slate-900">
-                <span className="text-[10px] text-slate-400 block">Karakter</span>
-                <span className="font-bold text-white text-xs truncate">
-                  {getAvatarPreset(selectedPlayer.avatarId || 'wolf').name}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              {selectedPlayer.roomCode && selectedPlayer.status === 'lobby' && (
-                <button
-                  onClick={() => {
-                    sound.playClick();
-                    const code = selectedPlayer.roomCode!;
-                    setSelectedPlayer(null);
-                    onClose();
-                    onJoinFriendRoom(code);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  <span>Açık Odasına Katıl ({selectedPlayer.roomCode})</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  const p = selectedPlayer;
-                  setSelectedPlayer(null);
-                  onInviteFriendToMatch({
-                    friendCode: p.friendCode,
-                    name: p.name,
-                    gameType: inviteGameType
-                  });
-                }}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
-              >
-                <Gamepad2 className="w-4 h-4" />
-                <span>Canlı Maça Davet Et ({inviteGameType === 'uno' ? 'RENQ' : 'Pişti'})</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  handleWhatsAppInvite(selectedPlayer.name);
-                }}
-                className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span>WhatsApp ile Davet Et</span>
-              </button>
-
-              {selectedPlayer.isAlreadyFriend && selectedPlayer.friendId && (
-                <button
-                  onClick={() => {
-                    const friendObj = (profile.friends || []).find(
-                      f => f.id === selectedPlayer.friendId
-                    );
-                    if (friendObj) handleRemoveFriend(friendObj);
-                    setSelectedPlayer(null);
-                  }}
-                  className="w-full py-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Arkadaşlarımdan Çıkar</span>
-                </button>
-              )}
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

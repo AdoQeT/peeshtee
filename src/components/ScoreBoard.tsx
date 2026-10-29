@@ -2,7 +2,7 @@ import React from 'react';
 import { Player, TableTheme } from '../types/game';
 import { Volume2, VolumeX, Home, Settings, Flame, Shield } from 'lucide-react';
 import { AvatarBadge } from './AvatarBadge';
-import { getUserProfile } from '../features/profile/profileManager';
+import { getUserProfile, getAvatarPreset } from '../features/profile/profileManager';
 
 interface ScoreBoardProps {
   players: Player[];
@@ -93,11 +93,9 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
                 ? `Bizim Takım (${user.name} & ${players[2]?.name || 'Ortak'})`
                 : user.name}
             </span>
-            {(user.customTitle || getUserProfile().customTitle) && (
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
-                {user.customTitle || getUserProfile().customTitle}
-              </span>
-            )}
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
+              {user.customTitle || getUserProfile().customTitle || getAvatarPreset(user.avatarId || 'wolf').title}
+            </span>
             {userTeamPistis > 0 && (
               <span className="flex items-center text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded-full font-black border border-amber-500/40">
                 <Flame className="w-2.5 h-2.5 text-amber-400 mr-0.5 fill-amber-400" />
@@ -181,7 +179,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         }`}
       >
         <div className="flex flex-col text-right">
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex items-center justify-end gap-1.5 flex-wrap">
             {rivalTeamPistis > 0 && (
               <span className="flex items-center text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded-full font-black border border-amber-500/40">
                 <Flame className="w-2.5 h-2.5 text-amber-400 mr-0.5 fill-amber-400" />
@@ -193,6 +191,11 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
                 ? `Rakip Takım (${players[1]?.name || 'Rakip'} & ${players[3]?.name || '2. Rakip'})`
                 : players[1]?.name || 'Rakip'}
             </span>
+            {players[1] && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
+                {players[1].customTitle || getAvatarPreset(players[1].avatarId || 'lion').title}
+              </span>
+            )}
           </div>
           <div className="flex items-center justify-end gap-2">
             <span className="text-[10px] text-slate-300 font-semibold bg-black/35 px-1.5 py-0.2 rounded-md border border-white/10">

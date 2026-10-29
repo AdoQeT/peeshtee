@@ -31,11 +31,16 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - Kullanıcı yüklediği özel profil fotoğraflarının arkadaşlar ve çevrimiçi oyuncular listesinde anlık yayınlanması ve senkronizasyonu.
 - [x] **Deste Kesme & RENQ Ceza Senkronizasyonu (v1.13)**:
   - **Online RENQ Ceza Senkronizasyonu & Fizik**: +2 ve +4 ceza kartları oynandığında mükerrer paket gönderimi önlendi, sıra kilitlenmesi giderildi; yerdeki ceza kartlarının oyuncuya uçarken fiziksel olarak masadan kalkması sağlandı.
-  - **Geleneksel Deste Kesme (Cut Deck) & "Vale Kesene Yarar"**: Deste karıldıktan sonra masaya yayılan 52 karttan birine tıklayarak kesme töreni; yere açılan 4. açık kart Vale (J) ise kesene hediye edilmesi ve yeni kart açılması.
   - **Maç İçi Profil Rozetleri**: Oyuncu ünvanlarının (`customTitle`) maç içi skor tabelası ve oyuncu kartlarında gösterilmesi.
   - **Lobi Temizliği**: Maçtan çıkıldığında eski lobi durumunun tamamen sıfırlanması.
-  - **Sohbet & Emote Revizyonu**: Sohbet kutusu genişletildi, hazır mesajlar kaldırıldı, spam koruması eklendi; emotelar profil kartı üstünde 2 saniye animasyonla gösterilecek şekilde konumlandırıldı.
-  - **Kural & Ses Ayarları**: 5'e basmalı kuralı varsayılan olarak kapatıldı (ek puan kaldırıldı, sadece anında maç bitirme); varsayılan ses düzeyi %50'ye ayarlandı.
+  - **Kural & Ses Ayarları**: 5'e basmalı kuralı varsayılan olarak kapatıldı; varsayılan ses düzeyi %50'ye ayarlandı.
+- [x] **Fiziki Masa Kesimi, Sosyal İstekler, Seviye & Görev Sistemi (v1.14)**:
+  - **Fiziki Masa Üstü Deste Kesme (In-Table Physical Deck Cut)**: Ayrı pencere yerine doğrudan masa çuhasında yayılan 52 kart; sadece tura başlayacak oyuncunun kesebilmesi; çok oyunculuda `MP_DECK_CUT` ile anlık senkronizasyon; kesilen 2 destenin kalınlıklarıyla masada ayrılması, 4 yer kartının dağıtımı (Vale kesene yarar ödülü) ve destelerin birleşimi.
+  - **Sosyal (Social) Çekmecesi & Arkadaşlık İstekleri**: "Arkadaşlar" -> "Sosyal" revizyonu; ana menüde sağ üstte konumlandırma; anında ekleme yerine istek gönderme (`FRIEND_REQUEST`), kabul etme (`FRIEND_ACCEPT`) ve reddetme akışı.
+  - **Tüm Oyuncular ve Rakipler İçin Ünvanlar**: Pişti masasında, skor tabelasında, RENQ masasında ve profil incelemesinde tüm oyuncuların ünvan ve rozetlerinin görüntülenmesi.
+  - **Seviye (Level) & XP Altyapısı**: Maç tamamlama, galibiyet ve piştilerden XP kazanımı; Seviye ilerleme çubuğu ve seviye atlama kutlaması.
+  - **Maç Geçmişi & Günlük Görevler**: Profilde "Maç Geçmişi" sekmesi (son maçların mod, skor, pişti, galibiyet detayları) ve "Günlük Görevler" (her gün 00:00'da sıfırlanan 3 görev, XP ödülleri).
+  - **Anlık Hükmen Ayrılma & Hızlı Kopma Algılama**: Disconnect algılama süresinin 25 saniyeden 8 saniyeye indirilmesi, maçtan ayrılan oyuncu için 0ms gecikmeyle anında hükmen galibiyet işlenmesi; lobide eski odada kalma hatasının tamamen giderilmesi.
 
 ---
 

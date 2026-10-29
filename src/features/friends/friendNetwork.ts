@@ -1,5 +1,10 @@
 import type { MqttClient } from 'mqtt';
-import { getUserProfile, addOrUpdateFriend } from '../profile/profileManager';
+import {
+  getUserProfile,
+  addOrUpdateFriend,
+  addIncomingFriendRequest,
+  calculateLevel
+} from '../profile/profileManager';
 
 const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
 const BROKER_2 = 'wss://broker.emqx.io:8084/mqtt';
@@ -11,6 +16,8 @@ export interface OnlinePlayerPresence {
   name: string;
   avatarId: string;
   customAvatarUrl?: string;
+  customTitle?: string;
+  level?: number;
   status: 'menu' | 'lobby' | 'playing';
   roomCode?: string;
   gameType?: 'pisti' | 'uno';
@@ -57,6 +64,29 @@ type SocialPacket =
       invite: IncomingGameInvite;
     }
   | {
+      type: 'FRIEND_REQUEST';
+      request: {
+        id: string;
+        fromId: string;
+        fromFriendCode: string;
+        fromName: string;
+        fromAvatarId: string;
+        fromCustomAvatarUrl?: string;
+        fromCustomTitle?: string;
+        targetFriendCode?: string;
+        timestamp: number;
+      };
+    }
+  | {
+      type: 'FRIEND_ACCEPT';
+      notice: IncomingFriendNotice;
+    }
+  | {
+      type: 'FRIEND_DECLINE';
+      fromFriendCode: string;
+      targetFriendCode?: string;
+    }
+  | {
       type: 'FRIEND_ADDED_NOTICE';
       notice: IncomingFriendNotice;
     }
@@ -72,6 +102,7 @@ class FriendNetworkManager {
   private listeners: (() => void)[] = [];
   private inviteListeners: ((invite: IncomingGameInvite) => void)[] = [];
   private noticeListeners: ((notice: IncomingFriendNotice) => void)[] = [];
+  private requestListeners: ((req: any) => void)[] = [];
   private seenPacketIds: Set<string> = new Set();
   private currentStatus: 'menu' | 'lobby' | 'playing' = 'menu';
   private currentRoomCode: string | undefined = undefined;
@@ -173,12 +204,15 @@ class FriendNetworkManager {
 
   public announcePresence() {
     const profile = getUserProfile();
+    const lvlInfo = calculateLevel(profile.xp || 0);
     const presence: OnlinePlayerPresence = {
       id: profile.id,
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
       customAvatarUrl: profile.customAvatarDataUrl,
+      customTitle: profile.customTitle,
+      level: lvlInfo.level,
       status: this.currentStatus,
       roomCode: this.currentRoomCode,
       gameType: this.currentGameType,
@@ -214,6 +248,55 @@ class FriendNetworkManager {
     this.sendPacket({
       type: 'GAME_INVITE',
       invite
+    });
+  }
+
+  public sendFriendRequest(target: { friendCode?: string; name?: string }) {
+    const profile = getUserProfile();
+    const req = {
+      id: `freq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fromId: profile.id,
+      fromFriendCode: profile.friendCode,
+      fromName: profile.name,
+      fromAvatarId: profile.avatarId,
+      fromCustomAvatarUrl: profile.customAvatarDataUrl,
+      fromCustomTitle: profile.customTitle,
+      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      timestamp: Date.now()
+    };
+
+    this.sendPacket({
+      type: 'FRIEND_REQUEST',
+      request: req
+    });
+  }
+
+  public sendFriendAccept(target: { friendCode?: string; name?: string }) {
+    const profile = getUserProfile();
+    const notice: IncomingFriendNotice = {
+      id: `fr-acc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fromId: profile.id,
+      fromFriendCode: profile.friendCode,
+      fromName: profile.name,
+      fromAvatarId: profile.avatarId,
+      fromCustomAvatarUrl: profile.customAvatarDataUrl,
+      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      targetName: target.name?.trim(),
+      timestamp: Date.now()
+    };
+
+    this.sendPacket({
+      type: 'FRIEND_ACCEPT',
+      notice
+    });
+  }
+
+  public sendFriendDecline(targetFriendCode: string) {
+    const profile = getUserProfile();
+    this.sendPacket({
+      type: 'FRIEND_DECLINE',
+      fromFriendCode: profile.friendCode,
+      targetFriendCode: targetFriendCode?.replace(/[^0-9A-Za-z]/g, '')
     });
   }
 
@@ -353,6 +436,39 @@ class FriendNetworkManager {
       if (isForMeByCode || isForMeByName) {
         this.inviteListeners.forEach(cb => cb(inv));
       }
+    } else if (pkt.type === 'FRIEND_REQUEST') {
+      const req = pkt.request;
+      if (req.fromId === myProfile.id) return;
+      if (req.targetFriendCode && req.targetFriendCode.toLowerCase() === myProfile.friendCode.toLowerCase()) {
+        addIncomingFriendRequest({
+          id: req.fromId,
+          friendCode: req.fromFriendCode,
+          name: req.fromName,
+          avatarId: req.fromAvatarId,
+          customAvatarDataUrl: req.fromCustomAvatarUrl,
+          customTitle: req.fromCustomTitle,
+          lastPlayedAt: Date.now()
+        });
+        this.requestListeners.forEach(cb => cb(req));
+        this.notifyListeners();
+      }
+    } else if (pkt.type === 'FRIEND_ACCEPT') {
+      const notice = pkt.notice;
+      if (notice.fromId === myProfile.id) return;
+      if (notice.targetFriendCode && notice.targetFriendCode.toLowerCase() === myProfile.friendCode.toLowerCase()) {
+        addOrUpdateFriend({
+          id: notice.fromId,
+          friendCode: notice.fromFriendCode,
+          name: notice.fromName,
+          avatarId: notice.fromAvatarId,
+          customAvatarDataUrl: notice.fromCustomAvatarUrl
+        });
+        this.noticeListeners.forEach(cb => cb(notice));
+        this.notifyListeners();
+      }
+    } else if (pkt.type === 'FRIEND_DECLINE') {
+      // Clean up outgoing state if needed
+      this.notifyListeners();
     } else if (pkt.type === 'FRIEND_ADDED_NOTICE') {
       const notice = pkt.notice;
       if (notice.fromId === myProfile.id) return;
@@ -399,6 +515,13 @@ class FriendNetworkManager {
     this.noticeListeners.push(cb);
     return () => {
       this.noticeListeners = this.noticeListeners.filter(l => l !== cb);
+    };
+  }
+
+  public onFriendRequest(cb: (req: any) => void) {
+    this.requestListeners.push(cb);
+    return () => {
+      this.requestListeners = this.requestListeners.filter(l => l !== cb);
     };
   }
 

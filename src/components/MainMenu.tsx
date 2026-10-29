@@ -163,19 +163,33 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </span>
           </button>
 
-          {/* Standalone Friends Drawer Button */}
+          {/* Social (Friends, Requests & Invites) Drawer Button */}
           <button
             onClick={() => handleClick(onOpenFriends)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/50 hover:border-emerald-300 text-xs font-black text-emerald-200 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] cursor-pointer"
-            title="Arkadaşlar Menüsü — ID veya İsim ile Arkadaş Ekle & Davet Et"
+            title="Sosyal — Arkadaşlar, İstekler & Canlı Maç Davetleri"
           >
             <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Arkadaşlar</span>
-            {userProfile.friends && userProfile.friends.length > 0 && (
+            <span className="hidden sm:inline">Sosyal</span>
+            {userProfile.incomingFriendRequests && userProfile.incomingFriendRequests.length > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
+                {userProfile.incomingFriendRequests.length}
+              </span>
+            ) : userProfile.friends && userProfile.friends.length > 0 ? (
               <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
                 {userProfile.friends.length}
               </span>
-            )}
+            ) : null}
+          </button>
+
+          {/* Nasıl Oynanır (Rules) Modal Button */}
+          <button
+            onClick={() => handleClick(onOpenRules)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
+            title="Nasıl Oynanır & Oyun Kuralları"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden md:inline">Nasıl Oynanır</span>
           </button>
 
           {/* Settings Modal Button */}
@@ -186,16 +200,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           >
             <SettingsIcon className="w-3.5 h-3.5 text-pink-400" />
             <span className="hidden sm:inline">Ayarlar</span>
-          </button>
-
-          {/* Rules Modal Button */}
-          <button
-            onClick={() => handleClick(onOpenRules)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
-            title="Oyun Kuralları & Puanlama"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden md:inline">Kurallar</span>
           </button>
 
           {/* Sound Toggle */}
@@ -431,7 +435,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-slate-300/80 bg-slate-950/70 px-2.5 py-1 rounded-lg border border-white/10 shadow-md backdrop-blur-sm">
-          v1.13
+          v1.14
         </span>
       </div>
     </div>

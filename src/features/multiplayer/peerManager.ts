@@ -5,7 +5,7 @@
  * + Local BroadcastChannel & LocalStorage fast lanes for 0ms same-origin tabs.
  * Supports 2-player and 4-player lobbies and real-time game synchronization.
  */
-import mqtt, { MqttClient } from 'mqtt';
+import type { MqttClient } from 'mqtt';
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
 
 const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
@@ -41,6 +41,7 @@ export type MultiplayerEvent =
       settings: GameSettings;
       slots: LobbyPlayerSlot[];
       seedUnoDeck?: any[];
+      roomToken?: string;
     }
   | {
       type: 'MP_GAME_START';
@@ -139,6 +140,11 @@ export type MultiplayerEvent =
   | { type: 'PEER_RECONNECTED' }
   | { type: 'PEER_DISCONNECTED'; peerId?: string }
   | {
+      type: 'REQUEST_RESYNC';
+      seatIndex: number;
+      senderPeerId?: string;
+    }
+  | {
       type: 'MP_MATCH_ABORTED';
       reason: string;
       senderPeerId?: string;
@@ -150,6 +156,8 @@ interface PacketEnvelope {
   __pistiEnvelope: true;
   msgId: string;
   roomCode: string;
+  roomToken?: string;
+  seq: number;
   senderId: string;
   timestamp: number;
   payload: MultiplayerEvent;
@@ -166,9 +174,11 @@ export class MultiplayerManager {
   private heartbeatTimer: number | null = null;
   private lastRemoteMessageTime: number = 0;
   private isPeerReconnecting: boolean = false;
+  private seq: number = 0;
 
   public isHost: boolean = false;
   public roomCode: string = '';
+  public roomToken: string = '';
   public isConnected: boolean = false;
 
   constructor() {
@@ -199,18 +209,15 @@ export class MultiplayerManager {
   }
 
   public normalizeCode(code: string): string {
-    const cleaned = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (cleaned.startsWith('UNO')) {
-      return `UNO-${cleaned.slice(3)}`;
+    const digits = code.trim().replace(/\D/g, '');
+    if (digits.length >= 4) {
+      return digits.slice(0, 6);
     }
-    if (cleaned.startsWith('PST')) {
-      return `PST-${cleaned.slice(3)}`;
-    }
-    return `PST-${cleaned}`;
+    return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
   }
 
   public getTopic(code: string): string {
-    return `pisti/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
+    return `projectp_v11/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
   }
 
   private setupLocalBuses(code: string) {
@@ -238,7 +245,11 @@ export class MultiplayerManager {
 
   public async setupMqttClient(code: string): Promise<boolean> {
     const topic = this.getTopic(code);
-    const connectFn = (mqtt as any)?.connect || mqtt;
+    const mqttModule = await import('mqtt');
+    const connectFn =
+      (mqttModule as any)?.default?.connect ||
+      (mqttModule as any)?.connect ||
+      (mqttModule as any);
 
     this.clients = [BROKER_1, BROKER_2].map(brokerUrl => {
       const client = connectFn(brokerUrl, {
@@ -301,6 +312,8 @@ export class MultiplayerManager {
     this.disconnect();
     this.isHost = true;
     this.roomCode = this.normalizeCode(code);
+    this.roomToken = `rtk_${Math.random().toString(36).slice(2, 9)}_${Date.now()}`;
+    this.seq = 0;
     this.isConnected = false;
     this.setupLocalBuses(this.roomCode);
     await this.setupMqttClient(this.roomCode);
@@ -312,6 +325,8 @@ export class MultiplayerManager {
     this.disconnect();
     this.isHost = false;
     this.roomCode = this.normalizeCode(code);
+    this.roomToken = '';
+    this.seq = 0;
     this.isConnected = false;
     this.setupLocalBuses(this.roomCode);
     const connected = await this.setupMqttClient(this.roomCode);
@@ -338,7 +353,10 @@ export class MultiplayerManager {
       };
 
       const unsubscribe = this.onEvent(ev => {
-        if (ev.type === 'HOST_LOBBY_SYNC' || ev.type === 'MP_GAME_START') {
+        if (ev.type === 'HOST_LOBBY_SYNC') {
+          if (ev.roomToken) this.roomToken = ev.roomToken;
+          finish(true);
+        } else if (ev.type === 'MP_GAME_START') {
           finish(true);
         }
       });
@@ -395,6 +413,7 @@ export class MultiplayerManager {
   private handleRawIncoming(envelope: any) {
     if (!envelope || typeof envelope !== 'object' || !('__pistiEnvelope' in envelope)) return;
     if (envelope.senderId === this.instanceId || envelope.roomCode !== this.roomCode) return;
+    if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
     this.seenMsgIds.add(envelope.msgId);
@@ -425,6 +444,8 @@ export class MultiplayerManager {
       __pistiEnvelope: true,
       msgId: `${this.instanceId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       roomCode: this.roomCode,
+      roomToken: this.roomToken || undefined,
+      seq: ++this.seq,
       senderId: this.instanceId,
       timestamp: Date.now(),
       payload

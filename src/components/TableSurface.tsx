@@ -440,7 +440,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           title={`${player.name} Toplanan Kartlar: ${count}`}
         >
           {count === 0 ? (
-            <span className="text-[9px] text-white/30 font-semibold text-center px-1 leading-tight">
+            <span className="text-[11px] text-white/40 font-semibold text-center px-1 leading-tight">
               Toplanan
               <br />0
             </span>
@@ -467,7 +467,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           <div
             className={`absolute ${
               labelPos === 'bottom' ? '-bottom-4' : '-top-4'
-            } bg-slate-950/95 border border-white/20 text-slate-100 text-[9px] font-black px-2 py-0.2 rounded-full shadow-md whitespace-nowrap z-20`}
+            } bg-slate-950/95 border border-white/20 text-slate-100 text-[11px] font-black px-2 py-0.5 rounded-full shadow-md whitespace-nowrap z-20`}
           >
             📦 {count}
           </div>
@@ -542,7 +542,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
         <div
           className={`absolute ${
             labelPos === 'bottom' ? '-bottom-4' : '-top-4'
-          } bg-amber-500 border border-amber-200 text-slate-950 text-[9px] font-black px-2 py-0.2 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
+          } bg-amber-500 border border-amber-200 text-slate-950 text-[11px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
         >
           <Flame className="w-2.5 h-2.5 fill-slate-950" />
           <span>{pistiCount} Pişti</span>
@@ -617,8 +617,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           {renderCollectedPile(topOpponent, topOpponentIdx, 'bottom')}
         </div>
 
-        {/* Center: Top Opponent / Partner Hand (Fixed 360px container) */}
-        <div className="w-[320px] sm:w-[380px] flex flex-col items-center shrink-0 relative">
+        {/* Center: Top Opponent / Partner Hand (Responsive container) */}
+        <div className="max-w-[calc(100vw-20px)] w-full sm:w-[380px] flex flex-col items-center shrink-0 relative">
           {/* Floating Active Emote for Top Opponent */}
           {activeEmotes
             ?.filter(e => e.playerIdx === topOpponentIdx)
@@ -653,7 +653,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               />
               <span>{topOpponent.name}</span>
               {isFourPlayers && (
-                <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
+                <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
                   Ortağın
                 </span>
               )}
@@ -860,7 +860,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
                         {/* Special Point Pop */}
                         {currentCard && currentCard.basePoints > 0 && (
-                          <div className="absolute -top-1 -right-1 z-30 px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce">
+                          <div className="absolute -top-1 -right-1 z-30 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[11px] shadow-lg animate-bounce">
                             +{currentCard.basePoints}P!
                           </div>
                         )}
@@ -868,12 +868,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
                       {/* AYIKLANAN SAYILAR TEPSİSİ */}
                       <div className="flex flex-col items-start min-w-[70px] sm:min-w-[90px]">
-                        <span className="text-[9px] font-bold text-amber-300 uppercase">
+                        <span className="text-[11px] font-bold text-amber-300 uppercase">
                           Sayılar (+{onTableCountState.userCardPoints}P):
                         </span>
                         <div className="flex items-center -space-x-3 mt-1">
                           {pointCards.length === 0 ? (
-                            <span className="text-[9px] text-slate-500 italic">Henüz yok</span>
+                            <span className="text-[11px] text-slate-500 italic">Henüz yok</span>
                           ) : (
                             pointCards.slice(-4).map((pc, idx) => (
                               <div
@@ -956,7 +956,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
                         {/* Special Point Pop */}
                         {currentCard && currentCard.basePoints > 0 && (
-                          <div className="absolute -top-1 -right-1 z-30 px-1.5 py-0.2 rounded-full bg-rose-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce">
+                          <div className="absolute -top-1 -right-1 z-30 px-2 py-0.5 rounded-full bg-rose-400 text-slate-950 font-black text-[11px] shadow-lg animate-bounce">
                             +{currentCard.basePoints}P!
                           </div>
                         )}
@@ -964,12 +964,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
                       {/* AYIKLANAN SAYILAR TEPSİSİ */}
                       <div className="flex flex-col items-start min-w-[70px] sm:min-w-[90px]">
-                        <span className="text-[9px] font-bold text-rose-300 uppercase">
+                        <span className="text-[11px] font-bold text-rose-300 uppercase">
                           Sayılar (+{onTableCountState.oppCardPoints}P):
                         </span>
                         <div className="flex items-center -space-x-3 mt-1">
                           {pointCards.length === 0 ? (
-                            <span className="text-[9px] text-slate-500 italic">Henüz yok</span>
+                            <span className="text-[11px] text-slate-500 italic">Henüz yok</span>
                           ) : (
                             pointCards.slice(-4).map((pc, idx) => (
                               <div
@@ -1086,7 +1086,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                         >
                           <span className="text-xs">{slot.isReady ? '✅' : '⏳'}</span>
                           <span>{slot.name}</span>
-                          <span className="text-[9px] opacity-80">{slot.isReady ? 'Hazır' : 'Bekliyor'}</span>
+                          <span className="text-[11px] opacity-80">{slot.isReady ? 'Hazır' : 'Bekliyor'}</span>
                         </div>
                       ))}
                     </div>
@@ -1356,8 +1356,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           {renderCollectedPile(user, 0, 'top')}
         </div>
 
-        {/* Center: User Hand with Turn Status (Fixed 360px container so it NEVER shifts the piles!) */}
-        <div className="w-[320px] sm:w-[380px] flex flex-col items-center shrink-0 relative">
+        {/* Center: User Hand with Turn Status (Responsive container) */}
+        <div className="max-w-[calc(100vw-20px)] w-full sm:w-[380px] flex flex-col items-center shrink-0 relative">
           {/* Floating Active Emote for User */}
           {activeEmotes
             ?.filter(e => e.playerIdx === 0)

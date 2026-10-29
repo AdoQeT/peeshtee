@@ -128,8 +128,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           <span className="font-cyber font-black text-xs sm:text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-rose-300 to-cyan-300">
             PEESHTEE
           </span>
-          <span className="hidden sm:inline text-[9px] font-mono text-slate-400 border-l border-white/10 pl-2">
-            PİŞTİ & UNO
+          <span className="hidden sm:inline text-xs font-mono text-slate-400 border-l border-white/10 pl-2">
+            PİŞTİ & RENQ
           </span>
         </div>
 
@@ -151,8 +151,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               {userProfile.name}
             </span>
             {userProfile.isOwner && (
-              <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm">
-                KURUCU
+              <span
+                title="Kurucu"
+                className="text-amber-400 select-none text-sm drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+              >
+                👑
               </span>
             )}
             <span className="hidden sm:inline text-[10px] font-mono text-cyan-400">
@@ -251,7 +254,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 isSakura ? 'text-pink-300' : 'text-cyan-400'
               }`}
             >
-              {isSakura ? 'BLOSSOM SPIRIT & UNO' : 'PİŞTİ & 108 KART UNO'}
+              {isSakura ? 'BLOSSOM SPIRIT & RENQ' : 'PİŞTİ & 108 KART RENQ'}
             </p>
           </div>
 
@@ -370,7 +373,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 ONLINE ÇOK OYUNCULU
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                6 haneli oda koduyla arkadaşlarınla canlı oyna! Pişti ve Uno destekli online lobi, canlı sohbet ve emote sistemi.
+                6 haneli oda koduyla arkadaşlarınla canlı oyna! Pişti ve Renq destekli online lobi, canlı sohbet ve emote sistemi.
               </p>
             </div>
 
@@ -383,23 +386,23 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </button>
           </div>
 
-          {/* Card 3: 🌈 TAM BAĞIMSIZ UNO MODU */}
+          {/* Card 3: 🌈 TAM BAĞIMSIZ RENQ MODU */}
           <div className="flex flex-col justify-between rounded-3xl bg-slate-950/90 border border-red-500/40 hover:border-red-400 p-5 sm:p-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] transition-all duration-200 hover:-translate-y-1 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-28 h-28 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
             <div>
               <div className="flex items-center justify-between mb-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 via-amber-500 to-blue-600 flex items-center justify-center text-white shadow-md font-black italic text-base">
-                  UNO
+                  RENQ
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-400/40 animate-pulse">
                   Özel Mod
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
-                🌈 UNO MODU
+                🌈 RENQ (Renk Savaşı)
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                108 kartlık tam Uno aksiyonu! +2, +4 Joker, Pas, Yön Değiştir ve 3D kavisli el. Tek kart kalınca <strong>"UNO!"</strong> demeyi unutma!
+                108 kartlık efsanevi renk kapışması! +2, +4 Joker, Pas, Yön Değiştir ve 3D kavisli el. Tek kart kalınca <strong>"RENQ!"</strong> demeyi unutma!
               </p>
             </div>
 
@@ -408,7 +411,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 hover:from-red-500 hover:to-emerald-400 text-white font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(239,68,68,0.45)] transition-transform active:scale-95 cursor-pointer mt-4"
             >
               <Flame className="w-4 h-4 text-yellow-300" />
-              <span>UNO OYNA</span>
+              <span>RENQ OYNA</span>
             </button>
           </div>
         </div>
@@ -428,7 +431,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-slate-300/80 bg-slate-950/70 px-2.5 py-1 rounded-lg border border-white/10 shadow-md backdrop-blur-sm">
-          v1.9
+          v1.11
         </span>
       </div>
     </div>

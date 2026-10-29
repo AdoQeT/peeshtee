@@ -18,7 +18,8 @@ import {
   getUserProfile,
   addOrUpdateFriend,
   removeFriend,
-  FriendContact
+  FriendContact,
+  getAvatarPreset
 } from '../features/profile/profileManager';
 import {
   friendNetwork,
@@ -52,6 +53,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [copiedMyId, setCopiedMyId] = useState(false);
   const [inviteGameType, setInviteGameType] = useState<'pisti' | 'uno'>('pisti');
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    friendCode?: string;
+    name: string;
+    avatarId?: string;
+    customAvatarUrl?: string;
+    isOwner?: boolean;
+    status?: string;
+    roomCode?: string;
+    isAlreadyFriend?: boolean;
+    friendId?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -353,7 +365,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    🌈 UNO
+                    🔥 RENQ
                   </button>
                 </div>
               </div>
@@ -388,8 +400,24 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         key={friend.id}
                         className="p-3.5 rounded-2xl bg-slate-950/90 border border-white/10 hover:border-emerald-500/40 flex flex-wrap items-center justify-between gap-3 transition-all"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
+                        <div
+                          onClick={() => {
+                            sound.playClick();
+                            setSelectedPlayer({
+                              friendCode: friend.friendCode,
+                              name: friend.name,
+                              avatarId: online?.avatarId || friend.avatarId,
+                              customAvatarUrl:
+                                friend.customAvatarDataUrl || online?.customAvatarUrl,
+                              status: online?.status,
+                              roomCode: activeRoom,
+                              isAlreadyFriend: true,
+                              friendId: friend.id
+                            });
+                          }}
+                          className="flex items-center gap-3 cursor-pointer group"
+                        >
+                          <div className="relative group-hover:scale-105 transition-transform">
                             <AvatarBadge
                               avatarId={online?.avatarId || friend.avatarId}
                               customAvatarUrl={friend.customAvatarDataUrl || online?.customAvatarUrl}
@@ -405,7 +433,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs sm:text-sm font-black text-white">
+                              <span className="text-xs sm:text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
                                 {friend.name}
                               </span>
                               {friend.friendCode && (
@@ -565,17 +593,38 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       return (
                         <div
                           key={p.friendCode}
-                          className="p-3 rounded-2xl bg-slate-950/90 border border-white/10 flex items-center justify-between gap-3"
+                          className="p-3 rounded-2xl bg-slate-950/90 border border-white/10 hover:border-cyan-500/40 flex items-center justify-between gap-3 transition-colors"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <AvatarBadge
-                              avatarId={p.avatarId}
-                              customAvatarUrl={p.customAvatarUrl}
-                              size="sm"
-                            />
+                          <div
+                            onClick={() => {
+                              sound.playClick();
+                              setSelectedPlayer({
+                                friendCode: p.friendCode,
+                                name: p.name,
+                                avatarId: p.avatarId,
+                                customAvatarUrl: p.customAvatarUrl,
+                                status: p.status,
+                                roomCode: p.roomCode,
+                                isAlreadyFriend: alreadyFriend,
+                                friendId: alreadyFriend
+                                  ? (profile.friends || []).find(f => f.friendCode === p.friendCode)?.id
+                                  : undefined
+                              });
+                            }}
+                            className="flex items-center gap-2.5 cursor-pointer group"
+                          >
+                            <div className="group-hover:scale-105 transition-transform">
+                              <AvatarBadge
+                                avatarId={p.avatarId}
+                                customAvatarUrl={p.customAvatarUrl}
+                                size="sm"
+                              />
+                            </div>
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-black text-white">{p.name}</span>
+                                <span className="text-xs font-black text-white group-hover:text-cyan-300 transition-colors">
+                                  {p.name}
+                                </span>
                                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
                                   #{p.friendCode}
                                 </span>
@@ -681,6 +730,142 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Detailed Player Profile Popup */}
+      {selectedPlayer && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="relative w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 shadow-2xl p-5 space-y-4">
+            <button
+              onClick={() => {
+                sound.playClick();
+                setSelectedPlayer(null);
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center space-y-2 pt-2">
+              <AvatarBadge
+                avatarId={selectedPlayer.avatarId || 'wolf'}
+                customAvatarUrl={selectedPlayer.customAvatarUrl}
+                size="lg"
+                isOwner={selectedPlayer.isOwner || selectedPlayer.name.toLowerCase() === 'ado'}
+              />
+              <div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <h3 className="text-lg font-black text-white font-cyber tracking-tight">
+                    {selectedPlayer.name}
+                  </h3>
+                  {(selectedPlayer.isOwner || selectedPlayer.name.toLowerCase() === 'ado') && (
+                    <span
+                      title="Kurucu"
+                      className="text-amber-400 select-none text-base drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+                    >
+                      👑
+                    </span>
+                  )}
+                </div>
+                {selectedPlayer.friendCode && (
+                  <span className="inline-block mt-1 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+                    #{selectedPlayer.friendCode}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 italic">
+                "{getAvatarPreset(selectedPlayer.avatarId || 'wolf').title} •{' '}
+                {getAvatarPreset(selectedPlayer.avatarId || 'wolf').description}"
+              </p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-950/80 border border-white/10 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-2 rounded-xl bg-slate-900">
+                <span className="text-[10px] text-slate-400 block">Durum</span>
+                <span className="font-bold text-emerald-400 text-xs">
+                  {selectedPlayer.status === 'playing'
+                    ? 'Maçta'
+                    : selectedPlayer.status === 'lobby'
+                    ? 'Lobide'
+                    : selectedPlayer.status === 'menu'
+                    ? 'Çevrimiçi'
+                    : 'Hazır'}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-900">
+                <span className="text-[10px] text-slate-400 block">Oyun</span>
+                <span className="font-bold text-amber-300 text-xs">Pişti & RENQ</span>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-900">
+                <span className="text-[10px] text-slate-400 block">Karakter</span>
+                <span className="font-bold text-white text-xs truncate">
+                  {getAvatarPreset(selectedPlayer.avatarId || 'wolf').name}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {selectedPlayer.roomCode && selectedPlayer.status === 'lobby' && (
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    const code = selectedPlayer.roomCode!;
+                    setSelectedPlayer(null);
+                    onClose();
+                    onJoinFriendRoom(code);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  <span>Açık Odasına Katıl ({selectedPlayer.roomCode})</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  const p = selectedPlayer;
+                  setSelectedPlayer(null);
+                  onInviteFriendToMatch({
+                    friendCode: p.friendCode,
+                    name: p.name,
+                    gameType: inviteGameType
+                  });
+                }}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+              >
+                <Gamepad2 className="w-4 h-4" />
+                <span>Canlı Maça Davet Et ({inviteGameType === 'uno' ? 'RENQ' : 'Pişti'})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleWhatsAppInvite(selectedPlayer.name);
+                }}
+                className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>WhatsApp ile Davet Et</span>
+              </button>
+
+              {selectedPlayer.isAlreadyFriend && selectedPlayer.friendId && (
+                <button
+                  onClick={() => {
+                    const friendObj = (profile.friends || []).find(
+                      f => f.id === selectedPlayer.friendId
+                    );
+                    if (friendObj) handleRemoveFriend(friendObj);
+                    setSelectedPlayer(null);
+                  }}
+                  className="w-full py-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Arkadaşlarımdan Çıkar</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

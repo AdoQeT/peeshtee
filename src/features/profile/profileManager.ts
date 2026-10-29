@@ -206,38 +206,80 @@ export interface UserProfile {
 
 const STORAGE_KEY = 'project_p_user_profile';
 const OWNER_SECRET_KEY = 'project_p_owner_secret_token';
-const OWNER_SIGNATURE = 'ado_2026_verified_master';
+const OWNER_SALT = 'ado_pro_p_salt_2026_x9f#';
 
-// Owner device verification token check
+// Precomputed SHA-256 hashes of (OWNER_SALT + authorized_passcode)
+// No plaintext passwords or tokens exist in source code!
+const AUTHORIZED_FOUNDER_HASHES = new Set([
+  '151e3df4b85e9572944faf6dc7e265e8fad5f4bb55418b8a8f15b712cc20b0ab',
+  '2de877dfde976d0bca921dc8cff808d7b8cbfb70fc714a4665920bdfddf699a9',
+  'e3ab63727df3cf0ab78fb380307f25c96eed5acb252876bac97e28ed87bc7814',
+  '21141ac1592658530f0a5ce9d5900687c9a43e9068969aa4ca6cd1106b8b6c11'
+]);
+
+export async function computeSaltedHash(input: string): Promise<string> {
+  const salted = `${OWNER_SALT}${input.trim().toLowerCase()}`;
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const data = new TextEncoder().encode(salted);
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  let hash = 0;
+  for (let i = 0; i < salted.length; i++) {
+    hash = (hash << 5) - hash + salted.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash.toString(16);
+}
+
+// Owner device verification token check against salted SHA-256 hashes
 export function isDeviceOwnerVerified(): boolean {
   try {
-    return localStorage.getItem(OWNER_SECRET_KEY) === OWNER_SIGNATURE;
+    const token = localStorage.getItem(OWNER_SECRET_KEY);
+    if (!token) return false;
+    return AUTHORIZED_FOUNDER_HASHES.has(token);
   } catch {
     return false;
   }
 }
 
-export function grantOwnerAccess(passcode: string): boolean {
-  const clean = passcode.trim().toLowerCase();
-  if (clean === 'ado' || clean === '1881' || clean === 'peeshtee') {
-    try {
-      localStorage.setItem(OWNER_SECRET_KEY, OWNER_SIGNATURE);
+export async function grantOwnerAccess(passcode: string): Promise<boolean> {
+  try {
+    const computed = await computeSaltedHash(passcode);
+    if (AUTHORIZED_FOUNDER_HASHES.has(computed)) {
+      localStorage.setItem(OWNER_SECRET_KEY, computed);
       const profile = getUserProfile();
       profile.isOwner = true;
       profile.name = 'Ado';
-      profile.customTitle = '👑 Oyun Kurucusu & Yapımcı';
+      profile.customTitle = '👑 Kurucu';
       saveUserProfile(profile);
       return true;
-    } catch {}
+    }
+  } catch (err) {
+    console.warn('Owner verification error:', err);
   }
   return false;
+}
+
+export function isDefaultPlayerName(name?: string): boolean {
+  if (!name) return true;
+  const n = name.trim();
+  return (
+    !n ||
+    /^Oyuncu_\d+$/i.test(n) ||
+    n === 'Oyuncu (Sen)' ||
+    n === 'Usta Oyuncu' ||
+    n === 'İsimsiz Oyuncu'
+  );
 }
 
 export function isOwnerUser(profile?: { name?: string; isOwner?: boolean } | null): boolean {
   if (!profile || typeof profile.name !== 'string') return false;
   const cleanName = profile.name.trim().toLowerCase();
   if (cleanName !== 'ado' && cleanName !== 'ado (kurucu)') return false;
-  // MUST have device signature token; strangers typing 'Ado' will NOT be granted owner!
+  // MUST have verified salted SHA-256 token; strangers typing 'Ado' will NEVER receive owner!
   return isDeviceOwnerVerified();
 }
 

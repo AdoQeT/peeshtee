@@ -25,9 +25,15 @@ import { MultiplayerModal } from './components/MultiplayerModal';
 import { GameSetupModal } from './components/GameSetupModal';
 import { ProfileModal } from './components/ProfileModal';
 import { FriendsModal } from './components/FriendsModal';
+import { WelcomeModal } from './components/WelcomeModal';
 import { InGameChat, ChatMessage } from './components/InGameChat';
 import { UnoGameView } from './components/UnoGameView';
-import { getUserProfile, UserProfile, recordMatchStats } from './features/profile/profileManager';
+import {
+  getUserProfile,
+  UserProfile,
+  recordMatchStats,
+  isDefaultPlayerName
+} from './features/profile/profileManager';
 import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
@@ -126,6 +132,8 @@ export default function App() {
   const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
+  const [activeMatchRecovery, setActiveMatchRecovery] = useState<string | null>(null);
   const [pendingFriendInvite, setPendingFriendInvite] = useState<{
     friendCode?: string;
     name: string;
@@ -311,24 +319,63 @@ export default function App() {
     sound.setAmbienceVolume(settings.ambienceVolume);
   }, [settings.soundEnabled, settings.sfxVolume, settings.ambience, settings.ambienceVolume]);
 
+  // First-time visitor onboarding check
+  useEffect(() => {
+    try {
+      const completed = localStorage.getItem('project_p_onboarding_completed');
+      if (!completed && isDefaultPlayerName(userProfile.name)) {
+        setIsWelcomeOpen(true);
+      }
+    } catch {}
+  }, []);
+
+  // Active match disconnect/crash recovery check
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('project_p_active_match');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.roomCode && Date.now() - parsed.timestamp < 180000) {
+          setActiveMatchRecovery(parsed.roomCode);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Persist active multiplayer match state for recovery
+  useEffect(() => {
+    try {
+      if (
+        (screen === 'game' || screen === 'uno') &&
+        isMultiplayerGame &&
+        multiplayerManager.roomCode
+      ) {
+        localStorage.setItem(
+          'project_p_active_match',
+          JSON.stringify({
+            roomCode: multiplayerManager.roomCode,
+            screen,
+            timestamp: Date.now()
+          })
+        );
+      } else if (screen === 'menu') {
+        localStorage.removeItem('project_p_active_match');
+      }
+    } catch {}
+  }, [screen, isMultiplayerGame]);
+
   // Instant room join via URL query params (?oda=... or ?room=...)
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('oda') || urlParams.get('room') || urlParams.get('kod');
       if (roomParam) {
-        const trimmed = roomParam.trim().toUpperCase();
-        const clean = trimmed.replace(/[^A-Z0-9]/g, '');
-        let formatted = trimmed;
-        if (clean.startsWith('UNO')) {
-          formatted = `UNO-${clean.slice(3)}`;
-        } else if (clean.startsWith('PST')) {
-          formatted = `PST-${clean.slice(3)}`;
-        } else {
-          formatted = `PST-${clean}`;
+        const digits =
+          roomParam.trim().replace(/\D/g, '').slice(0, 6) || roomParam.trim().slice(0, 6);
+        if (digits) {
+          setInitialJoinCode(digits);
+          setIsMultiplayerOpen(true);
         }
-        setInitialJoinCode(formatted);
-        setIsMultiplayerOpen(true);
       }
     } catch (err) {
       console.error('URL parse error:', err);
@@ -1507,10 +1554,20 @@ export default function App() {
         const targetPlayer = playersRef.current[targetLocalIdx];
         if (!targetPlayer) return;
 
-        const foundCard =
-          targetPlayer.hand.find(c => c.id === msg.cardId) || targetPlayer.hand[0];
+        const foundCard = targetPlayer.hand.find(c => c.id === msg.cardId);
         if (foundCard) {
           handlePlayCardWithAnimation(targetLocalIdx, foundCard, undefined, 0, true);
+        } else {
+          console.warn(
+            `Card desync: player seat ${msg.seatIndex} played ${msg.cardId} but not in local hand!`
+          );
+          if (!multiplayerManager.isHost) {
+            multiplayerManager.send({
+              type: 'REQUEST_RESYNC',
+              seatIndex: myMultiplayerSeatRef.current,
+              senderPeerId: multiplayerManager.instanceId
+            });
+          }
         }
       } else if (msg.type === 'MP_NEXT_ROUND') {
         if (!multiplayerManager.isHost) {
@@ -2319,6 +2376,37 @@ export default function App() {
         theme={settings.theme}
       />
 
+      {/* Active Match Disconnect Recovery Top Banner */}
+      {screen === 'menu' && activeMatchRecovery && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-amber-400 text-white shadow-2xl flex items-center gap-3 animate-in slide-in-from-top">
+          <span className="text-xs font-bold text-amber-300">
+            ⚡ Kesintiye uğrayan bir maçın var (#{activeMatchRecovery})
+          </span>
+          <button
+            onClick={() => {
+              sound.playClick();
+              setInitialJoinCode(activeMatchRecovery);
+              setIsMultiplayerOpen(true);
+              setActiveMatchRecovery(null);
+            }}
+            className="px-3 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs cursor-pointer shadow"
+          >
+            Yeniden Bağlan
+          </button>
+          <button
+            onClick={() => {
+              sound.playClick();
+              localStorage.removeItem('project_p_active_match');
+              setActiveMatchRecovery(null);
+            }}
+            className="p-1 text-slate-400 hover:text-white cursor-pointer"
+            title="Kapat"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Screen View */}
       {screen === 'menu' ? (
         <MainMenu
@@ -2658,6 +2746,16 @@ export default function App() {
         profile={userProfile}
         onUpdateProfile={handleUpdateProfile}
         onClose={() => setIsProfileOpen(false)}
+      />
+
+      {/* First-time Visitor Onboarding Welcome Modal */}
+      <WelcomeModal
+        isOpen={isWelcomeOpen}
+        profile={userProfile}
+        onComplete={updated => {
+          setUserProfile(updated);
+          setIsWelcomeOpen(false);
+        }}
       />
 
       {/* Dev Macro Notification Toast */}

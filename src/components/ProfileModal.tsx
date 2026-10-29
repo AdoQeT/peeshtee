@@ -3,10 +3,24 @@ import {
   UserProfile,
   PRESET_AVATARS,
   getAvatarPreset,
-  saveUserProfile
+  saveUserProfile,
+  grantOwnerAccess
 } from '../features/profile/profileManager';
 import { AvatarBadge } from './AvatarBadge';
-import { User, Trophy, Flame, Zap, Award, Check, X, Sparkles, Upload, Trash2, Camera } from 'lucide-react';
+import {
+  User,
+  Trophy,
+  Flame,
+  Zap,
+  Award,
+  Check,
+  X,
+  Sparkles,
+  Upload,
+  Trash2,
+  Camera,
+  KeyRound
+} from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 
 interface ProfileModalProps {
@@ -28,6 +42,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     profile.customAvatarDataUrl
   );
   const [customTitle, setCustomTitle] = useState(profile.customTitle || '');
+  const [showOwnerPrompt, setShowOwnerPrompt] = useState(false);
+  const [ownerPasscode, setOwnerPasscode] = useState('');
+  const [ownerFeedback, setOwnerFeedback] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
@@ -37,6 +54,28 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     profile.stats.matchesPlayed > 0
       ? Math.round((profile.stats.wins / profile.stats.matchesPlayed) * 100)
       : 0;
+
+  const handleVerifyOwner = async () => {
+    sound.playClick();
+    if (!ownerPasscode.trim()) return;
+    const ok = await grantOwnerAccess(ownerPasscode);
+    if (ok) {
+      setOwnerFeedback('👑 Kurucu doğrulaması başarılı! Hoş geldin Ado.');
+      setName('Ado');
+      onUpdateProfile({
+        ...profile,
+        name: 'Ado',
+        isOwner: true,
+        customTitle: '👑 Kurucu'
+      });
+      window.setTimeout(() => {
+        setShowOwnerPrompt(false);
+        setOwnerFeedback(null);
+      }, 1600);
+    } else {
+      setOwnerFeedback('❌ Geçersiz şifre veya imza.');
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,8 +183,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
             <div className="flex-1 text-center sm:text-left">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 justify-center sm:justify-start">
-                <h3 className="text-lg sm:text-xl font-black text-white font-cyber tracking-tight">
-                  {name || 'İsimsiz Oyuncu'}
+                <h3 className="text-lg sm:text-xl font-black text-white font-cyber tracking-tight flex items-center gap-1.5">
+                  <span>{name || 'İsimsiz Oyuncu'}</span>
+                  {profile.isOwner ? (
+                    <span
+                      title="Doğrulanmış Kurucu"
+                      className="text-amber-400 select-none text-base drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]"
+                    >
+                      👑
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowOwnerPrompt(!showOwnerPrompt)}
+                      className="text-slate-600 hover:text-amber-400 text-xs px-1 cursor-pointer transition-colors"
+                      title="Kurucu Yetkilendirmesi"
+                    >
+                      👑
+                    </button>
+                  )}
                 </h3>
                 <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
                   #{profile.friendCode}
@@ -154,6 +210,32 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   {customTitle || currentPreset.title}
                 </span>
               </div>
+
+              {/* Founder Passcode Verification prompt */}
+              {showOwnerPrompt && (
+                <div className="mt-2.5 p-2.5 rounded-xl bg-black/60 border border-amber-500/40 flex flex-wrap items-center gap-2">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <input
+                    type="password"
+                    value={ownerPasscode}
+                    onChange={e => setOwnerPasscode(e.target.value)}
+                    placeholder="Kurucu Şifresi..."
+                    className="flex-1 min-w-[120px] px-2.5 py-1 rounded-lg bg-slate-900 border border-white/20 text-white text-xs font-mono focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyOwner}
+                    className="px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs cursor-pointer"
+                  >
+                    Doğrula
+                  </button>
+                  {ownerFeedback && (
+                    <span className="text-[11px] font-bold text-amber-300 block w-full mt-1">
+                      {ownerFeedback}
+                    </span>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-slate-400 mt-1 italic">
                 "{currentPreset.description}"
               </p>

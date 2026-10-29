@@ -82,7 +82,7 @@ export const UnoCardBack: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: stri
         {/* Angled Red Oval Logo with golden outline */}
         <div className="w-[82%] h-[56%] rounded-full bg-gradient-to-r from-red-600 via-red-500 to-rose-700 border-2 border-amber-300 shadow-md transform -rotate-25 flex items-center justify-center">
           <span className="font-black italic tracking-tighter text-amber-300 text-xs sm:text-base font-sans drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-            UNO
+            RENQ
           </span>
         </div>
       </div>

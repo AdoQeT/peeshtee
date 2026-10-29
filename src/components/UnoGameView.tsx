@@ -51,6 +51,26 @@ interface UnoGameViewProps {
   seedCards?: UnoCard[];
 }
 
+export function sortUnoCardsByColor(cards: UnoCard[]): UnoCard[] {
+  const COLOR_ORDER: Record<UnoColor, number> = {
+    red: 0,
+    blue: 1,
+    green: 2,
+    yellow: 3,
+    wild: 4
+  };
+  const VALUE_ORDER: Record<string, number> = {
+    '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+    'skip': 10, 'reverse': 11, 'draw2': 12, 'wild': 13, 'wild_draw4': 14
+  };
+
+  return [...cards].sort((a, b) => {
+    const colorDiff = (COLOR_ORDER[a.color] ?? 99) - (COLOR_ORDER[b.color] ?? 99);
+    if (colorDiff !== 0) return colorDiff;
+    return (VALUE_ORDER[a.value] ?? 99) - (VALUE_ORDER[b.value] ?? 99);
+  });
+}
+
 const COLOR_NAMES: Record<UnoColor, string> = {
   red: 'Kırmızı',
   blue: 'Mavi',
@@ -466,9 +486,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
     const updatedPlayers = playersSyncRef.current.map((p, idx) => {
       const handIdx = isMultiplayer ? (idx + mySeatIndex) % totalP : idx;
+      const rawHand = dealt.hands[handIdx] || [];
       return {
         ...p,
-        hand: dealt.hands[handIdx] || [],
+        hand: idx === 0 ? sortUnoCardsByColor(rawHand) : rawHand,
         hasCalledUno: false
       };
     });
@@ -670,7 +691,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           const nextHand = [...p.hand, ...drawnCards];
           return {
             ...p,
-            hand: nextHand,
+            hand: idx === 0 ? sortUnoCardsByColor(nextHand) : nextHand,
             hasCalledUno: nextHand.length === 1 ? p.hasCalledUno : false
           };
         }
@@ -773,7 +794,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       }
 
       const targetPlayer = playersSyncRef.current[playerIdx];
-      const updatedHand = [...targetPlayer.hand, ...drawnCards];
+      const updatedHand =
+        playerIdx === 0
+          ? sortUnoCardsByColor([...targetPlayer.hand, ...drawnCards])
+          : [...targetPlayer.hand, ...drawnCards];
       const nextPlayers = playersSyncRef.current.map((p, idx) =>
         idx === playerIdx ? { ...p, hand: updatedHand } : p
       );
@@ -852,7 +876,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           const nextHand = p.hand.filter(c => c.id !== card.id);
           return {
             ...p,
-            hand: nextHand,
+            hand: idx === 0 ? sortUnoCardsByColor(nextHand) : nextHand,
             hasCalledUno: nextHand.length === 1 ? p.hasCalledUno : false
           };
         }
@@ -1101,9 +1125,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         const targetP = currentPlayers[targetLocalIdx];
         if (!targetP) return;
 
-        const foundCard = targetP.hand.find(c => c.id === event.cardId) || targetP.hand[0];
+        const foundCard = targetP.hand.find(c => c.id === event.cardId);
         if (foundCard) {
           executePlayCard(targetLocalIdx, foundCard, event.chosenColor as UnoColor);
+        } else {
+          console.warn(`Card ${event.cardId} not found in player ${targetLocalIdx}'s hand!`);
         }
       } else if (event.type === 'MP_UNO_DRAW_CARD') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
@@ -1127,8 +1153,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           prev.map((p, idx) => (idx === targetLocalIdx ? { ...p, hasCalledUno: true } : p))
         );
         sound.playUnoShout();
-        showSeatBubble(targetLocalIdx, '🔥 UNO DEDİ!', 2500);
-        triggerBanner(`🔥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} "UNO!" DEDİ!`, 'uno');
+        showSeatBubble(targetLocalIdx, '🔥 RENQ DEDİ!', 2500);
+        triggerBanner(`🔥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} "RENQ!" DEDİ!`, 'uno');
       } else if (event.type === 'MP_UNO_PASS') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
         const currentPlayers = playersSyncRef.current;
@@ -1278,8 +1304,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         senderPeerId: multiplayerManager.instanceId
       });
     }
-    showSeatBubble(0, '🔥 UNO DEDİ!', 2500);
-    triggerBanner('🔥 "UNO!" DEDİNİZ!', 'uno');
+    showSeatBubble(0, '🔥 RENQ DEDİ!', 2500);
+    triggerBanner('🔥 "RENQ!" DEDİNİZ!', 'uno');
     confetti({ particleCount: 75, spread: 70, origin: { y: 0.8 } });
   };
 
@@ -1313,8 +1339,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             playersSyncRef.current = updated;
             return updated;
           });
-          showSeatBubble(botIdx, '🔥 UNO!', 2400);
-          triggerBanner(`🔥 ${currentBot.name} "UNO!" DEDİ!`, 'uno');
+          showSeatBubble(botIdx, '🔥 RENQ!', 2400);
+          triggerBanner(`🔥 ${currentBot.name} "RENQ!" DEDİ!`, 'uno');
           if (isMultiplayer) {
             const botAbsSeat = (botIdx + mySeatIndex) % players.length;
             multiplayerManager.send({
@@ -1985,8 +2011,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                     {user.name} (Sen)
                   </span>
                   {userProfile.isOwner && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[9px] font-black tracking-wider uppercase shadow-sm">
-                      👑 KURUCU
+                    <span
+                      title="Kurucu"
+                      className="text-amber-400 select-none text-xs drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+                    >
+                      👑
                     </span>
                   )}
                   {isUserTurn && (
@@ -2039,7 +2068,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               )}
             </div>
 
-            {/* Fiery UNO Shout Button - strictly active when player has 2 cards and it's their turn */}
+            {/* Fiery RENQ Shout Button - strictly active when player has 2 cards and it's their turn */}
             {user.hand.length === 2 && isUserTurn && (
               <button
                 onClick={handleCallUno}
@@ -2050,7 +2079,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 }`}
               >
                 <Flame className="w-5 h-5 text-yellow-300 animate-pulse" />
-                <span>{user.hasCalledUno ? '🔥 "UNO!" DEDİN!' : '🔥 "UNO!" DİYE BAĞIR!'}</span>
+                <span>{user.hasCalledUno ? '🔥 "RENQ!" DEDİN!' : '🔥 "RENQ!" DİYE BAĞIR!'}</span>
               </button>
             )}
           </div>
@@ -2061,12 +2090,13 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             className="relative w-full flex items-center justify-center min-h-[155px] sm:min-h-[180px] px-4 pt-8 pb-2 overflow-visible"
           >
             {(() => {
-              const N = user.hand.length;
+              const sortedHand = sortUnoCardsByColor(user.hand);
+              const N = sortedHand.length;
               const maxAngle = Math.min(44, Math.max(12, N * 3.8));
               const angleStep = N > 1 ? (maxAngle * 2) / (N - 1) : 0;
               const spacingStep = Math.min(46, Math.max(22, 560 / Math.max(1, N)));
 
-              return user.hand.map((card, idx) => {
+              return sortedHand.map((card, idx) => {
                 const isPlayable =
                   isUserTurn &&
                   !isAnimatingAction &&
@@ -2372,15 +2402,44 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   </button>
                 )
               ) : (
-                <button
-                  onClick={() => {
-                    sound.playClick();
-                    onExitToMenu();
-                  }}
-                  className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95"
-                >
-                  Ana Menüye Dön
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      const resetPlayers = playersSyncRef.current.map(p => ({
+                        ...p,
+                        score: 0,
+                        hand: [],
+                        hasCalledUno: false
+                      }));
+                      playersSyncRef.current = resetPlayers;
+                      setPlayers(resetPlayers);
+                      if (isMultiplayer && isHost) {
+                        const freshDeck = shuffleUnoDeck(createUnoDeck());
+                        multiplayerManager.send({
+                          type: 'MP_UNO_NEXT_ROUND',
+                          seedCards: freshDeck,
+                          startingTurnSeat: 0
+                        });
+                        startNewRound(freshDeck);
+                      } else {
+                        startNewRound();
+                      }
+                    }}
+                    className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95"
+                  >
+                    Rövanş Oyna 🔄
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onExitToMenu();
+                    }}
+                    className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-slate-800 hover:bg-slate-700 text-white shadow-lg cursor-pointer transition-transform active:scale-95 border border-white/10"
+                  >
+                    Ana Menüye Dön
+                  </button>
+                </div>
               )}
             </div>
           </div>

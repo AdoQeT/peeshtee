@@ -15,7 +15,12 @@ import {
 import { sound } from '../core/audio/soundEngine';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
 import { GameSettings } from '../types/game';
-import { getUserProfile, addOrUpdateFriend } from '../features/profile/profileManager';
+import {
+  getUserProfile,
+  saveUserProfile,
+  addOrUpdateFriend,
+  isDefaultPlayerName
+} from '../features/profile/profileManager';
 import { friendNetwork } from '../features/friends/friendNetwork';
 import { AvatarBadge } from './AvatarBadge';
 
@@ -66,6 +71,10 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [lobbyRole, setLobbyRole] = useState<'none' | 'host' | 'guest'>('none');
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
   const [joinCodeInput, setJoinCodeInput] = useState(initialJoinCode || '');
+  const [invitedRoomCode, setInvitedRoomCode] = useState<string | null>(initialJoinCode || null);
+  const [customNameInput, setCustomNameInput] = useState(
+    profile.name && !isDefaultPlayerName(profile.name) ? profile.name : ''
+  );
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [inviteSentBanner, setInviteSentBanner] = useState<string | null>(null);
@@ -168,13 +177,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
   useEffect(() => {
     if (initialJoinCode) {
-      setJoinCodeInput(initialJoinCode);
-      if (isOpen && lobbyRole === 'none') {
-        handleJoinRoomWithCode(initialJoinCode);
-      }
+      const cleanDigits =
+        initialJoinCode.trim().replace(/\D/g, '').slice(0, 6) || initialJoinCode.trim();
+      setJoinCodeInput(cleanDigits);
+      setInvitedRoomCode(cleanDigits);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialJoinCode, isOpen]);
+  }, [initialJoinCode]);
 
   // Auto-host & dispatch real-time invite when triggered from FriendsModal
   useEffect(() => {
@@ -188,9 +196,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         if (lobbyRole !== 'host' || !activeCode) {
           setErrorMsg(null);
           setIsConnecting(true);
-          activeCode =
-            (targetFriend.gameType === 'uno' ? 'UNO-' : 'PST-') +
-            Math.random().toString(36).substring(2, 8).toUpperCase();
+          activeCode = Math.floor(100000 + Math.random() * 900000).toString();
           setCreatedRoomCode(activeCode);
           setLobbyRole('host');
 
@@ -479,9 +485,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     sound.playClick();
     setErrorMsg(null);
     setIsConnecting(true);
-    const code =
-      (gameType === 'uno' ? 'UNO-' : 'PST-') +
-      Math.random().toString(36).substring(2, 8).toUpperCase();
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     setCreatedRoomCode(code);
     setLobbyRole('host');
 
@@ -505,16 +509,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setErrorMsg(null);
     setIsConnecting(true);
 
-    const raw = codeToJoin.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const prefix = raw.startsWith('UNO')
-      ? 'UNO-'
-      : raw.startsWith('PST')
-      ? 'PST-'
-      : gameType === 'uno'
-      ? 'UNO-'
-      : 'PST-';
-    const digits = raw.replace(/^(UNO|PST)/, '');
-    const normalized = `${prefix}${digits}`;
+    const raw = codeToJoin.trim().replace(/\D/g, '').slice(0, 6);
+    const normalized = raw || codeToJoin.trim().slice(0, 6);
     setCreatedRoomCode(normalized);
 
     const ok = await multiplayerManager.joinRoom(
@@ -641,7 +637,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     if (!createdRoomCode) return;
     sound.playClick();
     const url = `${window.location.origin}${window.location.pathname}?oda=${createdRoomCode}`;
-    const modeName = gameType === 'uno' ? 'UNO' : 'Pişti';
+    const modeName = gameType === 'uno' ? 'RENQ' : 'Pişti';
     const text = `🔥 ${modeName} maçına davet edildin! Tek tıkla odaya katıl:\n${url}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -754,80 +750,168 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    🔥 UNO
+                    🔥 RENQ
                   </button>
                 </div>
               </div>
 
-              {/* 1. Create Lobby Card */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300">Kişi Sayısı:</span>
-                  <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+              {invitedRoomCode ? (
+                /* INVITATION LINK VIEW: Focus exclusively on joining this room */
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-cyan-500/30 space-y-4 shadow-xl">
+                  <div className="text-center space-y-1">
+                    <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                      ✉️ Özel Oda Daveti
+                    </span>
+                    <h3 className="text-lg font-black text-white font-cyber tracking-tight">
+                      {gameType === 'uno' ? '🔥 RENQ Masasına Katıl' : '🎴 Pişti Masasına Katıl'}
+                    </h3>
+                    <div className="text-xs text-slate-400">
+                      Oda Kodu:{' '}
+                      <span className="font-mono font-black text-amber-400 text-base tracking-widest">
+                        {invitedRoomCode}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Nickname input: Mandatory if default name, or editable */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Oyuncu Adın:{' '}
+                      {isDefaultPlayerName(profile.name) && (
+                        <span className="text-rose-400 font-normal">
+                          (*Odaya girmeden önce adını yaz)
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={18}
+                      value={customNameInput}
+                      onChange={e => setCustomNameInput(e.target.value)}
+                      placeholder="Adını veya lakabını gir..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/20 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const chosen = customNameInput.trim();
+                      if (!chosen && isDefaultPlayerName(profile.name)) {
+                        setErrorMsg('Lütfen odaya girmeden önce adınızı belirleyin!');
+                        return;
+                      }
+                      if (chosen && chosen !== profile.name) {
+                        const updated = { ...profile, name: chosen };
+                        saveUserProfile(updated);
+                        setProfile(updated);
+                      }
+                      handleJoinRoomWithCode(invitedRoomCode);
+                    }}
+                    disabled={isConnecting}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm font-cyber flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
+                  >
+                    {isConnecting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>ODAYA BAĞLANILIYOR...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 fill-slate-950" />
+                        <span>ODAYA KATIL ({invitedRoomCode})</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-1">
                     <button
-                      onClick={() => handleSelectPlayerCount(2)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        playerCount === 2
-                          ? 'bg-cyan-500 text-slate-950'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
+                      onClick={() => {
+                        sound.playClick();
+                        setInvitedRoomCode(null);
+                      }}
+                      className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
                     >
-                      👥 2 Kişilik
-                    </button>
-                    <button
-                      onClick={() => handleSelectPlayerCount(4)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        playerCount === 4
-                          ? 'bg-cyan-500 text-slate-950'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      👨‍👩‍👧‍👦 4 Kişilik
+                      Yeni bir oda kurmak istiyorum (Tüm Menü)
                     </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {/* 1. Create Lobby Card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-300">Kişi Sayısı:</span>
+                      <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+                        <button
+                          onClick={() => handleSelectPlayerCount(2)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            playerCount === 2
+                              ? 'bg-cyan-500 text-slate-950'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          👥 2 Kişilik
+                        </button>
+                        <button
+                          onClick={() => handleSelectPlayerCount(4)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            playerCount === 4
+                              ? 'bg-cyan-500 text-slate-950'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          👨‍👩‍👧‍👦 4 Kişilik
+                        </button>
+                      </div>
+                    </div>
 
-                <button
-                  onClick={handleCreateRoom}
-                  disabled={isConnecting}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-sm font-cyber tracking-wide shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
-                >
-                  {isConnecting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>ODA KURULUYOR...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      <span>YENİ ODA OLUŞTUR</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                    <button
+                      onClick={handleCreateRoom}
+                      disabled={isConnecting}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-sm font-cyber tracking-wide shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>ODA KURULUYOR...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 fill-slate-950" />
+                          <span>YENİ ODA OLUŞTUR</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-              {/* 2. Join Lobby Card */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 space-y-2.5">
-                <span className="text-xs font-bold text-slate-300 block">
-                  Arkadaşının Odasına Katıl:
-                </span>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={joinCodeInput}
-                    onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
-                    placeholder="Örn: PST-4821 veya 4821"
-                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs uppercase tracking-wider focus:outline-none focus:border-cyan-400"
-                  />
-                  <button
-                    onClick={() => handleJoinRoomWithCode(joinCodeInput)}
-                    disabled={!joinCodeInput.trim() || isConnecting}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-                  >
-                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>KATIL</span>}
-                  </button>
-                </div>
-              </div>
+                  {/* 2. Join Lobby Card */}
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 space-y-2.5">
+                    <span className="text-xs font-bold text-slate-300 block">
+                      Arkadaşının Odasına Katıl:
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={joinCodeInput}
+                        onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
+                        placeholder="Örn: 482915"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs uppercase tracking-wider focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        onClick={() => handleJoinRoomWithCode(joinCodeInput)}
+                        disabled={!joinCodeInput.trim() || isConnecting}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                      >
+                        {isConnecting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <span>KATIL</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             /* SIMPLE & MODERN ACTIVE LOBBY VIEW */
@@ -836,7 +920,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-mono block">
-                    {gameType === 'uno' ? '🔥 UNO ODASI' : '🎴 PİŞTİ ODASI'} • {playerCount} KİŞİLİK
+                    {gameType === 'uno' ? '🔥 RENQ ODASI' : '🎴 PİŞTİ ODASI'} • {playerCount} KİŞİLİK
                   </span>
                   <span className="text-xl sm:text-2xl font-black font-cyber text-amber-400 tracking-wider">
                     {createdRoomCode}
@@ -956,7 +1040,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                                 ? '🟢 A Takımı'
                                 : '🟠 B Takımı'
                               : slot.seatIndex === 0
-                              ? 'Kurucu'
+                              ? 'Oda Sahibi'
                               : 'Rakip'}
                           </div>
                         </div>

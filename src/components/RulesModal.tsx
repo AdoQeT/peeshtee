@@ -64,7 +64,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            🌈 UNO Kuralları
+            🌈 RENQ Kuralları
           </button>
         </div>
 
@@ -137,10 +137,10 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
               <span className="font-bold text-white flex items-center gap-1.5 text-xs text-yellow-300">
-                ⚡ Son Karta Düşerken "UNO!"
+                ⚡ Son Karta Düşerken "RENQ!"
               </span>
               <p className="text-slate-400">
-                Elinde 2 kart varken birini oynayıp tek karta düşeceğin zaman UNO butonuna basmayı unutma! Unutursan 2 kart ceza çekersin.
+                Elinde 2 kart varken birini oynayıp tek karta düşeceğin zaman RENQ butonuna basmayı unutma! Unutursan 2 kart ceza çekersin.
               </p>
             </div>
           </div>

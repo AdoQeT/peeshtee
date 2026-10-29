@@ -1,4 +1,4 @@
-import mqtt, { MqttClient } from 'mqtt';
+import type { MqttClient } from 'mqtt';
 import { getUserProfile, addOrUpdateFriend } from '../profile/profileManager';
 
 const BROKER_1 = 'wss://broker.hivemq.com:8884/mqtt';
@@ -102,38 +102,47 @@ class FriendNetworkManager {
       }
     });
 
-    [BROKER_1, BROKER_2].forEach(url => {
-      try {
-        const client = mqtt.connect(url, {
-          clientId: `pisti-soc-${Math.random().toString(16).slice(2, 10)}`,
-          clean: true,
-          connectTimeout: 8000,
-          reconnectPeriod: 4000
-        });
+    import('mqtt').then(mqttModule => {
+      const connectFn =
+        (mqttModule as any)?.default?.connect ||
+        (mqttModule as any)?.connect ||
+        (mqttModule as any);
 
-        client.on('connect', () => {
-          client.subscribe(SOCIAL_TOPIC, { qos: 0 }, () => {
-            this.announcePresence();
-            this.sendPacket({
-              type: 'PRESENCE_QUERY',
-              requesterCode: getUserProfile().friendCode
+      [BROKER_1, BROKER_2].forEach(url => {
+        try {
+          const client = connectFn(url, {
+            clientId: `pisti-soc-${Math.random().toString(16).slice(2, 10)}`,
+            clean: true,
+            connectTimeout: 8000,
+            reconnectPeriod: 4000
+          });
+
+          client.on('connect', () => {
+            client.subscribe(SOCIAL_TOPIC, { qos: 0 }, () => {
+              this.announcePresence();
+              this.sendPacket({
+                type: 'PRESENCE_QUERY',
+                requesterCode: getUserProfile().friendCode
+              });
             });
           });
-        });
 
-        client.on('message', (_topic, payload) => {
-          try {
-            const parsed = JSON.parse(payload.toString());
-            this.handleIncomingRaw(parsed);
-          } catch {
-            // Ignore malformed
-          }
-        });
+          client.on('message', (_topic: string, payload: any) => {
+            try {
+              const parsed = JSON.parse(payload.toString());
+              this.handleIncomingRaw(parsed);
+            } catch {
+              // Ignore malformed
+            }
+          });
 
-        this.clients.push(client);
-      } catch {
-        // Ignore broker init failure
-      }
+          this.clients.push(client);
+        } catch {
+          // Ignore broker init failure
+        }
+      });
+    }).catch(err => {
+      console.warn('Dynamic mqtt import failed for social network:', err);
     });
 
     // Periodic heartbeat every 8 seconds + prune stale players

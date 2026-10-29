@@ -37,15 +37,18 @@ interface FriendsModalProps {
     gameType: 'pisti' | 'uno';
   }) => void;
   onJoinFriendRoom: (roomCode: string) => void;
+  userProfile?: UserProfile;
 }
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({
   isOpen,
   onClose,
   onInviteFriendToMatch,
-  onJoinFriendRoom
+  onJoinFriendRoom,
+  userProfile
 }) => {
   const [profile, setProfile] = useState<UserProfile>(getUserProfile);
+  const activeProfile = userProfile || profile;
   const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayerPresence[]>([]);
   const [activeTab, setActiveTab] = useState<'friends' | 'add' | 'online'>('friends');
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,7 +72,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     if (!isOpen) return;
     friendNetwork.init();
     friendNetwork.announcePresence();
-    setProfile(getUserProfile());
+    setProfile(userProfile || getUserProfile());
     setOnlinePlayers(friendNetwork.getOnlinePlayers());
 
     const unsub = friendNetwork.subscribe(() => {
@@ -78,7 +81,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     });
 
     return unsub;
-  }, [isOpen]);
+  }, [isOpen, userProfile]);
 
   const showToast = (msg: string) => {
     setFeedbackToast(msg);
@@ -87,7 +90,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
   const handleCopyMyId = () => {
     sound.playClick();
-    const txt = `#${profile.friendCode}`;
+    const txt = `#${activeProfile.friendCode}`;
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(txt).catch(() => {
         try {
@@ -114,13 +117,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
       } catch {}
     }
     setCopiedMyId(true);
-    showToast(`Kimlik kodun (#${profile.friendCode}) kopyalandı!`);
+    showToast(`Kimlik kodun (#${activeProfile.friendCode}) kopyalandı!`);
     window.setTimeout(() => setCopiedMyId(false), 2000);
   };
 
   // Match online presence with saved friends
   const friendsList = useMemo(() => {
-    return (profile.friends || []).map(f => {
+    return (activeProfile.friends || []).map(f => {
       const onlineMatch = onlinePlayers.find(
         op =>
           (f.friendCode && op.friendCode === f.friendCode) ||
@@ -131,7 +134,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         onlinePresence: onlineMatch || null
       };
     });
-  }, [profile.friends, onlinePlayers]);
+  }, [activeProfile.friends, onlinePlayers]);
 
   // Search results in "Add / Search" tab
   const filteredOnlineResults = useMemo(() => {
@@ -281,13 +284,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         <div className="mx-4 mt-3 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <AvatarBadge
-              avatarId={profile.avatarId}
-              customAvatarUrl={profile.customAvatarDataUrl}
+              avatarId={activeProfile.avatarId}
+              customAvatarUrl={activeProfile.customAvatarDataUrl}
               size="xs"
             />
-            <span className="text-xs font-bold text-white truncate max-w-[120px]">{profile.name}</span>
+            <span className="text-xs font-bold text-white truncate max-w-[120px]">{activeProfile.name}</span>
             <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-amber-300 font-mono text-[11px] font-bold">
-              #{profile.friendCode}
+              #{activeProfile.friendCode}
             </span>
           </div>
 
@@ -394,6 +397,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                   {friendsList.map(friend => {
                     const online = friend.onlinePresence;
                     const activeRoom = online?.roomCode || friend.roomCode;
+                    const isMe =
+                      (friend.friendCode && friend.friendCode === activeProfile.friendCode) ||
+                      (activeProfile.id && friend.id === activeProfile.id);
+                    const customAvatar = isMe
+                      ? (activeProfile.customAvatarDataUrl || friend.customAvatarDataUrl)
+                      : (online?.customAvatarUrl || friend.customAvatarDataUrl);
 
                     return (
                       <div
@@ -407,8 +416,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               friendCode: friend.friendCode,
                               name: friend.name,
                               avatarId: online?.avatarId || friend.avatarId,
-                              customAvatarUrl:
-                                friend.customAvatarDataUrl || online?.customAvatarUrl,
+                              customAvatarUrl: customAvatar,
                               status: online?.status,
                               roomCode: activeRoom,
                               isAlreadyFriend: true,
@@ -420,7 +428,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           <div className="relative group-hover:scale-105 transition-transform">
                             <AvatarBadge
                               avatarId={online?.avatarId || friend.avatarId}
-                              customAvatarUrl={friend.customAvatarDataUrl || online?.customAvatarUrl}
+                              customAvatarUrl={customAvatar}
                               size="sm"
                             />
                             <span
@@ -584,11 +592,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 ) : (
                   <div className="space-y-2">
                     {filteredOnlineResults.map(p => {
-                      const alreadyFriend = (profile.friends || []).some(
+                      const alreadyFriend = (activeProfile.friends || []).some(
                         f =>
                           f.friendCode === p.friendCode ||
                           f.name.toLowerCase() === p.name.toLowerCase()
                       );
+                      const isMe =
+                        (p.friendCode && p.friendCode === activeProfile.friendCode) ||
+                        (activeProfile.id && p.id === activeProfile.id);
+                      const customAvatar = isMe
+                        ? (activeProfile.customAvatarDataUrl || p.customAvatarUrl)
+                        : p.customAvatarUrl;
 
                       return (
                         <div
@@ -602,12 +616,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                                 friendCode: p.friendCode,
                                 name: p.name,
                                 avatarId: p.avatarId,
-                                customAvatarUrl: p.customAvatarUrl,
+                                customAvatarUrl: customAvatar,
                                 status: p.status,
                                 roomCode: p.roomCode,
                                 isAlreadyFriend: alreadyFriend,
                                 friendId: alreadyFriend
-                                  ? (profile.friends || []).find(f => f.friendCode === p.friendCode)?.id
+                                  ? (activeProfile.friends || []).find(f => f.friendCode === p.friendCode)?.id
                                   : undefined
                               });
                             }}
@@ -616,7 +630,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                             <div className="group-hover:scale-105 transition-transform">
                               <AvatarBadge
                                 avatarId={p.avatarId}
-                                customAvatarUrl={p.customAvatarUrl}
+                                customAvatarUrl={customAvatar}
                                 size="sm"
                               />
                             </div>
@@ -671,20 +685,28 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
               {onlinePlayers.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-slate-950/60 border border-dashed border-white/10 text-center text-xs text-slate-400">
-                  Şu an senden başka çevrimiçi oyuncu görünmüyor. Arkadaşına site linkini veya <strong>#{profile.friendCode}</strong> ID kodunu gönder!
+                  Şu an senden başka çevrimiçi oyuncu görünmüyor. Arkadaşına site linkini veya <strong>#{activeProfile.friendCode}</strong> ID kodunu gönder!
                 </div>
               ) : (
-                onlinePlayers.map(p => (
-                  <div
-                    key={p.friendCode}
-                    className="p-3.5 rounded-2xl bg-slate-950/90 border border-white/10 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <AvatarBadge
-                        avatarId={p.avatarId}
-                        customAvatarUrl={p.customAvatarUrl}
-                        size="sm"
-                      />
+                onlinePlayers.map(p => {
+                  const isMe =
+                    (p.friendCode && p.friendCode === activeProfile.friendCode) ||
+                    (activeProfile.id && p.id === activeProfile.id);
+                  const customAvatar = isMe
+                    ? (activeProfile.customAvatarDataUrl || p.customAvatarUrl)
+                    : p.customAvatarUrl;
+
+                  return (
+                    <div
+                      key={p.friendCode}
+                      className="p-3.5 rounded-2xl bg-slate-950/90 border border-white/10 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <AvatarBadge
+                          avatarId={p.avatarId}
+                          customAvatarUrl={customAvatar}
+                          size="sm"
+                        />
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs sm:text-sm font-black text-white">
@@ -724,8 +746,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       </button>
                     </div>
                   </div>
-                ))
-              )}
+                );
+              })
+            )}
             </div>
           )}
         </div>

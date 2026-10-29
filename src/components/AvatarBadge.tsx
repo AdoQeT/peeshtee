@@ -28,15 +28,22 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
   isOwner = false,
   className = ''
 }) => {
+  const [imgError, setImgError] = React.useState(false);
   const preset = getAvatarPreset(avatarId);
   const sizeClass = SIZE_CLASSES[size];
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [customAvatarUrl]);
+
+  const hasValidCustomImg = Boolean(customAvatarUrl && !imgError);
 
   return (
     <div
       className={`relative inline-flex items-center justify-center shrink-0 select-none shadow-md ${
         isOwner ? 'ring-2 ring-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.7)]' : ''
       } ${
-        customAvatarUrl ? 'bg-slate-800' : `bg-gradient-to-br ${preset.gradient}`
+        hasValidCustomImg ? 'bg-slate-800' : `bg-gradient-to-br ${preset.gradient}`
       } ${
         showBorder ? (isOwner ? 'border-2 border-yellow-300' : `border-2 ${preset.borderColor}`) : ''
       } ${sizeClass} ${className}`}
@@ -51,10 +58,11 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
           👑
         </span>
       )}
-      {customAvatarUrl ? (
+      {hasValidCustomImg ? (
         <img
           src={customAvatarUrl}
           alt="Avatar"
+          onError={() => setImgError(true)}
           className="w-full h-full object-cover rounded-[inherit]"
         />
       ) : (

@@ -1,6 +1,6 @@
 # 🎴 Project P: Pişti & RENQ Overdrive
 
-[![Version](https://img.shields.io/badge/version-v1.11-blue.svg)](./package.json)
+[![Version](https://img.shields.io/badge/version-v1.12-blue.svg)](./package.json)
 [![React](https://img.shields.io/badge/React-18.x-61dafb.svg?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg?logo=vite&logoColor=white)](https://vitejs.dev/)

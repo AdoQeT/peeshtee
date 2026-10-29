@@ -178,8 +178,7 @@ class FriendNetworkManager {
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
-      // Keep global 8s presence heartbeats ultra-lightweight (no heavy custom avatar base64 payload)
-      customAvatarUrl: undefined,
+      customAvatarUrl: profile.customAvatarDataUrl,
       status: this.currentStatus,
       roomCode: this.currentRoomCode,
       gameType: this.currentGameType,
@@ -204,6 +203,7 @@ class FriendNetworkManager {
       fromFriendCode: profile.friendCode,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
+      fromCustomAvatarUrl: profile.customAvatarDataUrl,
       targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
       targetName: target.name?.trim(),
       roomCode,
@@ -225,6 +225,7 @@ class FriendNetworkManager {
       fromFriendCode: profile.friendCode,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
+      fromCustomAvatarUrl: profile.customAvatarDataUrl,
       targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
       targetName: target.name?.trim(),
       timestamp: Date.now()
@@ -329,7 +330,7 @@ class FriendNetworkManager {
           friendCode: pkt.player.friendCode,
           name: pkt.player.name,
           avatarId: pkt.player.avatarId,
-          customAvatarDataUrl: existingFriend.customAvatarDataUrl || pkt.player.customAvatarUrl,
+          customAvatarDataUrl: pkt.player.customAvatarUrl || existingFriend.customAvatarDataUrl,
           roomCode: pkt.player.roomCode
         });
       }
@@ -367,7 +368,8 @@ class FriendNetworkManager {
           id: notice.fromId,
           friendCode: notice.fromFriendCode,
           name: notice.fromName,
-          avatarId: notice.fromAvatarId
+          avatarId: notice.fromAvatarId,
+          customAvatarDataUrl: notice.fromCustomAvatarUrl
         });
         this.noticeListeners.forEach(cb => cb(notice));
         this.notifyListeners();

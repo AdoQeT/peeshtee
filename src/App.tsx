@@ -2323,8 +2323,18 @@ export default function App() {
   const handleUpdateProfile = useCallback((newProfile: UserProfile) => {
     setUserProfile(newProfile);
     setPlayers(prev =>
-      prev.map((p, idx) => (idx === 0 ? { ...p, name: newProfile.name } : p))
+      prev.map((p, idx) =>
+        idx === 0
+          ? {
+              ...p,
+              name: newProfile.name,
+              avatarId: newProfile.avatarId,
+              customAvatarUrl: newProfile.customAvatarDataUrl
+            }
+          : p
+      )
     );
+    friendNetwork.announcePresence();
   }, []);
 
   const handleSendChatMessage = useCallback(
@@ -2684,6 +2694,7 @@ export default function App() {
       {/* Standalone Friends & Global Player Network Modal */}
       <FriendsModal
         isOpen={isFriendsOpen}
+        userProfile={userProfile}
         onJoinFriendRoom={(code: string) => {
           const trimmed = code.trim().toUpperCase();
           const clean = trimmed.replace(/[^A-Z0-9]/g, '');

@@ -438,14 +438,6 @@ export class MultiplayerManager {
     if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
-    // Discard replayed or out-of-order packets
-    if (typeof envelope.seq === 'number' && envelope.senderId) {
-      const last = this.lastSeenSeq.get(envelope.senderId) || 0;
-      if (envelope.seq <= last) {
-        return;
-      }
-      this.lastSeenSeq.set(envelope.senderId, envelope.seq);
-    }
 
     this.seenMsgIds.add(envelope.msgId);
     if (this.seenMsgIds.size > 500) {
@@ -505,6 +497,20 @@ export class MultiplayerManager {
         localStorage.setItem(`pisti-pkt-${this.roomCode}`, str);
       } catch {}
     }
+  }
+
+  public sendReliable(payload: MultiplayerEvent, times = 5, intervalMs = 700) {
+    if (!this.roomCode) return;
+    this.send(payload);
+    let count = 1;
+    const timer = window.setInterval(() => {
+      if (count >= times || !this.roomCode) {
+        window.clearInterval(timer);
+        return;
+      }
+      this.send(payload);
+      count++;
+    }, intervalMs);
   }
 
   public leaveRoom() {

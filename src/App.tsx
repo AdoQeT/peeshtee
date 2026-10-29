@@ -1887,6 +1887,8 @@ export default function App() {
       if (msg.type === 'MP_GAME_START') {
         // Guest receives synchronized match launch from Host!
         if (!multiplayerManager.isHost) {
+          // Prevent double launch if already transitioning/in game
+          if (isMultiplayerGame && (screen === 'game' || screen === 'uno')) return;
           const mySlot = msg.slots.find(s => s.peerId === multiplayerManager.instanceId);
           const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
           setInitialJoinCode('');
@@ -3086,7 +3088,7 @@ export default function App() {
           if (chosenGameType === 'uno') {
             const seedUno = shuffleUnoDeck(createUnoDeck());
             setMultiplayerSeedUnoDeck(seedUno);
-            multiplayerManager.send({
+            multiplayerManager.sendReliable({
               type: 'MP_GAME_START',
               gameType: 'uno',
               settings: lobbySettings,
@@ -3113,7 +3115,7 @@ export default function App() {
           const sharedSeedDeck = shuffleDeck(createDeck());
 
           // Broadcast MP_GAME_START with deterministic seedDeck to all Guests
-          multiplayerManager.send({
+          multiplayerManager.sendReliable({
             type: 'MP_GAME_START',
             gameType: 'pisti',
             settings: lobbySettings,

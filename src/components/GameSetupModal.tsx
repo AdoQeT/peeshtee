@@ -168,10 +168,10 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
             <div>
               <span className="font-bold text-white text-xs flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 text-amber-400" />
-                5'e Basmalı Kuralı (+5 Puan)
+                5'e Basmalı Özel Kuralı
               </span>
               <span className="text-[10px] text-slate-400 block mt-0.5">
-                Yerde 5 varken 5 atıldığında anında +5 puan
+                Yerde tek 5 varken 5 basılırsa Pişti & anında galibiyet (50 Puan). Yerde kart varken +5 ek puan.
               </span>
             </div>
             <button

@@ -441,10 +441,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Flame className="w-4 h-4 text-amber-400" />
-                      5'e Basmalı Kuralı (+5 Puan)
+                      5'e Basmalı Özel Kuralı
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Yerde 5 varken 5 atılırsa anında +5 ek puan kazandırır
+                      Yerde tek 5 varken 5 basılırsa Pişti & anında maç kazanılır (50 Puan). Yerde kart varken +5 ek puan.
                     </span>
                   </div>
                   <button

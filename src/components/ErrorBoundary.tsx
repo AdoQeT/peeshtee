@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Oyun Duraklatıldı
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mb-6 leading-relaxed">
-              Beklenmeyen bir görsel hata oluştu. Oyun durumunuz güvenle korundu.
+              Beklenmeyen bir görsel aksaklık oluştu. Sayfayı yenileyerek oyunu temiz bir şekilde baştan başlatabilirsiniz.
             </p>
             <button
               onClick={this.handleReset}

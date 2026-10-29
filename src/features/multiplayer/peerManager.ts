@@ -40,6 +40,7 @@ export type MultiplayerEvent =
       gameType?: 'pisti' | 'uno';
       settings: GameSettings;
       slots: LobbyPlayerSlot[];
+      seedUnoDeck?: any[];
     }
   | {
       type: 'MP_GAME_START';
@@ -50,6 +51,7 @@ export type MultiplayerEvent =
       round: number;
       startingTurnSeat: number;
       slots: LobbyPlayerSlot[];
+      seedUnoDeck?: any[];
       hostName?: string;
       hostAvatar?: string;
       guestName?: string;

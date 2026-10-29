@@ -48,6 +48,7 @@ interface UnoGameViewProps {
   isHost?: boolean;
   mySeatIndex?: number;
   mpSlots?: LobbyPlayerSlot[];
+  seedCards?: UnoCard[];
 }
 
 const COLOR_NAMES: Record<UnoColor, string> = {
@@ -145,8 +146,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   playerCount = 4,
   targetScore = 250,
   isMultiplayer = false,
+  isHost = true,
   mySeatIndex = 0,
-  mpSlots
+  mpSlots,
+  seedCards
 }) => {
   const userProfile = getUserProfile();
 
@@ -427,7 +430,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   );
 
   // Start / Reset Round with animated 108-card 3D shuffle
-  const startNewRound = useCallback(() => {
+  const startNewRound = useCallback((customDeck?: UnoCard[]) => {
     // Instantly dismiss round summary modal with 0ms delay
     setGameState(prev => ({
       ...prev,
@@ -442,8 +445,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     setIsAnimatingAction(true);
     setIsUnoShuffling(true);
 
-    const fullDeck = shuffleUnoDeck(createUnoDeck());
-    const dealt = dealUnoGame(fullDeck, playersSyncRef.current.length);
+    const fullDeck =
+      customDeck && customDeck.length > 0
+        ? [...customDeck]
+        : seedCards && seedCards.length > 0
+        ? [...seedCards]
+        : shuffleUnoDeck(createUnoDeck());
+    const totalP = playersSyncRef.current.length;
+    const dealt = dealUnoGame(fullDeck, totalP);
     dealtCacheRef.current = dealt;
 
     deckSyncRef.current = [...dealt.remainingDeck];
@@ -455,11 +464,14 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     idsToHide.add(dealt.initialDiscard.id);
     setHiddenCardIds(idsToHide);
 
-    const updatedPlayers = playersSyncRef.current.map((p, idx) => ({
-      ...p,
-      hand: dealt.hands[idx],
-      hasCalledUno: false
-    }));
+    const updatedPlayers = playersSyncRef.current.map((p, idx) => {
+      const handIdx = isMultiplayer ? (idx + mySeatIndex) % totalP : idx;
+      return {
+        ...p,
+        hand: dealt.hands[handIdx] || [],
+        hasCalledUno: false
+      };
+    });
     playersSyncRef.current = updatedPlayers;
     setPlayers(updatedPlayers);
 
@@ -468,7 +480,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     setNewlyDrawnCardId(null);
     setHasDrawnPlayableThisTurn(false);
     setSeatBubbles({});
-  }, []);
+  }, [isMultiplayer, mySeatIndex, seedCards]);
 
   // Callback when 108-card 3D shuffle finishes cleanly at the draw deck:
   const handleShuffleFinish = useCallback(() => {
@@ -492,7 +504,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
     for (let c = 0; c < 7; c++) {
       for (let p = 0; p < totalP; p++) {
-        const card = dealt.hands[p]?.[c];
+        const handIdx = isMultiplayer ? (p + mySeatIndex) % totalP : p;
+        const card = dealt.hands[handIdx]?.[c];
         if (!card) continue;
         dealSteps.push({ playerIdx: p, card, delay });
         delay += stepInterval;
@@ -559,17 +572,31 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             }
           ]);
 
+          let startingTurn = 0;
+          let startingDirection: 1 | -1 = 1;
+          let startingPenalty = 0;
+
+          // Official UNO Opening Card Rules
+          if (initialCard.value === 'draw2') {
+            startingPenalty = 2;
+          } else if (initialCard.value === 'skip') {
+            startingTurn = 1 % totalP;
+          } else if (initialCard.value === 'reverse') {
+            startingDirection = -1;
+            startingTurn = (totalP - 1) % totalP;
+          }
+
           const nextGameState: UnoGameState = {
             ...gameStateSyncRef.current,
             deck: dealt.remainingDeck,
             discardPile: [initialCard],
             currentColor: dealt.initialColor,
-            currentTurn: 0,
-            direction: 1,
+            currentTurn: startingTurn,
+            direction: startingDirection,
             roundWinner: null,
             isRoundOver: false,
             lastActionMessage: `Başlangıç Kartı: ${formatCardName(initialCard)}`,
-            pendingDrawPenalty: 0
+            pendingDrawPenalty: startingPenalty
           };
           gameStateSyncRef.current = nextGameState;
           setGameState(nextGameState);
@@ -886,10 +913,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             const newPlayerScore = actingPlayer.score + totalRoundPoints;
             const isGameEnd = newPlayerScore >= targetScore;
 
-            if (playerIdx === 0) {
-              recordMatchStats(true, totalRoundPoints, 0, 0, true);
-            } else {
-              recordMatchStats(false, 0, 0, 0, true);
+            if (isGameEnd) {
+              if (playerIdx === 0) {
+                recordMatchStats(true, newPlayerScore, 0, 0, true);
+              } else {
+                recordMatchStats(false, nextPlayers[0]?.score || 0, 0, 0, true);
+              }
             }
 
             const scoredPlayers = nextPlayers.map((p, idx) =>
@@ -1107,6 +1136,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
         showSeatBubble(targetLocalIdx, '⏭️ Pas Geçti', 1800);
         advanceTurn(1);
+      } else if (event.type === 'MP_UNO_NEXT_ROUND') {
+        startNewRound(event.seedCards);
       } else if (event.type === 'MP_MATCH_ABORTED') {
         if (event.gameType && event.gameType !== 'uno') return;
         try { multiplayerManager.leaveRoom(); } catch {}
@@ -1255,6 +1286,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // Bot Turn Automation (AI plays with clear pacing, speech bubbles & flying cards)
   useEffect(() => {
     if (gameState.isRoundOver || isAnimatingAction) return;
+    if (isMultiplayer && !isHost) return;
 
     const botIdx = gameState.currentTurn;
     const bot = players[botIdx];
@@ -1283,20 +1315,58 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           });
           showSeatBubble(botIdx, '🔥 UNO!', 2400);
           triggerBanner(`🔥 ${currentBot.name} "UNO!" DEDİ!`, 'uno');
+          if (isMultiplayer) {
+            const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+            multiplayerManager.send({
+              type: 'MP_UNO_CALL_UNO',
+              seatIndex: botAbsSeat,
+              senderPeerId: multiplayerManager.instanceId
+            });
+          }
         }
       }
 
       if (botDecision.cardToPlay) {
         executePlayCard(botIdx, botDecision.cardToPlay, botDecision.chosenWildColor);
+        if (isMultiplayer) {
+          const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+          multiplayerManager.send({
+            type: 'MP_UNO_PLAY_CARD',
+            cardId: botDecision.cardToPlay.id,
+            chosenColor: botDecision.chosenWildColor,
+            seatIndex: botAbsSeat,
+            senderPeerId: multiplayerManager.instanceId
+          });
+        }
       } else {
         if (pendingPenalty > 0) {
           showSeatBubble(botIdx, `💥 ${pendingPenalty} Ceza Çekiyor!`, 2200);
           triggerBanner(`💥 ${currentBot.name} katlanan ${pendingPenalty} ceza kartını çekti!`, 'draw');
           deliverPenaltyCardsToPlayer(botIdx, pendingPenalty);
+          if (isMultiplayer) {
+            const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+            multiplayerManager.send({
+              type: 'MP_UNO_DRAW_CARD',
+              seatIndex: botAbsSeat,
+              count: pendingPenalty,
+              penalty: true,
+              senderPeerId: multiplayerManager.instanceId
+            });
+          }
         } else {
           setIsAnimatingAction(true);
           showSeatBubble(botIdx, '📥 Kart Çekiyor...', 1800);
           drawCardsForPlayer(botIdx, 1, drawn => {
+            if (isMultiplayer) {
+              const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+              multiplayerManager.send({
+                type: 'MP_UNO_DRAW_CARD',
+                seatIndex: botAbsSeat,
+                count: 1,
+                penalty: false,
+                senderPeerId: multiplayerManager.instanceId
+              });
+            }
             if (
               drawn.length > 0 &&
               canPlayUnoCard(drawn[0], topDiscard, currentColor, 0)
@@ -1305,11 +1375,29 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 const chosenWild =
                   drawn[0].color === 'wild' ? ('red' as UnoColor) : undefined;
                 executePlayCard(botIdx, drawn[0], chosenWild);
+                if (isMultiplayer) {
+                  const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+                  multiplayerManager.send({
+                    type: 'MP_UNO_PLAY_CARD',
+                    cardId: drawn[0].id,
+                    chosenColor: chosenWild,
+                    seatIndex: botAbsSeat,
+                    senderPeerId: multiplayerManager.instanceId
+                  });
+                }
               }, 450);
             } else {
               window.setTimeout(() => {
                 setIsAnimatingAction(false);
                 advanceTurn(1);
+                if (isMultiplayer) {
+                  const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+                  multiplayerManager.send({
+                    type: 'MP_UNO_PASS',
+                    seatIndex: botAbsSeat,
+                    senderPeerId: multiplayerManager.instanceId
+                  });
+                }
               }, 500);
             }
           });
@@ -1356,6 +1444,15 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           showSeatBubble(0, `💥 ${pendingPenalty} Ceza Çekiyorsun!`, 2200);
           triggerBanner(`⚠️ Karşılayacak kartın yok! +${pendingPenalty} ceza kartını çekiyorsun!`, 'draw');
           deliverPenaltyCardsToPlayer(0, pendingPenalty);
+          if (isMultiplayer) {
+            multiplayerManager.send({
+              type: 'MP_UNO_DRAW_CARD',
+              seatIndex: mySeatIndex,
+              count: pendingPenalty,
+              penalty: true,
+              senderPeerId: multiplayerManager.instanceId
+            });
+          }
         }
       }, 750);
       return () => window.clearTimeout(timer);
@@ -2248,15 +2345,32 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             {/* Actions */}
             <div className="flex items-center justify-center gap-3">
               {!gameState.isGameOver ? (
-                <button
-                  onClick={() => {
-                    sound.playClick();
-                    startNewRound();
-                  }}
-                  className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95"
-                >
-                  Sonraki Eli Başlat →
-                </button>
+                isMultiplayer && !isHost ? (
+                  <div className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-amber-300 border border-amber-500/30 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    <span>Oda Yöneticisinin Yeni Eli Başlatması Bekleniyor...</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      if (isMultiplayer && isHost) {
+                        const nextDeck = shuffleUnoDeck(createUnoDeck());
+                        multiplayerManager.send({
+                          type: 'MP_UNO_NEXT_ROUND',
+                          seedCards: nextDeck,
+                          startingTurnSeat: 0
+                        });
+                        startNewRound(nextDeck);
+                      } else {
+                        startNewRound();
+                      }
+                    }}
+                    className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95"
+                  >
+                    Sonraki Eli Başlat →
+                  </button>
+                )
               ) : (
                 <button
                   onClick={() => {

@@ -72,6 +72,11 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
     const paletteKey =
       theme === 'uno' && unoColor
         ? `uno_${unoColor}`
@@ -80,7 +85,8 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
         : 'estoril_blue';
     const colors = THEME_PALETTES[paletteKey] || THEME_PALETTES.estoril_blue;
 
-    const count = intensity === 'dense' ? 65 : 40;
+    const isMobile = width < 640;
+    const count = intensity === 'dense' ? (isMobile ? 28 : 55) : (isMobile ? 16 : 32);
     const particles: Particle[] = [];
 
     for (let i = 0; i < count; i++) {
@@ -128,13 +134,17 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
         if (p.x < -10) p.x = width + 10;
         else if (p.x > width + 10) p.x = -10;
 
-        // Draw soft glowing mote
+        // Draw soft glowing mote with zero CPU shadowBlur overhead
         ctx.save();
-        ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
         ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = p.size * 3.5;
+        // Outer soft halo
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha * 0.35));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+        ctx.fill();
 
+        // Inner sharp nucleus
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();

@@ -169,11 +169,8 @@ class FriendNetworkManager {
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
-      // Avoid sending huge base64 strings over public MQTT heartbeat if > 12KB
-      customAvatarUrl:
-        profile.customAvatarDataUrl && profile.customAvatarDataUrl.length < 12000
-          ? profile.customAvatarDataUrl
-          : undefined,
+      // Keep global 8s presence heartbeats ultra-lightweight (no heavy custom avatar base64 payload)
+      customAvatarUrl: undefined,
       status: this.currentStatus,
       roomCode: this.currentRoomCode,
       gameType: this.currentGameType,

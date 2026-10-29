@@ -44,7 +44,12 @@ export function chooseAICard(
         c => c.basePoints > 0 || (c.suit === 'diamonds' && c.value === 10)
       );
 
-      if (tableCards.length >= 3 || hasValuableCard || difficulty === 'medium') {
+      const shouldJack =
+        difficulty === 'hard'
+          ? hasValuableCard || tableCards.length >= 4
+          : tableCards.length >= 3 || hasValuableCard;
+
+      if (shouldJack) {
         return jack;
       }
     }
@@ -116,7 +121,7 @@ function pickSafestEmptyTableDiscard(
  */
 function pickSafestDiscard(
   hand: Card[],
-  _seenCards: Card[],
+  seenCards: Card[],
   difficulty: AIDifficulty
 ): Card {
   // Don't waste Jack
@@ -128,8 +133,18 @@ function pickSafestDiscard(
   const candidates = nonSpecials.length > 0 ? nonSpecials : pool;
 
   if (difficulty === 'hard') {
-    // Discard cards that are least useful
-    return candidates[candidates.length - 1];
+    // Count how many of each rank have been seen
+    const rankCounts: Record<number, number> = {};
+    for (const c of seenCards) {
+      rankCounts[c.value] = (rankCounts[c.value] || 0) + 1;
+    }
+    // Ranks with more seen cards are safer because the opponent has fewer remaining copies
+    const sorted = [...candidates].sort((a, b) => {
+      const seenA = rankCounts[a.value] || 0;
+      const seenB = rankCounts[b.value] || 0;
+      return seenB - seenA;
+    });
+    return sorted[0];
   }
 
   return candidates[0];

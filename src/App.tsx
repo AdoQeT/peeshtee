@@ -27,7 +27,8 @@ import { ProfileModal } from './components/ProfileModal';
 import { FriendsModal } from './components/FriendsModal';
 import { InGameChat, ChatMessage } from './components/InGameChat';
 import { UnoGameView } from './components/UnoGameView';
-import { getUserProfile, UserProfile } from './features/profile/profileManager';
+import { getUserProfile, UserProfile, recordMatchStats } from './features/profile/profileManager';
+import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
 import confetti from 'canvas-confetti';
@@ -91,11 +92,32 @@ function orientHandsForPerspective(
   return rotated;
 }
 
+const SETTINGS_STORAGE_KEY = 'project_p_settings';
+
+function loadSavedSettings(): GameSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...INITIAL_SETTINGS, ...parsed };
+    }
+  } catch {}
+  return INITIAL_SETTINGS;
+}
+
 export default function App() {
-  const [settings, setSettings] = useState<GameSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<GameSettings>(loadSavedSettings);
   const [screen, setScreen] = useState<'menu' | 'game' | 'uno'>('menu');
   const [isMultiplayerGame, setIsMultiplayerGame] = useState<boolean>(false);
   const [isMultiplayerHost, setIsMultiplayerHost] = useState<boolean>(true);
+  const [multiplayerSeedUnoDeck, setMultiplayerSeedUnoDeck] = useState<any[] | null>(null);
+
+  // Persist settings changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch {}
+  }, [settings]);
 
   // Modals & Overlays
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -1280,6 +1302,8 @@ export default function App() {
               const latestPlayers = playersRef.current;
               const uBreakdown = calculateRoundBreakdown(latestPlayers[0], true);
               const oBreakdown = calculateRoundBreakdown(latestPlayers[1], false);
+              const isUserWin = actingPlayer.id === latestPlayers[0].id;
+              recordMatchStats(isUserWin, isUserWin ? 50 : 0, isUserWin ? 1 : 0, 0, false);
               setRoundScores({
                 user: uBreakdown,
                 opp: oBreakdown,
@@ -1459,6 +1483,7 @@ export default function App() {
           const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
 
           if (msg.gameType === 'uno') {
+            setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
             setIsMultiplayerGame(true);
             setIsMultiplayerHost(false);
             setMyMultiplayerSeat(mySeatIdx);
@@ -1663,6 +1688,14 @@ export default function App() {
       let matchWinner: Player | null = null;
       if (gameOver) {
         matchWinner = newUserScore > newOppScore ? userSideAggregate : oppSideAggregate;
+        const isUserWin = newUserScore > newOppScore;
+        recordMatchStats(
+          isUserWin,
+          newUserScore,
+          userSideAggregate.pistiCount,
+          userSideAggregate.doublePistiCount,
+          false
+        );
         if (newUserScore > newOppScore) {
           confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 } });
         }
@@ -2177,6 +2210,7 @@ export default function App() {
   // Dev Test Macro: Reveal all hands exclusively on local client (Ctrl+Shift+X or Alt+X)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!import.meta.env.DEV) return;
       const isCtrlShiftX = e.ctrlKey && e.shiftKey && (e.key === 'X' || e.key === 'x');
       const isAltX = e.altKey && (e.key === 'x' || e.key === 'X');
 
@@ -2324,8 +2358,9 @@ export default function App() {
         <UnoGameView
           onExitToMenu={() => {
             setIsMultiplayerGame(false);
-      setMyMultiplayerSeat(0);
-      myMultiplayerSeatRef.current = 0;
+            setMyMultiplayerSeat(0);
+            myMultiplayerSeatRef.current = 0;
+            setMultiplayerSeedUnoDeck(null);
             setScreen('menu');
           }}
           playerCount={isMultiplayerGame ? (settings.playerCount || 4) : 4}
@@ -2334,6 +2369,7 @@ export default function App() {
           isHost={isMultiplayerHost}
           mySeatIndex={myMultiplayerSeat}
           mpSlots={activeMultiplayerSlots}
+          seedCards={multiplayerSeedUnoDeck || undefined}
         />
       ) : (
         <main className="relative z-10 flex-1 flex flex-col justify-between p-2 sm:p-4 max-w-7xl mx-auto w-full h-screen max-h-screen overflow-hidden">
@@ -2480,11 +2516,14 @@ export default function App() {
           chosenGameType = 'pisti'
         ) => {
           if (chosenGameType === 'uno') {
+            const seedUno = shuffleUnoDeck(createUnoDeck());
+            setMultiplayerSeedUnoDeck(seedUno);
             multiplayerManager.send({
               type: 'MP_GAME_START',
               gameType: 'uno',
               settings: lobbySettings,
               seedDeck: [],
+              seedUnoDeck: seedUno,
               shuffleStyle: 'riffle_bridge',
               round: 1,
               startingTurnSeat: 0,

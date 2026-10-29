@@ -190,7 +190,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           setIsConnecting(true);
           activeCode =
             (targetFriend.gameType === 'uno' ? 'UNO-' : 'PST-') +
-            Math.floor(1000 + Math.random() * 9000);
+            Math.random().toString(36).substring(2, 8).toUpperCase();
           setCreatedRoomCode(activeCode);
           setLobbyRole('host');
 
@@ -480,7 +480,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setErrorMsg(null);
     setIsConnecting(true);
     const code =
-      (gameType === 'uno' ? 'UNO-' : 'PST-') + Math.floor(1000 + Math.random() * 9000);
+      (gameType === 'uno' ? 'UNO-' : 'PST-') +
+      Math.random().toString(36).substring(2, 8).toUpperCase();
     setCreatedRoomCode(code);
     setLobbyRole('host');
 

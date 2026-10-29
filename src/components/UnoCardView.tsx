@@ -175,15 +175,37 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       ? '+4'
       : card.value;
 
+  const colorNames: Record<UnoColor, string> = {
+    red: 'Kırmızı',
+    blue: 'Mavi',
+    green: 'Yeşil',
+    yellow: 'Sarı',
+    wild: 'Joker'
+  };
+  const label = `${colorNames[card.color]} ${cornerLabel}`;
+
   return (
     <div
+      role={isPlayable ? 'button' : undefined}
+      tabIndex={isPlayable ? 0 : undefined}
+      aria-label={label}
       onClick={isPlayable ? e => onClick?.(e) : undefined}
+      onKeyDown={
+        isPlayable && onClick
+          ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       style={style}
       className={`relative select-none shrink-0 overflow-hidden rounded-[inherit] border-2 shadow-lg transition-all duration-150 ${
         theme.cardBg
       } ${theme.borderColor} ${sizeClass} ${
         isPlayable
-          ? `cursor-pointer ring-2 ${theme.glowShadow} hover:brightness-110 active:scale-95`
+          ? `cursor-pointer ring-2 ${theme.glowShadow} hover:brightness-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-300`
           : 'cursor-default opacity-85 brightness-95'
       } ${className}`}
     >

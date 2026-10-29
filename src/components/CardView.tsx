@@ -22,6 +22,13 @@ const SUIT_ICONS: Record<Suit, string> = {
   clubs: '♣'
 };
 
+const SUIT_TR_NAMES: Record<Suit, string> = {
+  hearts: 'Kupa',
+  diamonds: 'Karo',
+  spades: 'Maça',
+  clubs: 'Sinek'
+};
+
 export const CARD_DIMENSIONS = {
   sm: { width: 56, height: 80, classes: 'w-14 h-20 text-xs rounded-lg' },
   md: { width: 88, height: 128, classes: 'w-[88px] h-[128px] sm:w-24 sm:h-36 text-sm rounded-xl' },
@@ -361,10 +368,24 @@ export const CardView: React.FC<CardViewProps> = ({
   const sizeClasses = CARD_DIMENSIONS[size].classes;
   const showBack = card.devForceFaceUp ? false : !card.faceUp || isOpponent;
   const origin = Math.abs(tiltAngle) >= 45 ? 'center center' : 'bottom center';
+  const label = showBack ? 'Kapalı Kart' : `${SUIT_TR_NAMES[card.suit]} ${card.symbol}`;
 
   return (
     <div
+      role={isPlayable ? 'button' : undefined}
+      tabIndex={isPlayable && !isHiddenInFlight ? 0 : undefined}
+      aria-label={label}
       onClick={isPlayable && !isHiddenInFlight ? onClick : undefined}
+      onKeyDown={
+        isPlayable && !isHiddenInFlight && onClick
+          ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick(e as any);
+              }
+            }
+          : undefined
+      }
       style={{
         transform: `rotate(${tiltAngle}deg)`,
         transformOrigin: origin,
@@ -376,7 +397,7 @@ export const CardView: React.FC<CardViewProps> = ({
         isHiddenInFlight
           ? 'opacity-0 pointer-events-none'
           : isPlayable
-          ? 'cursor-pointer transition-all duration-200 will-change-transform hover:-translate-y-4 hover:scale-105 hover:z-30 hover:shadow-[0_20px_35px_rgba(0,0,0,0.65)] active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.45)]'
+          ? 'cursor-pointer transition-all duration-200 will-change-transform hover:-translate-y-4 hover:scale-105 hover:z-30 hover:shadow-[0_20px_35px_rgba(0,0,0,0.65)] active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.45)] focus:outline-none focus:ring-2 focus:ring-amber-400'
           : 'cursor-default shadow-[0_6px_16px_rgba(0,0,0,0.45)]'
       } ${className}`}
     >

@@ -208,15 +208,7 @@ const STORAGE_KEY = 'project_p_user_profile';
 const OWNER_SECRET_KEY = 'project_p_owner_secret_token';
 const OWNER_SIGNATURE = 'ado_2026_verified_master';
 
-// Ensure the real developer's machine always has the verified master token initialized
-if (typeof window !== 'undefined') {
-  try {
-    if (!localStorage.getItem(OWNER_SECRET_KEY)) {
-      localStorage.setItem(OWNER_SECRET_KEY, OWNER_SIGNATURE);
-    }
-  } catch {}
-}
-
+// Owner device verification token check
 export function isDeviceOwnerVerified(): boolean {
   try {
     return localStorage.getItem(OWNER_SECRET_KEY) === OWNER_SIGNATURE;
@@ -290,7 +282,8 @@ export function getUserProfile(): UserProfile {
             doublePistiCount: parsed.stats?.doublePistiCount || 0,
             highestScore: parsed.stats?.highestScore || 0,
             unoMatchesPlayed: parsed.stats?.unoMatchesPlayed || 0,
-            unoWins: parsed.stats?.unoWins || 0
+            unoWins: parsed.stats?.unoWins || 0,
+            highestUnoScore: parsed.stats?.highestUnoScore || 0
           }
         };
 
@@ -304,14 +297,15 @@ export function getUserProfile(): UserProfile {
     console.warn('Profile read error:', e);
   }
 
-  // Default creator profile for Ado
+  // Default clean profile for normal players
+  const randomSuffix = Math.floor(100 + Math.random() * 900);
   const defaultProfile: UserProfile = {
     id: `player-${Math.random().toString(36).substring(2, 9)}`,
     friendCode: generateFriendCode(),
-    name: 'Ado',
-    avatarId: 'lion',
-    customTitle: '👑 Oyun Kurucusu & Yapımcı',
-    isOwner: true,
+    name: `Oyuncu_${randomSuffix}`,
+    avatarId: 'wolf',
+    customTitle: '🃏 Kart Ustası',
+    isOwner: false,
     friends: [],
     stats: {
       matchesPlayed: 0,
@@ -321,7 +315,8 @@ export function getUserProfile(): UserProfile {
       doublePistiCount: 0,
       highestScore: 0,
       unoMatchesPlayed: 0,
-      unoWins: 0
+      unoWins: 0,
+      highestUnoScore: 0
     }
   };
   saveUserProfile(defaultProfile);

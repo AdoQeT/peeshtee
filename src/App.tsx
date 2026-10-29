@@ -183,7 +183,7 @@ export default function App() {
     cutterSeat: number;
     cutterName: string;
     isHumanCutter: boolean;
-    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging';
+    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging' | 'stowing';
     cutIndex?: number;
     pileACount: number;
     pileBCount: number;
@@ -953,6 +953,7 @@ export default function App() {
         const isHuman = isMp ? (startingTurn === 0) : (startingTurn === 0);
         const cutterSeatIdx = startingTurn;
         const cName = playersRef.current[cutterSeatIdx]?.name || 'Oyuncu';
+        sound.playWashScramble();
 
         setDeckCutState({
           isActive: true,
@@ -1013,8 +1014,19 @@ export default function App() {
           : null
       );
 
-      // Step 2: Dealing pot cards (3 closed + 1 open, Vale Kesene Yarar rule)
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+      const pileOffsetX = isMobile ? 105 : 140;
+      const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
+      const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 300;
+      const pileAPos = {
+        x: centerX - pileOffsetX,
+        y: centerY
+      };
+
+      // Step 2: Dealing pot cards from Pile A into Pot (starts after 650ms split animation)
       const timerPot = window.setTimeout(() => {
+        setDeckCutState(prev => (prev ? { ...prev, step: 'dealing_pot' } : null));
+
         const initialDeal = dealInitialGame(cutDeck, configuredSettings.playerCount, true);
         const orientedHands = orientHandsForPerspective(
           initialDeal.playerHands,
@@ -1026,65 +1038,201 @@ export default function App() {
           ...orientedHands[0]
         ]);
 
-        // If opening 4th card was Jack, reward cutter!
-        const jacks = initialDeal.jacksAwardedToCutter;
-        if (jacks && jacks.length > 0) {
-          sound.playJackSweep();
-          const cutterName = playersRef.current[startingTurn]?.name || 'Kesen Oyuncu';
-          showDevToast(
-            `✂️ VALE KESENE YARAR! Masadaki Vale (${jacks.length} adet) ${cutterName}'e verildi!`
-          );
-          setPlayers(prev =>
-            prev.map((p, idx) => {
-              if (idx === startingTurn) {
-                return {
-                  ...p,
-                  collectedCards: [...p.collectedCards, ...jacks],
-                  bonusPoints: (p.bonusPoints || 0) + jacks.length
-                };
-              }
-              return p;
-            })
-          );
+        const potPos = getCenter(tableRefs.current.potEl, centerX, centerY);
+
+        // Prepare table card offsets
+        const preparedTableCards: Card[] = initialDeal.tableCards.map((rawCard, idx) => ({
+          ...rawCard,
+          tableOffsetX: (idx - 1.5) * 6,
+          tableOffsetY: (idx - 1.5) * 4,
+          tableRotation: (idx - 1.5) * 6
+        }));
+
+        interface PotStep {
+          card: Card;
+          faceUp: boolean;
+          isJackAward?: boolean;
+          delay: number;
         }
 
-        setDeckCutState(prev =>
-          prev
-            ? {
+        const potSteps: PotStep[] = [];
+        let currentDelay = 40;
+
+        // 3 face-down cards to pot
+        for (let i = 0; i < 3; i++) {
+          potSteps.push({
+            card: preparedTableCards[i],
+            faceUp: false,
+            delay: currentDelay
+          });
+          currentDelay += 220;
+        }
+
+        // Awarded Jacks (if any, "Vale Kesene Yarar")
+        const jacks = initialDeal.jacksAwardedToCutter || [];
+        jacks.forEach(jackCard => {
+          potSteps.push({
+            card: jackCard,
+            faceUp: true,
+            isJackAward: true,
+            delay: currentDelay
+          });
+          currentDelay += 850;
+        });
+
+        // 4th top face-up card to pot
+        potSteps.push({
+          card: preparedTableCards[3],
+          faceUp: true,
+          delay: currentDelay
+        });
+        currentDelay += 500;
+
+        // Execute pot deal flights
+        potSteps.forEach((pStep, sIdx) => {
+          const tFlight = window.setTimeout(() => {
+            sound.playCardDeal();
+
+            if (pStep.isJackAward) {
+              // Flips face up into pot, then sweeps into cutter inventory
+              const flyToPotId = `pot-jack-${sIdx}-${Date.now()}`;
+              setFlyingCards(prev => [
                 ...prev,
-                step: 'dealing_pot'
-              }
-            : null
-        );
+                {
+                  id: flyToPotId,
+                  card: pStep.card,
+                  startX: pileAPos.x,
+                  startY: pileAPos.y,
+                  targetX: potPos.x,
+                  targetY: potPos.y,
+                  startRotation: 0,
+                  targetRotation: 0,
+                  startFaceUp: false,
+                  endFaceUp: true,
+                  duration: 400,
+                  arcHeight: 50,
+                  size: 'md',
+                  zIndex: 70 + sIdx,
+                  onComplete: () => {
+                    setFlyingCards(prev => prev.filter(f => f.id !== flyToPotId));
+                    sound.playJackSweep();
+                    const cutterName = playersRef.current[startingTurn]?.name || 'Kesen Oyuncu';
+                    showDevToast(
+                      `✂️ VALE KESENE YARAR! Masadaki Vale (${pStep.card.suit === 'hearts' || pStep.card.suit === 'diamonds' ? 'Kırmızı' : 'Siyah'} J) ${cutterName}'e verildi!`
+                    );
 
-        // Step 3: Merging remaining cut portions back into main deck
-        const timerMerge = window.setTimeout(() => {
-          sound.playCardDeal();
-          setDeckCutState(prev =>
-            prev
-              ? {
-                  ...prev,
-                  step: 'merging'
+                    // Locate cutter position
+                    const cutterEl =
+                      tableRefs.current.collectedEls[startingTurn] ||
+                      tableRefs.current.handEls[startingTurn];
+                    let cutterPos = { x: centerX, y: window.innerHeight - 80 };
+                    if (cutterEl) {
+                      const r = cutterEl.getBoundingClientRect();
+                      if (r.width > 0 && r.height > 0) {
+                        cutterPos = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                      }
+                    } else if (startingTurn !== 0) {
+                      cutterPos = { x: centerX, y: 80 };
+                    }
+
+                    const flyToCutterId = `jack-sweep-${Date.now()}`;
+                    setFlyingCards(prev => [
+                      ...prev,
+                      {
+                        id: flyToCutterId,
+                        card: pStep.card,
+                        startX: potPos.x,
+                        startY: potPos.y,
+                        targetX: cutterPos.x,
+                        targetY: cutterPos.y,
+                        startRotation: 0,
+                        targetRotation: 360,
+                        startFaceUp: true,
+                        endFaceUp: true,
+                        duration: 700,
+                        arcHeight: 110,
+                        size: 'md',
+                        zIndex: 90,
+                        onComplete: () => {
+                          setFlyingCards(prev => prev.filter(f => f.id !== flyToCutterId));
+                          setPlayers(prev =>
+                            prev.map((p, idx) => {
+                              if (idx === startingTurn) {
+                                return {
+                                  ...p,
+                                  collectedCards: [...p.collectedCards, pStep.card],
+                                  bonusPoints: (p.bonusPoints || 0) + 1
+                                };
+                              }
+                              return p;
+                            })
+                          );
+                        }
+                      }
+                    ]);
+                  }
                 }
-              : null
-          );
+              ]);
+            } else {
+              // Normal card to pot
+              const flyId = `pot-card-${sIdx}-${Date.now()}`;
+              setFlyingCards(prev => [
+                ...prev,
+                {
+                  id: flyId,
+                  card: pStep.card,
+                  startX: pileAPos.x,
+                  startY: pileAPos.y,
+                  targetX: potPos.x + (pStep.card.tableOffsetX ?? 0),
+                  targetY: potPos.y + (pStep.card.tableOffsetY ?? 0),
+                  startRotation: 0,
+                  targetRotation: pStep.card.tableRotation ?? 0,
+                  startFaceUp: false,
+                  endFaceUp: pStep.faceUp,
+                  duration: 420,
+                  arcHeight: 55,
+                  size: 'md',
+                  zIndex: 70 + sIdx,
+                  onComplete: () => {
+                    setFlyingCards(prev => prev.filter(f => f.id !== flyId));
+                    setTableCards(prev => [...prev, pStep.card]);
+                  }
+                }
+              ]);
+            }
+          }, pStep.delay);
+          dealTimersRef.current.push(tFlight);
+        });
 
-          // Step 4: Deal cards to player hands and start game
-          const timerComplete = window.setTimeout(() => {
-            setDeckCutState(null);
-            setPendingDealContext(null);
+        // Step 3: Merging remaining cut portions back into main deck (Pile B glides on top of Pile A)
+        const timerMerge = window.setTimeout(() => {
+          sound.playSweepGather();
+          setDeckCutState(prev => (prev ? { ...prev, step: 'merging' } : null));
 
-            runDealChoreography(
-              initialDeal.tableCards,
-              orientedHands,
-              initialDeal.remainingDeck,
-              configuredSettings.playerCount
-            );
-          }, 600);
-          dealTimersRef.current.push(timerComplete);
-        }, 800);
+          // Step 4: Stowing merged deck into permanent deck slot (deckEl)
+          const timerStow = window.setTimeout(() => {
+            sound.playTripleCut();
+            setDeckCutState(prev => (prev ? { ...prev, step: 'stowing' } : null));
+
+            // Step 5: Cut ceremony finished! Deal hands round-robin from deck slot!
+            const timerComplete = window.setTimeout(() => {
+              setDeckCutState(null);
+              setPendingDealContext(null);
+
+              // Deal hand cards round-robin (table pot cards are already on the felt!)
+              runDealChoreography(
+                [],
+                orientedHands,
+                initialDeal.remainingDeck,
+                configuredSettings.playerCount
+              );
+            }, 450);
+            dealTimersRef.current.push(timerComplete);
+          }, 650);
+          dealTimersRef.current.push(timerStow);
+        }, currentDelay + 100);
         dealTimersRef.current.push(timerMerge);
-      }, 700);
+      }, 650);
       dealTimersRef.current.push(timerPot);
     },
     [pendingDealContext, deckCutState, runDealChoreography, showDevToast]
@@ -1190,6 +1338,7 @@ export default function App() {
         const isHuman = isMp ? (nextStartingTurn === 0) : (nextStartingTurn === 0);
         const cutterSeatIdx = nextStartingTurn;
         const cName = playersRef.current[cutterSeatIdx]?.name || 'Oyuncu';
+        sound.playWashScramble();
 
         setDeckCutState({
           isActive: true,

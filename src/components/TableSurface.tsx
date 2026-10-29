@@ -318,7 +318,7 @@ interface TableSurfaceProps {
     cutterSeat: number;
     cutterName: string;
     isHumanCutter: boolean;
-    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging';
+    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging' | 'stowing';
     cutIndex?: number;
     pileACount: number;
     pileBCount: number;
@@ -366,6 +366,16 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   const [showEmotePicker, setShowEmotePicker] = React.useState(false);
   const [hoveredHandCardId, setHoveredHandCardId] = React.useState<string | null>(null);
   const [hoveredCutIndex, setHoveredCutIndex] = React.useState<number | null>(null);
+  const [isSpread, setIsSpread] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (deckCutState?.isActive && deckCutState.step === 'waiting_cut') {
+      const t = window.setTimeout(() => setIsSpread(true), 60);
+      return () => window.clearTimeout(t);
+    } else if (!deckCutState?.isActive) {
+      setIsSpread(false);
+    }
+  }, [deckCutState?.isActive, deckCutState?.step]);
   const isFourPlayers = players.length === 4;
   const user = players[0];
   const isCountingActive = Boolean(onTableCountState?.isActive);
@@ -1152,139 +1162,168 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               )}
             </div>
           </div>
-        ) : deckCutState?.isActive ? (
-          /* IN-TABLE PHYSICAL DECK CUT VIEW (MASADA YAYILAN FİZİKİ DESTE KESME) */
-          <div className="relative w-full max-w-xl sm:max-w-2xl min-h-[140px] flex flex-col items-center justify-center select-none py-2 px-2 animate-in zoom-in-95 duration-200">
-            {/* Instruction Banner on table felt */}
-            <div className="mb-2 px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wide flex items-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.6)] z-40 animate-pulse">
-              <Scissors className="w-4 h-4 text-amber-400 animate-bounce" />
-              <span>
-                {deckCutState.step === 'waiting_cut'
-                  ? deckCutState.isHumanCutter
-                    ? '✂️ DESTEYİ KES: Kartlardan birine dokunarak desteyi ikiye böl (Vale kesene yarar!)'
-                    : `✂️ ${deckCutState.cutterName} desteyi kesiyor...`
-                  : deckCutState.step === 'splitting'
-                  ? `✂️ DESTE BÖLÜNDÜ: ${deckCutState.pileACount} & ${deckCutState.pileBCount} Kart`
-                  : deckCutState.step === 'dealing_pot'
-                  ? '🎴 ORTAYA 4 KART DAĞITILIYOR (3 Kapalı + 1 Açık)'
-                  : '✨ DESTE BİRLEŞTİRİLİYOR...'}
-              </span>
-            </div>
+        ) : (
+          <div className="relative w-full flex flex-col items-center justify-center min-h-[170px] sm:min-h-[200px]">
+            {/* IN-TABLE PHYSICAL DECK CUT VIEW (MASADA YAYILAN FİZİKİ DESTE KESME) */}
+            {deckCutState?.isActive && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center select-none z-30 pointer-events-none">
+                {/* Instruction Banner on table felt */}
+                <div className="absolute -top-7 sm:-top-9 px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wide flex items-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.6)] z-40 animate-pulse pointer-events-auto">
+                  <Scissors className="w-4 h-4 text-amber-400 animate-bounce" />
+                  <span>
+                    {deckCutState.step === 'waiting_cut'
+                      ? deckCutState.isHumanCutter
+                        ? '✂️ DESTEYİ KES: Kartlardan birine dokunarak desteyi ikiye böl (Vale kesene yarar!)'
+                        : `✂️ ${deckCutState.cutterName} desteyi kesiyor...`
+                      : deckCutState.step === 'splitting'
+                      ? `✂️ DESTE BÖLÜNÜYOR: ${deckCutState.pileACount} & ${deckCutState.pileBCount} Kart`
+                      : deckCutState.step === 'dealing_pot'
+                      ? '🎴 ORTAYA 4 KART DAĞITILIYOR (3 Kapalı + 1 Açık)'
+                      : deckCutState.step === 'merging'
+                      ? '✨ DESTE BİRLEŞTİRİLİYOR (Kalan parça kesenin üstüne konuyor)...'
+                      : '✨ DESTE YUVAYA YERLEŞTİRİLİYOR...'}
+                  </span>
+                </div>
 
-            {deckCutState.step === 'waiting_cut' ? (
-              /* FANNED 52 CARDS SPREAD ACROSS TABLE FELT */
-              <div className="relative w-full h-24 sm:h-28 flex items-center justify-center">
-                {Array.from({ length: 52 }).map((_, idx) => {
-                  const offsetPercent = ((idx - 25.5) / 26) * 44; // -44% to +44%
-                  const rotationDeg = ((idx - 25.5) / 26) * 12;
-                  const isHovered = hoveredCutIndex === idx;
+                {/* FANNED / SPLIT / MERGING 52 PHYSICAL CARDS SPREAD ACROSS TABLE FELT */}
+                <div className="relative w-full h-24 sm:h-28 flex items-center justify-center">
+                  {Array.from({ length: 52 }).map((_, idx) => {
+                    const isSm = typeof window !== 'undefined' && window.innerWidth >= 640;
+                    const pileOffset = isSm ? 140 : 105;
+                    const cutIdx = deckCutState.cutIndex ?? 26;
+                    const isLeftPile = idx < cutIdx;
 
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        if (deckCutState.isHumanCutter && onCutDeck) {
-                          onCutDeck(idx);
+                    let cardLeft = '50%';
+                    let cardTransform = 'translate(-50%, 0) rotate(0deg)';
+                    let cardZIndex = idx + 1;
+                    let cardTransition =
+                      'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+
+                    if (deckCutState.step === 'waiting_cut') {
+                      const maxOffset = isSm ? 44 : 38;
+                      const offsetPercent = isSpread ? ((idx - 25.5) / 26) * maxOffset : 0;
+                      const rotDeg = isSpread ? ((idx - 25.5) / 26) * 12 : 0;
+                      const isHovered = hoveredCutIndex === idx;
+
+                      cardLeft = `calc(50% + ${offsetPercent}%)`;
+                      cardTransform = `translate(-50%, ${isHovered ? '-16px' : '0px'}) rotate(${rotDeg}deg) scale(${
+                        isHovered ? 1.08 : 1
+                      })`;
+                      cardZIndex = isHovered ? 60 : idx + 1;
+                      cardTransition = isSpread
+                        ? 'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s ease-out'
+                        : 'none';
+                    } else if (
+                      deckCutState.step === 'splitting' ||
+                      deckCutState.step === 'dealing_pot'
+                    ) {
+                      if (isLeftPile) {
+                        const layer = idx;
+                        cardLeft = `calc(50% - ${pileOffset}px)`;
+                        cardTransform = `translate(-50%, ${
+                          (layer - cutIdx / 2) * -0.6
+                        }px) rotate(${(layer - cutIdx / 2) * 0.25}deg)`;
+                        cardZIndex = layer + 1;
+                      } else {
+                        const layer = idx - cutIdx;
+                        cardLeft = `calc(50% + ${pileOffset}px)`;
+                        cardTransform = `translate(-50%, ${
+                          (layer - (52 - cutIdx) / 2) * -0.6
+                        }px) rotate(${(layer - (52 - cutIdx) / 2) * 0.25}deg)`;
+                        cardZIndex = layer + 1;
+                      }
+                      cardTransition =
+                        'left 0.55s cubic-bezier(0.25, 1, 0.5, 1), transform 0.55s cubic-bezier(0.25, 1, 0.5, 1)';
+                    } else if (deckCutState.step === 'merging') {
+                      if (isLeftPile) {
+                        const layer = idx;
+                        cardLeft = `calc(50% - ${pileOffset}px)`;
+                        cardTransform = `translate(-50%, ${
+                          (layer - cutIdx / 2) * -0.5
+                        }px) rotate(0deg)`;
+                        cardZIndex = layer + 1;
+                      } else {
+                        // Pile B glides and lands on top of Pile A!
+                        const layerOnTop = idx - cutIdx + cutIdx;
+                        cardLeft = `calc(50% - ${pileOffset}px)`;
+                        cardTransform = `translate(-50%, ${
+                          (layerOnTop - 26) * -0.6
+                        }px) rotate(0deg)`;
+                        cardZIndex = 40 + idx;
+                      }
+                      cardTransition =
+                        'left 0.65s cubic-bezier(0.25, 1, 0.45, 1), transform 0.65s cubic-bezier(0.25, 1, 0.45, 1)';
+                    } else if (deckCutState.step === 'stowing') {
+                      cardLeft = `calc(50% - ${isSm ? 130 : 100}px)`;
+                      cardTransform = `translate(-50%, ${(idx - 26) * -0.5}px) scale(0.95)`;
+                      cardZIndex = idx + 1;
+                      cardTransition = 'all 0.45s cubic-bezier(0.25, 1, 0.5, 1)';
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          if (
+                            deckCutState.step === 'waiting_cut' &&
+                            deckCutState.isHumanCutter &&
+                            onCutDeck
+                          ) {
+                            onCutDeck(idx);
+                          }
+                        }}
+                        onMouseEnter={() =>
+                          deckCutState.step === 'waiting_cut' &&
+                          deckCutState.isHumanCutter &&
+                          setHoveredCutIndex(idx)
                         }
-                      }}
-                      onMouseEnter={() => deckCutState.isHumanCutter && setHoveredCutIndex(idx)}
-                      onMouseLeave={() => deckCutState.isHumanCutter && setHoveredCutIndex(null)}
-                      style={{
-                        position: 'absolute',
-                        left: `calc(50% + ${offsetPercent}%)`,
-                        transform: `translate(-50%, ${isHovered ? '-14px' : '0px'}) rotate(${rotationDeg}deg) scale(${isHovered ? 1.08 : 1})`,
-                        zIndex: isHovered ? 60 : idx + 1,
-                        transition: 'transform 0.15s ease-out'
-                      }}
-                      className={`w-12 sm:w-14 h-16 sm:h-20 rounded-lg shadow-md ${
-                        deckCutState.isHumanCutter
-                          ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(245,158,11,0.9)] ring-1 hover:ring-2 ring-amber-400/80'
-                          : 'pointer-events-none opacity-90'
-                      }`}
-                    >
-                      <CardBackSurface cardBack={cardBack} />
-                    </div>
-                  );
-                })}
-              </div>
-            ) : deckCutState.step === 'splitting' || deckCutState.step === 'dealing_pot' ? (
-              /* TWO DISTINCT PHYSICAL PILES SIDE BY SIDE ON THE TABLE */
-              <div className="flex items-center justify-center gap-8 sm:gap-16 my-2 animate-in fade-in duration-200">
-                {/* Pile A (Cut portion) */}
-                <div className="flex flex-col items-center animate-in slide-in-from-left duration-300">
-                  <div className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl shadow-xl ring-2 ring-amber-400/50`}>
-                    {Array.from({ length: Math.min(8, Math.ceil(deckCutState.pileACount / 6)) }).map((_, layerIdx) => (
-                      <div
-                        key={layerIdx}
+                        onMouseLeave={() =>
+                          deckCutState.step === 'waiting_cut' &&
+                          deckCutState.isHumanCutter &&
+                          setHoveredCutIndex(null)
+                        }
                         style={{
                           position: 'absolute',
-                          inset: 0,
-                          transform: `translate3d(${layerIdx * -1.2}px, ${layerIdx * -1.5}px, 0)`
+                          left: cardLeft,
+                          transform: cardTransform,
+                          zIndex: cardZIndex,
+                          transition: cardTransition
                         }}
-                        className="rounded-xl shadow-md"
+                        className={`w-12 sm:w-14 h-16 sm:h-20 rounded-lg shadow-md ${
+                          deckCutState.step === 'waiting_cut' && deckCutState.isHumanCutter
+                            ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(245,158,11,0.9)] ring-1 hover:ring-2 ring-amber-400/80 pointer-events-auto'
+                            : 'pointer-events-none'
+                        }`}
                       >
                         <CardBackSurface cardBack={cardBack} />
                       </div>
-                    ))}
-                  </div>
-                  <span className="mt-2 text-[10px] font-cyber text-amber-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-amber-400/30 shadow-md">
-                    Kesen Parça: {deckCutState.pileACount}
-                  </span>
+                    );
+                  })}
                 </div>
 
-                <div className="flex flex-col items-center text-amber-400">
-                  <Scissors className="w-6 h-6 animate-pulse" />
-                  <span className="text-[10px] font-bold mt-1 text-slate-300">KESİLDİ</span>
-                </div>
-
-                {/* Pile B (Remaining portion) */}
-                <div className="flex flex-col items-center animate-in slide-in-from-right duration-300">
-                  <div className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl shadow-xl ring-2 ring-cyan-400/50`}>
-                    {Array.from({ length: Math.min(8, Math.ceil(deckCutState.pileBCount / 6)) }).map((_, layerIdx) => (
-                      <div
-                        key={layerIdx}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          transform: `translate3d(${layerIdx * -1.2}px, ${layerIdx * -1.5}px, 0)`
-                        }}
-                        className="rounded-xl shadow-md"
-                      >
-                        <CardBackSurface cardBack={cardBack} />
-                      </div>
-                    ))}
+                {/* Pile Badges under the piles during splitting & dealing */}
+                {(deckCutState.step === 'splitting' || deckCutState.step === 'dealing_pot') && (
+                  <div className="absolute -bottom-7 sm:-bottom-8 flex items-center justify-between w-full max-w-sm px-6 animate-in fade-in duration-300">
+                    <span className="text-[10px] font-cyber text-amber-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-amber-400/40 shadow-md">
+                      ✂️ Kesen: {deckCutState.pileACount}
+                    </span>
+                    <span className="text-[10px] font-cyber text-cyan-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-cyan-400/40 shadow-md">
+                      📦 Kalan: {deckCutState.pileBCount}
+                    </span>
                   </div>
-                  <span className="mt-2 text-[10px] font-cyber text-cyan-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-cyan-400/30 shadow-md">
-                    Kalan Parça: {deckCutState.pileBCount}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              /* MERGING BACK INTO ACTIVE DECK */
-              <div className="flex flex-col items-center animate-in zoom-in-90 duration-300">
-                <div className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl shadow-2xl ring-2 ring-emerald-400/80`}>
-                  {Array.from({ length: 8 }).map((_, layerIdx) => (
-                    <div
-                      key={layerIdx}
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        transform: `translate3d(${layerIdx * -1.2}px, ${layerIdx * -1.5}px, 0)`
-                      }}
-                      className="rounded-xl shadow-md"
-                    >
-                      <CardBackSurface cardBack={cardBack} />
-                    </div>
-                  ))}
-                </div>
-                <span className="mt-2 text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-emerald-400/30 shadow-md">
-                  Deste Birleştirildi (52 Kart)
-                </span>
+                )}
+
+                {deckCutState.step === 'merging' && (
+                  <div className="absolute -bottom-7 sm:-bottom-8 flex items-center justify-center animate-in fade-in duration-200">
+                    <span className="text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/90 px-3 py-0.5 rounded-full border border-emerald-400/40 shadow-md">
+                      ✨ Deste Birleştirildi (52 Kart)
+                    </span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center gap-6 sm:gap-12 mx-auto">
+
+            <div className={`flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 ${deckCutState?.isActive ? 'opacity-85' : 'opacity-100'}`}>
             {/* Physical Deck Stack on the Left of the Pot (Exact scale(1) to match shuffle end) */}
             <div className="flex flex-col items-center">
               <div
@@ -1423,6 +1462,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               )}
             </div>
           </div>
+        </div>
         )}
 
         {/* Right Player (Seat 1 - Kurnaz Bot in 4-Player mode) */}

@@ -116,8 +116,14 @@ export class ParticleEngine {
 
   public resize() {
     if (!this.canvas) return;
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    this.canvas.width = window.innerWidth * dpr;
+    this.canvas.height = window.innerHeight * dpr;
+    this.canvas.style.width = `${window.innerWidth}px`;
+    this.canvas.style.height = `${window.innerHeight}px`;
+    if (this.ctx) {
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
   }
 
   private seedAmbientParticles() {
@@ -478,7 +484,8 @@ export class ParticleEngine {
       sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
 
       if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
-        this.shockwaves.splice(i, 1);
+        this.shockwaves[i] = this.shockwaves[this.shockwaves.length - 1];
+        this.shockwaves.pop();
         continue;
       }
 
@@ -499,7 +506,8 @@ export class ParticleEngine {
       st.alpha -= 0.038;
 
       if (st.alpha <= 0 || st.length >= st.maxLength) {
-        this.streaks.splice(i, 1);
+        this.streaks[i] = this.streaks[this.streaks.length - 1];
+        this.streaks.pop();
         continue;
       }
 
@@ -531,7 +539,8 @@ export class ParticleEngine {
       p.alpha -= p.decay;
 
       if (p.alpha <= 0) {
-        this.particles.splice(i, 1);
+        this.particles[i] = this.particles[this.particles.length - 1];
+        this.particles.pop();
         continue;
       }
 

@@ -560,13 +560,16 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       <style>{`
         @keyframes cardCountFlip {
           0% {
-            transform: perspective(600px) rotateY(150deg) translateY(-10px) scale(1.18);
+            transform: perspective(900px) rotateY(140deg) translateY(-8px) scale(1.12);
+            opacity: 0.3;
           }
           65% {
-            transform: perspective(600px) rotateY(-10deg) translateY(-3px) scale(1.06);
+            transform: perspective(900px) rotateY(-3deg) translateY(-2px) scale(1.03);
+            opacity: 1;
           }
           100% {
-            transform: perspective(600px) rotateY(0deg) translateY(0) scale(1);
+            transform: perspective(900px) rotateY(0deg) translateY(0) scale(1);
+            opacity: 1;
           }
         }
         @keyframes emotePop2s {
@@ -575,15 +578,19 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             opacity: 0;
           }
           14% {
-            transform: translate(-50%, -6px) scale(1.22);
+            transform: translate(-50%, -6px) scale(1.18);
             opacity: 1;
           }
           24% {
             transform: translate(-50%, -4px) scale(1);
             opacity: 1;
           }
+          50% {
+            transform: translate(-50%, -8px) scale(1.03);
+            opacity: 1;
+          }
           80% {
-            transform: translate(-50%, -6px) scale(1);
+            transform: translate(-50%, -5px) scale(1);
             opacity: 1;
           }
           100% {

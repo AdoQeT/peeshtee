@@ -1070,6 +1070,13 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         sound.playUnoShout();
         showSeatBubble(targetLocalIdx, '🔥 UNO DEDİ!', 2500);
         triggerBanner(`🔥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} "UNO!" DEDİ!`, 'uno');
+      } else if (event.type === 'MP_UNO_PASS') {
+        if (event.senderPeerId === multiplayerManager.instanceId) return;
+        const currentPlayers = playersSyncRef.current;
+        const N = currentPlayers.length;
+        const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
+        showSeatBubble(targetLocalIdx, '⏭️ Pas Geçti', 1800);
+        advanceTurn(1);
       } else if (event.type === 'MP_MATCH_ABORTED') {
         setMatchAbortedReason(
           event.reason === 'surrender'
@@ -1120,7 +1127,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
     const sourceRect = e ? (e.currentTarget as HTMLElement).getBoundingClientRect() : undefined;
 
-    if (card.color === 'wild') {
+    if (card.color === 'wild' || card.value === 'wild' || card.value === 'wild_draw4') {
       setWildPickerRect(sourceRect);
       setWildPickerCard(card);
     } else {
@@ -1200,6 +1207,13 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     setHasDrawnPlayableThisTurn(false);
     setNewlyDrawnCardId(null);
     showSeatBubble(0, '⏭️ Pas Geçti');
+    if (isMultiplayer) {
+      multiplayerManager.send({
+        type: 'MP_UNO_PASS',
+        seatIndex: mySeatIndex,
+        senderPeerId: multiplayerManager.instanceId
+      });
+    }
     advanceTurn(1);
   };
 
@@ -2033,10 +2047,20 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         </div>
       </div>
 
-      {/* FLOATING HUD COLOR SELECTOR (No black overlay, cards remain fully visible!) */}
+      {/* FLOATING HUD COLOR SELECTOR (Click outside or 'Vazgeç' to cancel) */}
       {wildPickerCard && (
-        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-4">
-          <div className="pointer-events-auto p-5 sm:p-6 rounded-3xl bg-slate-950/95 border-2 border-white/25 shadow-[0_0_80px_rgba(0,0,0,0.95)] backdrop-blur-md text-center max-w-xs sm:max-w-sm w-full animate-in zoom-in-95 duration-200">
+        <div
+          onClick={() => {
+            sound.playClick();
+            setWildPickerCard(null);
+            setWildPickerRect(undefined);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] cursor-pointer animate-in fade-in duration-150"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="p-5 sm:p-6 rounded-3xl bg-slate-950/95 border-2 border-white/25 shadow-[0_0_80px_rgba(0,0,0,0.95)] backdrop-blur-md text-center max-w-xs sm:max-w-sm w-full animate-in zoom-in-95 duration-200 cursor-default"
+          >
             <div className="inline-flex p-2.5 rounded-2xl bg-purple-500/25 border border-purple-400/40 text-purple-300 mb-2 shadow-inner">
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
@@ -2088,6 +2112,17 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 );
               })}
             </div>
+
+            <button
+              onClick={() => {
+                sound.playClick();
+                setWildPickerCard(null);
+                setWildPickerRect(undefined);
+              }}
+              className="mt-3.5 w-full py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white text-xs font-bold transition-all border border-white/10 cursor-pointer"
+            >
+              Vazgeç (Geri Al)
+            </button>
           </div>
         </div>
       )}

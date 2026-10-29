@@ -30,10 +30,10 @@ export default {
           '50%': { filter: 'drop-shadow(0 0 35px rgba(249, 115, 22, 0.9))' },
         },
         shake: {
-          '10%, 90%': { transform: 'translate3d(-2px, 0, 0) rotate(-1deg)' },
-          '20%, 80%': { transform: 'translate3d(4px, 0, 0) rotate(2deg)' },
-          '30%, 50%, 70%': { transform: 'translate3d(-6px, 0, 0) rotate(-2deg)' },
-          '40%, 60%': { transform: 'translate3d(6px, 0, 0) rotate(1deg)' },
+          '10%, 90%': { transform: 'translate3d(-2px, 0, 0) rotate(-1.5deg)' },
+          '20%, 80%': { transform: 'translate3d(4px, 0, 0) rotate(2.5deg)' },
+          '30%, 50%, 70%': { transform: 'translate3d(-6px, 0, 0) rotate(-2.5deg)' },
+          '40%, 60%': { transform: 'translate3d(6px, 0, 0) rotate(1.5deg)' },
         },
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },

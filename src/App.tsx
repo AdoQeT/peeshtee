@@ -284,7 +284,15 @@ export default function App() {
       const roomParam = urlParams.get('oda') || urlParams.get('room') || urlParams.get('kod');
       if (roomParam) {
         const trimmed = roomParam.trim().toUpperCase();
-        const formatted = trimmed.startsWith('PST-') ? trimmed : `PST-${trimmed}`;
+        const clean = trimmed.replace(/[^A-Z0-9]/g, '');
+        let formatted = trimmed;
+        if (clean.startsWith('UNO')) {
+          formatted = `UNO-${clean.slice(3)}`;
+        } else if (clean.startsWith('PST')) {
+          formatted = `PST-${clean.slice(3)}`;
+        } else {
+          formatted = `PST-${clean}`;
+        }
         setInitialJoinCode(formatted);
         setIsMultiplayerOpen(true);
       }
@@ -2117,6 +2125,8 @@ export default function App() {
         console.warn(e);
       }
       setIsMultiplayerGame(false);
+      setMyMultiplayerSeat(0);
+      myMultiplayerSeatRef.current = 0;
     }
     clearScheduledTimers();
     sound.playClick();
@@ -2159,6 +2169,11 @@ export default function App() {
 
       if (isCtrlShiftX || isAltX) {
         e.preventDefault();
+        if (isMultiplayerGameRef.current) {
+          sound.playClick();
+          setDevToast('🔒 Çok oyunculu modda elleri görme hilesi engellenmiştir');
+          return;
+        }
         setDevSeeAllHands(prev => {
           const next = !prev;
           sound.playClick();
@@ -2302,6 +2317,8 @@ export default function App() {
         <UnoGameView
           onExitToMenu={() => {
             setIsMultiplayerGame(false);
+      setMyMultiplayerSeat(0);
+      myMultiplayerSeatRef.current = 0;
             setScreen('menu');
           }}
           playerCount={isMultiplayerGame ? (settings.playerCount || 4) : 4}
@@ -2371,7 +2388,7 @@ export default function App() {
             onPlayCard={(card, rect, tilt) =>
               handlePlayCardWithAnimation(0, card, rect, tilt)
             }
-            devSeeAllHands={devSeeAllHands}
+            devSeeAllHands={devSeeAllHands && !isMultiplayerGame}
             isGameOver={Boolean(roundScores?.isGameOver)}
             gameOverWinner={roundScores?.winner ?? null}
             roundScores={roundScores}
@@ -2506,7 +2523,15 @@ export default function App() {
         isOpen={isFriendsOpen}
         onJoinFriendRoom={(code: string) => {
           const trimmed = code.trim().toUpperCase();
-          const formatted = trimmed.startsWith('PST-') ? trimmed : `PST-${trimmed}`;
+          const clean = trimmed.replace(/[^A-Z0-9]/g, '');
+          let formatted = trimmed;
+          if (clean.startsWith('UNO')) {
+            formatted = `UNO-${clean.slice(3)}`;
+          } else if (clean.startsWith('PST')) {
+            formatted = `PST-${clean.slice(3)}`;
+          } else {
+            formatted = `PST-${clean}`;
+          }
           setInitialJoinCode(formatted);
           setIsFriendsOpen(false);
           setIsMultiplayerOpen(true);
@@ -2515,7 +2540,7 @@ export default function App() {
           setPendingFriendInvite({
             friendCode: friend.friendCode,
             name: friend.name,
-            gameType: friend.gameType
+            gameType: screen === 'uno' ? 'uno' : 'pisti'
           });
           setIsFriendsOpen(false);
           setIsMultiplayerOpen(true);
@@ -2600,7 +2625,7 @@ export default function App() {
       )}
 
       {/* Dev Peek Active Indicator Pill (Clickable to deactivate) */}
-      {devSeeAllHands && (
+      {devSeeAllHands && !isMultiplayerGame && (
         <button
           onClick={() => {
             setDevSeeAllHands(false);
@@ -2666,6 +2691,8 @@ export default function App() {
               onClick={() => {
                 setMatchAbortedInfo(null);
                 setIsMultiplayerGame(false);
+      setMyMultiplayerSeat(0);
+      myMultiplayerSeatRef.current = 0;
                 clearScheduledTimers();
                 setFlyingCards([]);
                 setHiddenCardIds(new Set());

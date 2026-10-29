@@ -83,6 +83,11 @@ export type MultiplayerEvent =
       senderPeerId?: string;
     }
   | {
+      type: 'MP_UNO_PASS';
+      seatIndex: number;
+      senderPeerId?: string;
+    }
+  | {
       type: 'MP_UNO_NEXT_ROUND';
       seedCards: any[];
       startingTurnSeat: number;
@@ -186,6 +191,9 @@ export class MultiplayerManager {
 
   public normalizeCode(code: string): string {
     const cleaned = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (cleaned.startsWith('UNO')) {
+      return `UNO-${cleaned.slice(3)}`;
+    }
     if (cleaned.startsWith('PST')) {
       return `PST-${cleaned.slice(3)}`;
     }
@@ -382,8 +390,12 @@ export class MultiplayerManager {
 
     this.seenMsgIds.add(envelope.msgId);
     if (this.seenMsgIds.size > 500) {
-      const first = this.seenMsgIds.values().next().value;
-      if (first) this.seenMsgIds.delete(first);
+      const toRemove = this.seenMsgIds.size - 250;
+      const iter = this.seenMsgIds.values();
+      for (let i = 0; i < toRemove; i++) {
+        const nextVal = iter.next().value;
+        if (nextVal) this.seenMsgIds.delete(nextVal);
+      }
     }
 
     this.lastRemoteMessageTime = Date.now();

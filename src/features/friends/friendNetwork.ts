@@ -72,6 +72,7 @@ class FriendNetworkManager {
   private currentStatus: 'menu' | 'lobby' | 'playing' = 'menu';
   private currentRoomCode: string | undefined = undefined;
   private currentGameType: 'pisti' | 'uno' = 'pisti';
+  private heartbeatInterval: number | null = null;
   private initialized = false;
 
   public init() {
@@ -132,7 +133,7 @@ class FriendNetworkManager {
     });
 
     // Periodic heartbeat every 8 seconds + prune stale players
-    window.setInterval(() => {
+    this.heartbeatInterval = window.setInterval(() => {
       this.announcePresence();
       const now = Date.now();
       let changed = false;
@@ -267,8 +268,12 @@ class FriendNetworkManager {
     if (this.seenPacketIds.has(wrapper.pktId)) return;
     this.seenPacketIds.add(wrapper.pktId);
     if (this.seenPacketIds.size > 400) {
-      const first = this.seenPacketIds.values().next().value;
-      if (first) this.seenPacketIds.delete(first);
+      const toRemove = this.seenPacketIds.size - 200;
+      const iter = this.seenPacketIds.values();
+      for (let i = 0; i < toRemove; i++) {
+        const val = iter.next().value;
+        if (val) this.seenPacketIds.delete(val);
+      }
     }
 
     const myProfile = getUserProfile();
@@ -364,6 +369,31 @@ class FriendNetworkManager {
     return () => {
       this.noticeListeners = this.noticeListeners.filter(l => l !== cb);
     };
+  }
+
+  public destroy() {
+    if (this.heartbeatInterval !== null) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    this.clients.forEach(c => {
+      try {
+        c.end(true);
+      } catch {}
+    });
+    this.clients = [];
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.close();
+      } catch {}
+      this.broadcastChannel = null;
+    }
+    this.onlinePlayers.clear();
+    this.seenPacketIds.clear();
+    this.listeners = [];
+    this.inviteListeners = [];
+    this.noticeListeners = [];
+    this.initialized = false;
   }
 
   private notifyListeners() {

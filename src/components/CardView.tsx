@@ -376,7 +376,7 @@ export const CardView: React.FC<CardViewProps> = ({
         isHiddenInFlight
           ? 'opacity-0 pointer-events-none'
           : isPlayable
-          ? 'cursor-pointer transition-all duration-200 will-change-transform hover:-translate-y-6 hover:scale-110 hover:z-30 hover:shadow-[0_22px_40px_rgba(0,0,0,0.75)] active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.45)]'
+          ? 'cursor-pointer transition-all duration-200 will-change-transform hover:-translate-y-4 hover:scale-105 hover:z-30 hover:shadow-[0_20px_35px_rgba(0,0,0,0.65)] active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.45)]'
           : 'cursor-default shadow-[0_6px_16px_rgba(0,0,0,0.45)]'
       } ${className}`}
     >

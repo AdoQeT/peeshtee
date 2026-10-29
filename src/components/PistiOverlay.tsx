@@ -10,8 +10,8 @@ export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) 
   useEffect(() => {
     if (!slam) return;
 
-    // Fast, punchy duration (750ms) so it doesn't linger or block the cards!
-    const duration = slam.type === 'five_slam_instant_win' ? 1200 : 750;
+    // Calibrated duration (850ms) perfectly matching the 800ms bannerPop keyframe so the final exit frame is never chopped
+    const duration = slam.type === 'five_slam_instant_win' ? 1300 : 850;
     const timer = setTimeout(() => {
       onComplete();
     }, duration);

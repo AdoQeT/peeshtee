@@ -417,6 +417,9 @@ class SoundEngine {
    * Procedural Background Ambience Engine (Kıraathane, Gece Cazı, Huzurlu Yağmur)
    */
   public setAmbience(type: AmbienceType) {
+    if (this.currentAmbience === type && (type === 'none' || this.ambienceActiveNodes.length > 0)) {
+      return;
+    }
     this.currentAmbience = type;
     this.stopAmbience();
 

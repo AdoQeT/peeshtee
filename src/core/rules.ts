@@ -104,8 +104,9 @@ export function evaluatePlay(
   }
 
   // Case 2: Table has 2 or more cards
-  // Match with the top card: Normal trick sweep
+  // Match with the top card: Normal trick sweep (or +5 bonus if 5 played on 5 with rule enabled)
   if (playedCard.value === topCard.value) {
+    const isFiveBonus = playedCard.value === 5 && fiveRuleEnabled;
     return {
       isPisti: false,
       isDoublePisti: false,
@@ -114,7 +115,7 @@ export function evaluatePlay(
       isJackSweep: false,
       capturedCards: [...revealedTableCards, cardWithFaceUp],
       newTableCards: [],
-      pointsAwarded: 0,
+      pointsAwarded: isFiveBonus ? 5 : 0,
       reason: 'match_sweep'
     };
   }
@@ -174,11 +175,12 @@ export function calculateRoundBreakdown(
   let diamonds10Points = 0;
   let clubs2Points = 0;
 
-  // Include regular collected cards + cards stored in crossed Pişti pairs
-  const allCards = [
+  // Include regular collected cards + cards stored in crossed Pişti pairs (safely deduplicated by card.id)
+  const rawCards = [
     ...player.collectedCards,
     ...(player.pistiPairs || []).flatMap(p => [p.bottomCard, p.topCard])
   ];
+  const allCards = Array.from(new Map(rawCards.map(c => [c.id, c])).values());
 
   for (const card of allCards) {
     if (card.value === 1) acesPoints += 1;

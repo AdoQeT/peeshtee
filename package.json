@@ -1,7 +1,7 @@
 {
   "name": "project-pisti",
   "private": true,
-  "version": "1.20.2",
+  "version": "1.21.0",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"

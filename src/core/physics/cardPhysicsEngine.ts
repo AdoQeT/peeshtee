@@ -16,7 +16,7 @@ export interface CardFlightParams {
   waypointScale?: number;
   waypointOffset?: number;
   /** Kart türü: 'deal' = dağıtım, 'play' = oynama, 'sweep' = toplama, 'jack' = vale süpürme */
-  motionType?: 'deal' | 'play' | 'sweep' | 'jack';
+  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
 }
 
 export interface GeneratedFlightPlan {
@@ -74,6 +74,7 @@ class CardPhysicsEngine {
     if (motionType === 'play') durationBias = -30;       // oynanış biraz daha snappy
     if (motionType === 'sweep') durationBias = -50;      // toplama hızlı ve kararlı
     if (motionType === 'jack') durationBias = 20;        // vale süpürme biraz daha dramatik
+    if (motionType === 'pisti_slam') durationBias = 140; // Pişti vururken havada yükselme & taakkk iniş
 
     const adaptiveDuration = Math.round(
       Math.min(580, Math.max(380, baseDurationMs + flightDist * 0.12 + durationBias))
@@ -88,8 +89,8 @@ class CardPhysicsEngine {
     const curveMag = Math.min(55, Math.max(14, flightDist * curveDriveFactor));
 
     // Arc height: play & jack get more loft for drama, deal & sweep stay lower for snappiness
-    const liftFactor = motionType === 'jack' ? 0.35 : motionType === 'play' ? 0.30 : 0.24;
-    const liftY = Math.min(arcHeight, Math.max(48, flightDist * liftFactor));
+    const liftFactor = motionType === 'pisti_slam' ? 0.75 : motionType === 'jack' ? 0.35 : motionType === 'play' ? 0.30 : 0.24;
+    const liftY = motionType === 'pisti_slam' ? 160 : Math.min(arcHeight, Math.max(48, flightDist * liftFactor));
 
     // Easing: play cards spring in with elastic landing; sweep cards ease-in (accelerate)
     const easing =
@@ -139,6 +140,72 @@ class CardPhysicsEngine {
         const shadowY = Math.round(5 + arcSine * 36);
         const shadowBlur = Math.round(8 + arcSine * 38);
         const shadowAlpha = (0.60 - arcSine * 0.22).toFixed(2);
+
+        keyframes.push({
+          offset: t,
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
+          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
+        });
+      }
+    } else if (motionType === 'pisti_slam') {
+      // Pişti / Double Pişti Taakkk Vuruş Fiziği:
+      // 1. Kart havada 160px yükselir, büyür (1.35x), derin gölgesi genişler (Anticipation)
+      // 2. Tepe noktasında hafifçe asılı kalır (Apex Hang)
+      // 3. Son %20'lik dilimde şiddetli kinetik ivmeyle masaya "TAKKK" diye çarpar!
+      const steps = 24;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        let curX: number, curY: number, curRot: number, curScale: number;
+        let shadowY: number, shadowBlur: number, shadowAlpha: string;
+        let pitchX: number, pitchZ: number;
+
+        if (t <= 0.65) {
+          // Faz 1: Yavaşça ve asilce havaya süzülüş (0 -> %65)
+          const subT = t / 0.65;
+          const easeOut = Math.sin(subT * Math.PI * 0.5);
+          curX = startX + (dx * 0.40) * easeOut + nx * (curveMag * 0.6) * easeOut;
+          curY = startY + (dy * 0.40) * easeOut - liftY * easeOut;
+          curRot = startRotation + (targetRotation - startRotation) * (0.3 * easeOut);
+          curScale = startScale + 0.34 * easeOut;
+          pitchX = Math.round(38 * easeOut);
+          pitchZ = Math.round(6 * easeOut);
+          shadowY = Math.round(6 + 55 * easeOut);
+          shadowBlur = Math.round(8 + 58 * easeOut);
+          shadowAlpha = (0.68 - 0.38 * easeOut).toFixed(2);
+        } else if (t <= 0.78) {
+          // Faz 2: Zirvede havada asılı kalma (Apex Hang)
+          const subT = (t - 0.65) / 0.13;
+          curX = startX + dx * 0.40 + (dx * 0.08) * subT;
+          curY = startY + dy * 0.40 - liftY + (liftY * 0.03) * subT;
+          curRot = startRotation + (targetRotation - startRotation) * (0.3 + 0.08 * subT);
+          curScale = startScale + 0.34;
+          pitchX = 38;
+          pitchZ = 6;
+          shadowY = 62;
+          shadowBlur = 66;
+          shadowAlpha = '0.30';
+        } else {
+          // Faz 3: Şiddetli ve Ani İniş — TAAAKKK! (%78 -> %100)
+          const subT = (t - 0.78) / 0.22;
+          // Kübik ivmelenme (gravity crash)
+          const slam = subT * subT * subT;
+          const apexX = startX + dx * 0.48;
+          const apexY = startY + dy * 0.48 - liftY * 0.97;
+          curX = apexX + (targetX - apexX) * slam;
+          curY = apexY + (targetY - apexY) * slam;
+          curRot = startRotation + (targetRotation - startRotation) * (0.38 + 0.62 * slam);
+          curScale = (startScale + 0.34) - 0.34 * slam;
+          pitchX = Math.round(38 * (1 - slam));
+          pitchZ = Math.round(6 * (1 - slam));
+          shadowY = Math.round(62 * (1 - slam) + 3 * slam);
+          shadowBlur = Math.round(66 * (1 - slam) + 4 * slam);
+          shadowAlpha = (0.30 + 0.58 * slam).toFixed(2);
+
+          // Çarpma anında mikro esneme
+          if (t >= 0.96) {
+            curScale = 1.05;
+          }
+        }
 
         keyframes.push({
           offset: t,

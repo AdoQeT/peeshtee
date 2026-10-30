@@ -1,25 +1,30 @@
 /**
  * CardCountingOverlay.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Otantik Pişti Masa İçi Canlı Sayım Seremonisi:
+ * Otantik Pişti 52 Fiziksel Kart Masa İçi Canlı Sayım Sistemi:
  *
- * - SIFIR PENCERE / SIFIR KARARTMA: Çuha ve masa olduğu gibi kalır, hiçbir modal
- *   veya pencere açılmaz (`pointer-events-none`).
- * - 52 kart fiziksel obje mantığı:
- *   Sol tarafta "Kapalı Kalan Deste" (katmanlı sırt), hemen sağında "Sayılmış Açık Deste".
- * - Kart en üstten çuha üzerinde yana doğru süzülerek yüzü yukarı döner (flip) ve
- *   açık desteye oturur ("tık-tık" ritmi).
- * - Eğer kart değerli sayı ise (Karo 10, Sinek 2, As, Vale), açık desteye girmek yerine
- *   sağdaki "Değerli Puanlar" sırasına tek tek dizilir ve parıldayarak puan eklenir.
- * - Kullanıcı ve rakip eşzamanlı sayılır; toplam kart adedi her an eksiksiz 52 adettir.
- * - Sayım bitince masanın merkezinde net bir çoğunluk yazısı (+3P) ve "Sonraki El" çıkar.
+ * 1. SIFIR PENCERE / SIFIR KARARTMA: Oyun alanı, çuha ve masa olduğu gibi kalır (`pointer-events-none`).
+ * 2. HAVUZDAN MASAYA FİZİKSEL KAYMA (Physical Deck Glide):
+ *    Sayım başladığında, toplanan kart destesi sol köşedeki havuzdan ('collectedEls')
+ *    çuhanın üzerinden fiziksel olarak kayarak oyuncunun önüne süzülür (Işınlanma 0).
+ * 3. OYUNCU PERSPEKTİFLERİ & MASA DÜZENİ:
+ *    - Alt Oyuncu (Sen): 0° rotasyon, el alanının biraz ilerisinde, çuhanın ortasına doğru doğal mesafede.
+ *    - Üst Rakip: 180° rotasyon, kendine dönük.
+ *    - 4 Kişilikte Sol Oyuncu: +90° rotasyon, masa kenarına paralel.
+ *    - 4 Kişilikte Sağ Oyuncu: -90° rotasyon, masa kenarına paralel.
+ * 4. TIK-TIK ÇUHA ÜZERİNDE KAYARAK DÖNEN KARTLAR:
+ *    - Kapalı deste (sol), hemen yanında açık deste (sağ).
+ *    - Kart kapalı destenin üstünden kalkar, çuha üzerinde yana süzülerek 180° döner ve açık desteye oturur ("tık").
+ *    - Değerli sayı kartları (Karo 10, Sinek 2, As, Vale) açık desteye binmez; sağdaki "Puanlar" sırasına tek başına dizilir.
+ * 5. BİTİŞ: Masa merkezinde çoğunluk rozeti (+3P) ve "Sonraki El" butonu belirir.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { Card, OnTableCountState, TableTheme, Player } from '../types/game';
 import { CardFrontSurface, CardBackSurface } from './CardView';
 import { DetailedRoundScore } from '../core/rules';
+import { TableDomRefs } from './TableSurface';
 import { sound } from '../core/audio/soundEngine';
 import confetti from 'canvas-confetti';
 import { RotateCcw, ArrowRight, Trophy } from 'lucide-react';
@@ -36,6 +41,7 @@ interface Props {
     isGameOver: boolean;
   } | null;
   players: Player[];
+  tableRefs?: React.MutableRefObject<TableDomRefs>;
   theme?: TableTheme;
   targetScore: number;
   isMultiplayer?: boolean;
@@ -56,6 +62,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   oppCards,
   roundScores,
   players,
+  tableRefs,
   theme = 'traditional',
   targetScore: _targetScore,
   isMultiplayer = false,
@@ -68,13 +75,15 @@ export const CardCountingOverlay: React.FC<Props> = ({
   onToggleReady,
   onCountingDone,
 }) => {
+  // Masaya ilerleme animasyon fazı: 'sliding_in' (havuzdan süzülüş) -> 'counting' -> 'completed'
   const [phase, setPhase] = useState<'sliding_in' | 'counting' | 'completed'>('sliding_in');
+  const [isGliding, setIsGliding] = useState(true);
 
   // Eşzamanlı Deste İndeksleri
   const [userIndex, setUserIndex] = useState(0);
   const [oppIndex, setOppIndex] = useState(0);
 
-  // Ayrılan Sayı Kartları
+  // Ayrılan Değerli Sayı Kartları
   const [userPointCards, setUserPointCards] = useState<Card[]>([]);
   const [oppPointCards, setOppPointCards] = useState<Card[]>([]);
 
@@ -89,12 +98,19 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const [userFlippingCard, setUserFlippingCard] = useState<{ card: Card; index: number; isPoint: boolean } | null>(null);
   const [oppFlippingCard, setOppFlippingCard] = useState<{ card: Card; index: number; isPoint: boolean } | null>(null);
 
+  // Havuzdan istasyona fiziksel başlangıç delta koordinatları (px)
+  const [userPoolOffset, setUserPoolOffset] = useState({ x: -160, y: 60 });
+  const [oppPoolOffset, setOppPoolOffset] = useState({ x: -160, y: -60 });
+
   const timerRef = useRef<number | null>(null);
   const startedRef = useRef(false);
 
+  const userStationRef = useRef<HTMLDivElement | null>(null);
+  const oppStationRef = useRef<HTMLDivElement | null>(null);
+
   const isFourPlayers = players.length === 4;
   const user = players[0];
-  const opp = players[1];
+  const opp = isFourPlayers ? players[2] : players[1];
   const isGameOver = Boolean(roundScores?.isGameOver);
 
   const userPistiPoints = countState.userPistiPoints ?? 0;
@@ -102,7 +118,38 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
   const stepDelay = isFast ? 85 : 180;
 
-  // Başlatma ve Deste Masaya Geliş
+  // Havuzdaki destelerin başlangıç konumunu tam olarak ölç
+  useLayoutEffect(() => {
+    if (!isActive) return;
+
+    try {
+      const userPoolEl = tableRefs?.current?.collectedEls?.[0];
+      const oppPoolIdx = isFourPlayers ? 2 : 1;
+      const oppPoolEl = tableRefs?.current?.collectedEls?.[oppPoolIdx];
+
+      if (userPoolEl && userStationRef.current) {
+        const poolRect = userPoolEl.getBoundingClientRect();
+        const stationRect = userStationRef.current.getBoundingClientRect();
+        setUserPoolOffset({
+          x: poolRect.left - stationRect.left,
+          y: poolRect.top - stationRect.top
+        });
+      }
+
+      if (oppPoolEl && oppStationRef.current) {
+        const poolRect = oppPoolEl.getBoundingClientRect();
+        const stationRect = oppStationRef.current.getBoundingClientRect();
+        setOppPoolOffset({
+          x: poolRect.left - stationRect.left,
+          y: poolRect.top - stationRect.top
+        });
+      }
+    } catch {
+      // Fallback relative pool offsets
+    }
+  }, [isActive, isFourPlayers, tableRefs]);
+
+  // Başlatma ve Havuzdan Masaya Süzülme (Physical Glide)
   useEffect(() => {
     if (!isActive) {
       startedRef.current = false;
@@ -114,6 +161,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
     startedRef.current = true;
 
     setPhase('sliding_in');
+    setIsGliding(true);
     setUserIndex(0);
     setOppIndex(0);
     setUserPointCards([]);
@@ -125,12 +173,21 @@ export const CardCountingOverlay: React.FC<Props> = ({
     setUserFlippingCard(null);
     setOppFlippingCard(null);
 
-    // Desteler sol toplama köşesinden masaya kayarak oturur
-    const t = window.setTimeout(() => {
-      setPhase('counting');
-    }, 380);
+    // Havuzdan masaya geliş süzülüşü (540ms)
+    sound.playSweepGather();
 
-    return () => window.clearTimeout(t);
+    const glideTimer = window.setTimeout(() => {
+      setIsGliding(false);
+    }, 50);
+
+    const readyTimer = window.setTimeout(() => {
+      setPhase('counting');
+    }, 580);
+
+    return () => {
+      window.clearTimeout(glideTimer);
+      window.clearTimeout(readyTimer);
+    };
   }, [isActive]);
 
   // Eşzamanlı Masada Tıkır Tıkır Sayma Motoru
@@ -149,7 +206,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
       if (countState.userMajority) {
         sound.playDoublePisti();
-        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 90, spread: 75, origin: { y: 0.55 } });
       } else {
         sound.playMatchSweep();
       }
@@ -208,7 +265,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
     if (countState.userMajority) {
       sound.playDoublePisti();
-      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      confetti({ particleCount: 75, spread: 65, origin: { y: 0.55 } });
     }
   }, [userCards, oppCards, countState.userMajority, onCountingDone]);
 
@@ -223,7 +280,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
     oppPistiPoints +
     (isDone && countState.oppMajority ? 3 : 0);
 
-  // Kullanıcı ve Rakip Açılmış Normal Kartları (Sayı kartları ayrıldığı için destede kalanlar)
+  // Açılmış Normal Kartlar (Puan kartları ayrıldığı için destede kalanlar)
   const userCountedPile = userCards.slice(0, userIndex).filter(c => (c.basePoints || 0) === 0);
   const oppCountedPile = oppCards.slice(0, oppIndex).filter(c => (c.basePoints || 0) === 0);
 
@@ -233,12 +290,12 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const userRemainingCount = Math.max(0, userCards.length - userIndex);
   const oppRemainingCount = Math.max(0, oppCards.length - oppIndex);
 
-  const userRemainingLayers = Math.min(10, Math.max(userRemainingCount > 0 ? 1 : 0, Math.ceil(userRemainingCount / 2.5)));
-  const oppRemainingLayers = Math.min(10, Math.max(oppRemainingCount > 0 ? 1 : 0, Math.ceil(oppRemainingCount / 2.5)));
+  const userRemainingLayers = Math.min(12, Math.max(userRemainingCount > 0 ? 1 : 0, Math.ceil(userRemainingCount / 2.2)));
+  const oppRemainingLayers = Math.min(12, Math.max(oppRemainingCount > 0 ? 1 : 0, Math.ceil(oppRemainingCount / 2.2)));
 
   return (
-    <div className="fixed inset-0 z-40 pointer-events-none flex flex-col justify-between p-2 sm:p-4 select-none">
-      {/* ── TOP RIGHT: Minik Hız Kontrol Çipleri (Pencere/banner YOK!) ── */}
+    <div className="fixed inset-0 z-40 pointer-events-none select-none overflow-hidden">
+      {/* ── TOP RIGHT: Minik Sayım Kontrol Butonları (Pencere/banner YOK!) ── */}
       {!isDone && (
         <div className="absolute top-3 right-3 sm:right-6 flex items-center gap-2 pointer-events-auto z-50">
           <button
@@ -258,12 +315,22 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ── 1. RAKİBİN MASADAKİ DESTESİ (DOĞRUDAN ÇUHANIN ÜSTÜNDE) ── */}
-      <div className="w-full flex justify-center items-center my-0.5">
+      {/* ── 1. RAKİBİN MASADAKİ DESTESİ (180° KENDİNE DÖNÜK, MASANIN ÇUHASINDA) ── */}
+      <div
+        ref={oppStationRef}
+        className="absolute top-12 sm:top-16 left-1/2 -translate-x-1/2 pointer-events-none z-30"
+        style={{
+          transform: `translate(-50%, 0) rotate(180deg)`
+        }}
+      >
         <div
-          className={`flex items-center gap-3 sm:gap-5 p-2 rounded-2xl transition-all duration-500 ${
-            phase === 'sliding_in' ? '-translate-y-12 opacity-0' : 'translate-y-0 opacity-100'
-          }`}
+          className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl"
+          style={{
+            transform: isGliding
+              ? `translate3d(${oppPoolOffset.x}px, ${oppPoolOffset.y}px, 0)`
+              : 'translate3d(0, 0, 0)',
+            transition: 'transform 540ms cubic-bezier(0.20, 1.0, 0.35, 1.0)'
+          }}
         >
           {/* Rakip Kapalı Deste Kutusu */}
           <div className="relative flex flex-col items-center">
@@ -362,10 +429,10 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── 2. MASA ORTASI: ÇOĞUNLUK & SONRAKİ EL BUTONU (Only when done) ── */}
-      <div className="flex flex-col items-center justify-center my-auto pointer-events-auto">
+      {/* ── 2. MASA MERKEZİ: ÇOĞUNLUK & SONRAKİ EL BUTONU (Doğrudan Çuhanın Üstünde) ── */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40">
         {isDone && (
-          <div className="flex flex-col items-center gap-2.5 p-3 sm:p-5 rounded-3xl bg-slate-950/90 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200">
+          <div className="flex flex-col items-center gap-2.5 p-3 sm:p-5 rounded-3xl bg-slate-950/90 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto">
             {/* Majority Announcement */}
             <div className="px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400 text-xs sm:text-sm font-black text-amber-300">
               {countState.userMajority
@@ -451,12 +518,22 @@ export const CardCountingOverlay: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ── 3. KULLANICININ MASADAKİ DESTESİ (DOĞRUDAN ÇUHANIN ÜSTÜNDE, KULLANICININ ÖNÜ) ── */}
-      <div className="w-full flex justify-center items-center my-0.5">
+      {/* ── 3. KULLANICININ DESTESİ (0° SANA DÖNÜK, ELİN İLERİSİNDE ÇUHANIN ÜSTÜNDE) ── */}
+      <div
+        ref={userStationRef}
+        className="absolute bottom-16 sm:bottom-24 left-1/2 -translate-x-1/2 pointer-events-none z-30"
+        style={{
+          transform: `translate(-50%, 0) rotate(0deg)`
+        }}
+      >
         <div
-          className={`flex items-center gap-3 sm:gap-5 p-2 rounded-2xl transition-all duration-500 ${
-            phase === 'sliding_in' ? 'translate-y-12 opacity-0' : 'translate-y-0 opacity-100'
-          }`}
+          className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl"
+          style={{
+            transform: isGliding
+              ? `translate3d(${userPoolOffset.x}px, ${userPoolOffset.y}px, 0)`
+              : 'translate3d(0, 0, 0)',
+            transition: 'transform 540ms cubic-bezier(0.20, 1.0, 0.35, 1.0)'
+          }}
         >
           {/* Kullanıcı Kapalı Deste Kutusu */}
           <div className="relative flex flex-col items-center">

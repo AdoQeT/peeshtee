@@ -26,7 +26,7 @@ export interface FlyingCardData {
   size?: 'sm' | 'md' | 'lg';
   zIndex?: number;
   /** Motion type for physics engine tuning */
-  motionType?: 'deal' | 'play' | 'sweep' | 'jack';
+  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
   onComplete?: () => void;
 }
 

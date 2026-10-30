@@ -1834,6 +1834,18 @@ export default function App() {
       // Instantly mark card hidden in hand to prevent abrupt hand layout jumps while flying
       setHiddenCardIds(prev => new Set(prev).add(card.id));
 
+      const currentTablePile = tableCardsRef.current;
+      const isPistiImpending =
+        currentTablePile.length === 1 &&
+        currentTablePile[0].faceUp &&
+        card.value === currentTablePile[0].value;
+      const isFiveSlamImpending =
+        settingsRef.current.fiveRuleEnabled &&
+        currentTablePile.length === 1 &&
+        card.value === 5 &&
+        currentTablePile[0].value === 5;
+      const isSlamStrike = isPistiImpending || isFiveSlamImpending;
+
       const flyData: FlyingCardData = {
         id: flyId,
         card: placedCard,
@@ -1847,11 +1859,11 @@ export default function App() {
         endFaceUp: true,
         startScale: 1,
         targetScale: 1,
-        duration: isHuman ? 490 : 460,
-        arcHeight: 96,
-        motionType: 'play',
+        duration: isSlamStrike ? 680 : (isHuman ? 490 : 460),
+        arcHeight: isSlamStrike ? 160 : 96,
+        motionType: isSlamStrike ? 'pisti_slam' : 'play',
         size: 'md',
-        zIndex: 85,
+        zIndex: isSlamStrike ? 95 : 85,
         onComplete: () => {
           // Remove played card from player's hand now that flight is complete
           setPlayers(prev =>
@@ -3313,6 +3325,7 @@ export default function App() {
         oppCards={countingOppCards}
         roundScores={roundScores}
         players={players}
+        tableRefs={tableRefs}
         theme={settings.theme}
         targetScore={settings.targetScore}
         isMultiplayer={isMultiplayerGame}

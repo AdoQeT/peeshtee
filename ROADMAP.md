@@ -89,6 +89,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.21.0**: Kinetic Pişti Slam physics (slow dramatic 160px loft rise, apex hang anticipation, explosive downward crash with table shudder impact), physical deck pool glide from collection tray to player felt stations (zero teleportation), and seat-perspective spatial counting stations (0° user front, 180° opponent top, 90°/-90° table flanks).
 - **v1.20.2**: Tabletop physical 52-card object conservation during counting (zero modal/banner, cards physically slide from corner to front, simultaneous flip opening onto adjacent open stack with tactile table tick audio), Jack Double Pişti rendering in Pişti pool with 2x golden badge, and click spam debounce lock preventing premature card bounce/teleportation during dealing.
 - **v1.20.1**: Zero modal / zero darkening authentic in-table deck counting ceremony (closed piles slide directly to user/opponent front, simultaneous flip opening to adjacent open stack with isolated point cards showcase), full collected pile card scaling (1:1 with table cards, no shrinking or teleportation artifacts), and deal-to-play debounce lock to prevent premature card play bounces.
 - **v1.20.0**: Authentic tabletop deck counting ceremony (closed pile flips one-by-one to adjacent open stack with tactile audio & isolated score card tray), Phase 3 completion (React.lazy code splitting for Uno/Renq, logger.ts telemetry, bot heuristics upgrade, and pure Firebase RTDB documentation overhaul).

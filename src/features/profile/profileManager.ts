@@ -1,4 +1,4 @@
-import { rtdb, ref, set, get } from '../../core/firebase';
+import { rtdb, ref, set, get, ensureFirebaseAuth } from '../../core/firebase';
 
 export interface AvatarPreset {
   id: string;
@@ -366,6 +366,21 @@ export function getUserProfile(): UserProfile {
         if (!parsed.friendCode) {
           saveUserProfile(profile);
         }
+
+        // Migrate large legacy avatar to 96x96 square thumbnail if needed
+        if (
+          profile.customAvatarDataUrl &&
+          profile.customAvatarDataUrl.length > 30000 &&
+          typeof window !== 'undefined'
+        ) {
+          cropAndResizeTo96(profile.customAvatarDataUrl).then((thumb) => {
+            if (thumb && thumb.length < profile.customAvatarDataUrl!.length) {
+              profile.customAvatarDataUrl = thumb;
+              saveUserProfile(profile);
+            }
+          });
+        }
+
         return profile;
       }
     }
@@ -446,16 +461,53 @@ export function removeFriend(friendId: string, friendCode?: string, name?: strin
 
 export const remoteProfilesCache = new Map<string, Partial<UserProfile>>();
 
+/**
+ * Helper to crop image squarely from center (object-fit: cover) and scale to 96x96 JPEG
+ */
+export function cropAndResizeTo96(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 96;
+      canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      // Calculate center square crop
+      const size = Math.min(img.width, img.height);
+      const startX = (img.width - size) / 2;
+      const startY = (img.height - size) / 2;
+
+      ctx.drawImage(img, startX, startY, size, size, 0, 0, 96, 96);
+      const thumb = canvas.toDataURL('image/jpeg', 0.85);
+      resolve(thumb);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export async function syncProfileToFirebase(profile: UserProfile): Promise<void> {
   if (!profile.friendCode) return;
   try {
+    const user = await ensureFirebaseAuth();
     const profileRef = ref(rtdb, `profiles/${profile.friendCode}`);
     const dataToSync = {
       id: profile.id,
+      ownerUid: user?.uid || null,
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
       customAvatarDataUrl: profile.customAvatarDataUrl || null,
+      avatarThumb: profile.customAvatarDataUrl || null,
       customTitle: profile.customTitle || null,
       isOwner: profile.isOwner || false,
       level: profile.level || 1,

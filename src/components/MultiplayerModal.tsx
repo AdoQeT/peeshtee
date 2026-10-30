@@ -159,6 +159,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   slotsRef.current = slots;
   const playerCountRef = useRef(playerCount);
   playerCountRef.current = playerCount;
+  const lobbyRoleRef = useRef(lobbyRole);
+  lobbyRoleRef.current = lobbyRole;
 
   const settingsRef = useRef<GameSettings>({
     ...initialSettings,
@@ -224,7 +226,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           setIsConnecting(false);
           if (!res.success) {
             setErrorMsg(res.error || 'Oda kurulamadı.');
+            setLobbyRole('none');
             return;
+          }
+          if (res.roomCode && res.roomCode !== activeCode) {
+            activeCode = res.roomCode;
+            setCreatedRoomCode(activeCode);
           }
         }
 
@@ -372,7 +379,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         // Automatically close lobby modal when host launches the game
         onClose();
       } else if (event.type === 'MP_MATCH_ABORTED') {
-        if (lobbyRole === 'guest') {
+        if (lobbyRoleRef.current === 'guest') {
           setErrorMsg(event.reason || 'Oda kurucusu lobiden ayrıldı.');
           setLobbyRole('none');
           setIsConnecting(false);
@@ -555,7 +562,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     const res = await multiplayerManager.hostRoom(code, localName || 'Oda Sahibi', localAvatar);
     setIsConnecting(false);
     if (res.success) {
-      friendNetwork.setStatus('lobby', code, gameType);
+      const finalCode = res.roomCode || code;
+      setCreatedRoomCode(finalCode);
+      friendNetwork.setStatus('lobby', finalCode, gameType);
     } else {
       setErrorMsg(res.error || 'Oda oluşturulamadı.');
       setLobbyRole('none');

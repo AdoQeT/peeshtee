@@ -9,6 +9,7 @@ import {
   ref,
   push,
   onChildAdded,
+  onValue,
   set,
   get,
   off,
@@ -248,7 +249,7 @@ export class MultiplayerManager {
 
   private firebaseEventsRef: any = null;
   private firebasePresenceRef: any = null;
-  private joinTimestamp: number = 0;
+  private roomPresenceRef: any = null;
 
   // Heartbeat & reconnect monitoring
   private heartbeatTimer: number | null = null;
@@ -314,6 +315,22 @@ export class MultiplayerManager {
       try {
         onDisconnect(this.firebasePresenceRef).remove();
       } catch {}
+
+      // Listen to room presences to monitor peer health directly
+      this.roomPresenceRef = ref(rtdb, `rooms/${code}/presence`);
+      onValue(this.roomPresenceRef, (snapshot: any) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          const peers = Object.values(val).filter((p: any) => p && p.instanceId !== this.instanceId);
+          if (peers.length > 0) {
+            this.lastRemoteMessageTime = Date.now();
+            if (this.isPeerReconnecting) {
+              this.isPeerReconnecting = false;
+              this.dispatch({ type: 'PEER_RECONNECTED' });
+            }
+          }
+        }
+      });
     } catch (err) {
       console.warn('Firebase RTDB room listener error:', err);
     }
@@ -331,6 +348,12 @@ export class MultiplayerManager {
         remove(this.firebasePresenceRef).catch(() => {});
       } catch {}
       this.firebasePresenceRef = null;
+    }
+    if (this.roomPresenceRef) {
+      try {
+        off(this.roomPresenceRef);
+      } catch {}
+      this.roomPresenceRef = null;
     }
   }
 
@@ -357,26 +380,46 @@ export class MultiplayerManager {
     }
   }
 
-  public async hostRoom(code: string, _hostName?: string, _avatar?: string): Promise<{ success: boolean; error?: string }> {
+  public async hostRoom(code: string, _hostName?: string, _avatar?: string): Promise<{ success: boolean; error?: string; roomCode?: string }> {
     this.disconnect();
     this.isHost = true;
-    this.roomCode = this.normalizeCode(code);
     this.roomToken = `rtk_${Math.random().toString(36).slice(2, 9)}_${Date.now()}`;
     this.seq = 0;
     this.isConnected = false;
-    this.joinTimestamp = Date.now();
 
-    await ensureFirebaseAuth().catch(() => {});
+    const user = await ensureFirebaseAuth().catch(() => null);
 
-    // Clean previous stale room data before creating
-    try {
-      await remove(ref(rtdb, `rooms/${this.roomCode}`));
-    } catch {}
+    let targetCode = this.normalizeCode(code);
+    let attempts = 0;
 
-    // Register room in Firebase Realtime Database with 8 second timeout
+    // Check if room exists and was created in the last 6 hours; generate new code if collision occurs
+    while (attempts < 5) {
+      try {
+        const snap = await get(ref(rtdb, `rooms/${targetCode}/meta`));
+        if (snap.exists()) {
+          const meta = snap.val();
+          const age = Date.now() - (meta?.created || 0);
+          if (age < 6 * 3600 * 1000) {
+            // Collision with active room! Generate fresh code
+            targetCode = Math.floor(100000 + Math.random() * 900000).toString();
+            attempts++;
+            continue;
+          }
+        }
+        break;
+      } catch (err) {
+        console.warn('Room check warning:', err);
+        break;
+      }
+    }
+
+    this.roomCode = targetCode;
+
+    // Register room in Firebase Realtime Database with 8 second timeout and hostUid
     const setMetaPromise = set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
       created: Date.now(),
       hostId: this.instanceId,
+      hostUid: user?.uid || null,
       roomToken: this.roomToken,
       active: true
     });
@@ -406,7 +449,7 @@ export class MultiplayerManager {
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
     this.startHeartbeat();
-    return { success: true };
+    return { success: true, roomCode: this.roomCode };
   }
 
   public async joinRoom(
@@ -424,7 +467,6 @@ export class MultiplayerManager {
     this.roomToken = '';
     this.seq = 0;
     this.isConnected = false;
-    this.joinTimestamp = Date.now();
 
     await ensureFirebaseAuth().catch(() => {});
 
@@ -514,18 +556,18 @@ export class MultiplayerManager {
     this.isPeerReconnecting = false;
 
     this.heartbeatTimer = window.setInterval(() => {
-      if (this.roomCode) {
-        this.send({
-          type: 'PEER_HEARTBEAT',
+      if (this.roomCode && this.firebasePresenceRef) {
+        // Direct server timestamp update to presence node without polluting event logs
+        set(this.firebasePresenceRef, {
+          instanceId: this.instanceId,
           role: this.isHost ? 'host' : 'guest',
-          peerId: this.instanceId,
-          timestamp: Date.now()
-        });
+          lastSeen: serverTimestamp()
+        }).catch(() => {});
 
         if (this.isConnected) {
           const elapsed = Date.now() - this.lastRemoteMessageTime;
-          // Grace period if no packet received
-          if (elapsed > 4000 && elapsed <= 9000) {
+          // Grace period if no packet or presence received
+          if (elapsed > 4500 && elapsed <= 9000) {
             this.isPeerReconnecting = true;
             const secondsLeft = Math.max(1, Math.ceil((9000 - elapsed) / 1000));
             this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft });
@@ -536,7 +578,7 @@ export class MultiplayerManager {
           }
         }
       }
-    }, 1500);
+    }, 3000);
   }
 
   private handleRawIncoming(envelope: any) {
@@ -544,13 +586,6 @@ export class MultiplayerManager {
     if (envelope.senderId === this.instanceId || envelope.roomCode !== this.roomCode) return;
     if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
-
-    // Filter out stale events prior to guest joining (timestamp >= joinTimestamp - 2000)
-    if (this.joinTimestamp > 0 && typeof envelope.timestamp === 'number') {
-      if (envelope.timestamp < this.joinTimestamp - 2000) {
-        return;
-      }
-    }
 
     // Discard replayed or out-of-order packets (except important lobby syncs and handshakes)
     const isStateSync =

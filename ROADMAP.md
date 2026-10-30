@@ -6,7 +6,15 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.5 (Current)
+### v1.16.6 (Current)
+- **Clock-Agnostic Packet Processing**: Removed strict client-timestamp filtering in `peerManager.ts` to accommodate device clock skew while relying securely on `roomToken` and collision-free room initialization.
+- **Heartbeat & Presence Decoupling**: Moved player heartbeats completely off the event log to `rooms/{code}/presence/{instanceId}` with real-time `onValue` peer health listeners.
+- **Safe Room Code Generation & Host Identification**: Added active room metadata inspection (6-hour freshness check) with up to 5 collision retries and stored `hostUid` for rule authorization.
+- **Avatar Payload Optimization & Migration**: Stripped heavy avatar payloads from multiplayer sync packets, introduced center-square image cropping (`object-fit: cover`) for thumbnails, and migrated oversized legacy avatars on startup.
+- **Deep-Link State Machine**: Handled deep-link consuming with dedicated `deepLinkConsumedRef` to clean URL query strings accurately upon match termination or explicit exit.
+- **Stale Closure Mitigation**: Resolved stale `lobbyRole` references in `MultiplayerModal` using a synchronized ref.
+
+### v1.16.5
 - **Deep-Link Protection**: Preserved URL search parameters (`?oda=...`, `?room=...`, `?kod=...`) on initial mount by evaluating deep links before URL cleanup effect.
 - **Robust Firebase Verification & Error Surfacing**: Added 5s timeout on `get(rooms/code/meta)` verification on room join, 8s timeout on room hosting, and surface explicit error messages (PERMISSION_DENIED, timeout, network failure) instead of silent failures.
 - **Clean Slate Room Hosting**: Automatically purges stale room event trees before creating rooms and adds `roomToken` handshake validation.

@@ -397,6 +397,16 @@ export default function App() {
   // Instant room join via URL query params (?oda=... or ?room=...)
   // Evaluated BEFORE URL synchronization so join code query params are preserved
   const initialDeepLinkHandledRef = useRef(false);
+  const deepLinkConsumedRef = useRef(false);
+
+  const cleanUrlDeepLink = useCallback(() => {
+    deepLinkConsumedRef.current = true;
+    try {
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', window.location.pathname);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || initialDeepLinkHandledRef.current) return;
@@ -417,13 +427,10 @@ export default function App() {
   }, []);
 
   // Synchronize browser URL and close drawers on match start/exit
-  // CRITICAL: NEVER erase initial ?oda= query param while still on menu with unhandled deep-link
+  // Clean URL when deepLinkConsumedRef is true or match changes
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const currentParams = new URLSearchParams(window.location.search);
-      const hasPendingDeepLink = currentParams.has('oda') || currentParams.has('room') || currentParams.has('kod');
-
       if (screen === 'game') {
         setIsFriendsOpen(false);
         const code = multiplayerManager.roomCode;
@@ -441,15 +448,14 @@ export default function App() {
           window.history.pushState(null, '', '?mode=renq');
         }
       } else if (screen === 'menu') {
-        // Only strip query params if user is not in the process of joining via deep link
-        if (!hasPendingDeepLink && !initialJoinCode) {
+        if (deepLinkConsumedRef.current) {
           window.history.pushState(null, '', window.location.pathname);
         }
       }
     } catch {
       // Ignore in restricted iframe environments
     }
-  }, [screen, isMultiplayerGame, initialJoinCode]);
+  }, [screen, isMultiplayerGame]);
 
   // Initialize Global Friend & Presence Network
   useEffect(() => {
@@ -3114,13 +3120,17 @@ export default function App() {
         pendingFriendInvite={pendingFriendInvite}
         onClearPendingInvite={() => setPendingFriendInvite(null)}
         onOpenFriendsModal={() => setIsFriendsOpen(true)}
-        onClose={() => setIsMultiplayerOpen(false)}
+        onClose={() => {
+          setIsMultiplayerOpen(false);
+          cleanUrlDeepLink();
+        }}
         onHostLaunchMatch={(
           _roomCode,
           lobbySettings,
           finalSlots,
           chosenGameType = 'pisti'
         ) => {
+          cleanUrlDeepLink();
           setInitialJoinCode('');
           if (chosenGameType === 'uno') {
             const seedUno = shuffleUnoDeck(createUnoDeck());

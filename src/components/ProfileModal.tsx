@@ -114,7 +114,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
         sound.playCardDeal();
-        // Resize avatar to a crisp 96x96 JPEG thumbnail (≤ 15-20KB) to keep RTDB and network super fast
+        // Resize avatar to a crisp 96x96 JPEG thumbnail with center square crop (object-fit: cover)
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
@@ -122,7 +122,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           canvas.height = 96;
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.drawImage(img, 0, 0, 96, 96);
+            const size = Math.min(img.width, img.height);
+            const startX = (img.width - size) / 2;
+            const startY = (img.height - size) / 2;
+            ctx.drawImage(img, startX, startY, size, size, 0, 0, 96, 96);
             const thumbUrl = canvas.toDataURL('image/jpeg', 0.85);
             setCustomAvatarDataUrl(thumbUrl);
           } else {

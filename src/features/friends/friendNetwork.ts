@@ -16,7 +16,8 @@ import {
   onChildAdded,
   onValue,
   off,
-  onDisconnect
+  onDisconnect,
+  ensureFirebaseAuth
 } from '../../core/firebase';
 import {
   getUserProfile,
@@ -87,9 +88,14 @@ export class FriendNetwork {
   private noticesRef: any = null;
   private presenceRef: any = null;
 
-  public init() {
+  public async init() {
     if (this.initialized || typeof window === 'undefined') return;
     this.initialized = true;
+
+    const user = await ensureFirebaseAuth();
+    if (!user) {
+      console.warn('Firebase anonymous authentication failed in friendNetwork');
+    }
 
     const myProfile = getUserProfile();
     const myCode = myProfile.friendCode;
@@ -224,10 +230,11 @@ export class FriendNetwork {
     this.announcePresence();
   }
 
-  public announcePresence() {
+  public async announcePresence() {
     const profile = getUserProfile();
     if (!profile.friendCode) return;
 
+    const user = await ensureFirebaseAuth().catch(() => null);
     const lvlInfo = calculateLevel(profile.xp || 0);
     const presence: OnlinePlayerPresence = {
       id: profile.id,
@@ -247,7 +254,10 @@ export class FriendNetwork {
 
     try {
       const myPresenceRef = ref(rtdb, `presence/${profile.friendCode}`);
-      set(myPresenceRef, presence).catch(() => {});
+      set(myPresenceRef, {
+        ...presence,
+        ownerUid: user?.uid || null
+      }).catch(() => {});
       try {
         onDisconnect(myPresenceRef).remove();
       } catch {}

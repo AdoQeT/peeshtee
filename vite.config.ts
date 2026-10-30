@@ -7,7 +7,7 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version.replace(/\.0$/, ''))
+    __APP_VERSION__: JSON.stringify(pkg.version)
   },
   build: {
     rollupOptions: {

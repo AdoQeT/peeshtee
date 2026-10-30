@@ -589,7 +589,15 @@ export class MultiplayerManager {
   private handleRawIncoming(envelope: any) {
     if (!envelope || typeof envelope !== 'object' || !('__pistiEnvelope' in envelope)) return;
     if (envelope.senderId === this.instanceId || envelope.roomCode !== this.roomCode) return;
-    if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
+
+    // Strict roomToken check: If local manager has a roomToken, incoming envelope MUST have matching roomToken
+    if (this.roomToken) {
+      if (!envelope.roomToken || envelope.roomToken !== this.roomToken) {
+        console.warn(`[Anti-Cheat] Dropped packet with invalid/missing roomToken from ${envelope.senderId}`);
+        return;
+      }
+    }
+
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
     // Discard replayed or out-of-order packets (except important lobby syncs and handshakes)
@@ -624,7 +632,13 @@ export class MultiplayerManager {
       this.dispatch({ type: 'PEER_RECONNECTED' });
     }
 
-    this.dispatch(envelope.payload);
+    // Attach verified envelope senderId to payload for non-forgeable sender authentication
+    const verifiedPayload = envelope.payload ? {
+      ...envelope.payload,
+      _verifiedSenderId: envelope.senderId
+    } : envelope.payload;
+
+    this.dispatch(verifiedPayload);
   }
 
   public send(payload: MultiplayerEvent) {

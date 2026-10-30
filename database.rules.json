@@ -1,0 +1,64 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('meta/hostUid').val() === auth.uid)",
+        "meta": {
+          ".validate": "newData.hasChildren(['created', 'hostUid', 'roomToken'])"
+        },
+        "events": {
+          "$id": {
+            ".write": "auth != null && !data.exists()",
+            ".validate": "newData.hasChildren(['msgId', 'senderId', 'timestamp', 'payload']) && newData.child('msgId').isString() && newData.child('msgId').val().length < 100"
+          }
+        },
+        "presence": {
+          "$instanceId": {
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+    "presence": {
+      ".indexOn": ["lastSeen"],
+      ".read": "auth != null",
+      "$friendCode": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || data.child('lastSeen').val() < (now - 60000))"
+      }
+    },
+    "profiles": {
+      ".read": "auth != null",
+      "$friendCode": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid)"
+      }
+    },
+    "invites": {
+      "$friendCode": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['fromId', 'roomCode', 'timestamp'])"
+        }
+      }
+    },
+    "requests": {
+      "$friendCode": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode'])"
+        }
+      }
+    },
+    "notices": {
+      "$friendCode": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['fromId', 'type'])"
+        }
+      }
+    }
+  }
+}

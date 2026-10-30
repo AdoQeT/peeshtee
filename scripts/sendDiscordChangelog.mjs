@@ -7,9 +7,13 @@
  *   or: node scripts/sendDiscordChangelog.mjs "v1.15.0" "-feature A\n-bugfix B"
  */
 
-const WEBHOOK_URL =
-  process.env.DISCORD_WEBHOOK_URL ||
-  'https://discord.com/api/webhooks/1565384796052525056/fuXQABnujrCaB_Vz5WKoZSiydNHwWUStVAvM6ZptxnvDf8bHk4RFyZN3gbQzcV6sVmx5';
+const WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
+if (!WEBHOOK_URL) {
+  console.error('❌ DISCORD_WEBHOOK_URL environment variable is missing.');
+  console.log('ℹ️  Skipping Discord changelog dispatch. Set DISCORD_WEBHOOK_URL to enable.');
+  process.exit(0);
+}
 
 const defaultBullets = [
   '-duplicate deck on table fixed',

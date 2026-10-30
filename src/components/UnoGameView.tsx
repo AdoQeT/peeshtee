@@ -1135,8 +1135,27 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     if (!isMultiplayer) return;
 
     const unsubscribe = multiplayerManager.onEvent(event => {
+      // Anti-cheat verification helper
+      const isSenderAuthorized = (seatIndex: number, declaredPeerId?: string): boolean => {
+        const verifiedId = (event as any)._verifiedSenderId;
+        if (!mpSlots || !mpSlots[seatIndex]) return true;
+        const expectedPeerId = mpSlots[seatIndex].peerId;
+        if (!expectedPeerId) return true; // Bot or unassigned slot
+
+        if (verifiedId && verifiedId !== expectedPeerId) {
+          console.warn(`[AntiCheat] Blocked spoofed UNO event ${event.type} from sender ${verifiedId} targeting seat ${seatIndex} (${expectedPeerId})`);
+          return false;
+        }
+        if (declaredPeerId && declaredPeerId !== expectedPeerId) {
+          console.warn(`[AntiCheat] Blocked spoofed UNO peerId in ${event.type}: declared ${declaredPeerId} vs expected ${expectedPeerId}`);
+          return false;
+        }
+        return true;
+      };
+
       if (event.type === 'MP_UNO_PLAY_CARD') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
+        if (!isSenderAuthorized(event.seatIndex, event.senderPeerId)) return;
 
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
@@ -1152,6 +1171,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         }
       } else if (event.type === 'MP_UNO_DRAW_CARD') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
+        if (!isSenderAuthorized(event.seatIndex, event.senderPeerId)) return;
+
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
@@ -1165,6 +1186,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         }
       } else if (event.type === 'MP_UNO_CALL_UNO') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
+        if (!isSenderAuthorized(event.seatIndex, event.senderPeerId)) return;
+
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
@@ -1176,6 +1199,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         triggerBanner(`🔥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} "RENQ!" DEDİ!`, 'uno');
       } else if (event.type === 'MP_UNO_PASS') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
+        if (!isSenderAuthorized(event.seatIndex, event.senderPeerId)) return;
+
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;

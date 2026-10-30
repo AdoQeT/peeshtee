@@ -2103,7 +2103,8 @@ export default function App() {
           }
         }
       } else if (msg.type === 'MP_CARD_PLAYED') {
-        if (msg.senderPeerId === multiplayerManager.instanceId) return;
+        const envelopeSender = (msg as any)._verifiedSenderId || msg.senderPeerId;
+        if (envelopeSender === multiplayerManager.instanceId) return;
 
         // If match intro is still active, queue the card event so it's not dropped or processed prematurely
         if (matchIntroRef.current) {
@@ -2111,16 +2112,11 @@ export default function App() {
           return;
         }
 
-        // 1. Validate that msg.senderPeerId matches the assigned seat
+        // 1. Validate that envelope sender strictly matches the assigned seat's peerId
         const senderSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === msg.seatIndex);
-        if (
-          senderSlot &&
-          senderSlot.peerId &&
-          msg.senderPeerId &&
-          senderSlot.peerId !== msg.senderPeerId
-        ) {
+        if (!senderSlot || !senderSlot.peerId || !envelopeSender || senderSlot.peerId !== envelopeSender) {
           console.warn(
-            `Unauthorized card play: peer ${msg.senderPeerId} attempted play for seat ${msg.seatIndex}!`
+            `[Anti-Cheat] Unauthorized card play rejected: verified sender "${envelopeSender}" is not registered in seat ${msg.seatIndex} (slot peerId: "${senderSlot?.peerId}")!`
           );
           return;
         }

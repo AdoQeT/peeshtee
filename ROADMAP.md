@@ -94,6 +94,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.19.0**: Replaced end-of-hand card count modal with full animated `CardCountingOverlay` — collected cards fly from table positions to center stage, scoring increments live per card with special card pops, majority/score banners, and inline next-round controls.
 - **v1.18.2**: Dealer/Cutter icon removal, Monaco Velvet main menu background fix, MatchIntroOverlay 25% speed boost, card physics engine upgrade (motionType-aware easing, micro-settle, rotateZ banking).
 - **v1.18.1**: Comprehensive test suite (18 tests), GitHub Actions CI/CD, PWA manifest & offline service worker, public assets & OpenGraph social card.
 - **v1.18.0**: Security hardening (database.rules.json, firebase.json), anti-cheat verified sender checks, environment hygiene, Vite versioning single-source-of-truth.

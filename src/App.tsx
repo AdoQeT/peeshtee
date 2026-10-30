@@ -37,6 +37,7 @@ import {
   claimUniqueFriendCode
 } from './features/profile/profileManager';
 import { MatchIntroOverlay, MatchIntroPlayer } from './components/MatchIntroOverlay';
+import { CardCountingOverlay } from './components/CardCountingOverlay';
 import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
@@ -338,6 +339,10 @@ export default function App() {
     winner: Player | null;
     isGameOver: boolean;
   } | null>(null);
+
+  // Card counting overlay card lists (produced alongside onTableCount)
+  const [countingUserCards, setCountingUserCards] = useState<Card[]>([]);
+  const [countingOppCards, setCountingOppCards] = useState<Card[]>([]);
 
   const clearScheduledTimers = useCallback(() => {
     dealTimersRef.current.forEach(id => window.clearTimeout(id));
@@ -2391,6 +2396,10 @@ export default function App() {
       const oPistiPts =
         oppSideAggregate.pistiCount * 10 + oppSideAggregate.doublePistiCount * 20;
 
+      // Provide card lists for the visual counting overlay
+      setCountingUserCards([...userCards]);
+      setCountingOppCards([...oppCards]);
+
       setOnTableCount({
         isActive: true,
         userCountedIndex: 0,
@@ -3251,6 +3260,27 @@ export default function App() {
       <PistiOverlay
         slam={activeSlam}
         onComplete={() => setActiveSlam(null)}
+      />
+
+      {/* Card Counting Overlay (el sonu kart sayma animasyonu) */}
+      <CardCountingOverlay
+        isActive={onTableCount.isActive || onTableCount.isDone}
+        countState={onTableCount}
+        userCards={countingUserCards}
+        oppCards={countingOppCards}
+        roundScores={roundScores}
+        players={players}
+        theme={settings.theme}
+        targetScore={settings.targetScore}
+        isMultiplayer={isMultiplayerGame}
+        isReadyForNextRound={isReadyForNextRound}
+        readySeatsCount={readySeatsCount}
+        totalHumanPlayersCount={totalHumanPlayersCount}
+        slotsReadiness={slotsReadiness}
+        onNextRound={handleNextRound}
+        onRestartGame={handleRestartGame}
+        onToggleReady={handleToggleReady}
+        onCountingDone={handleFinishCounting}
       />
 
       {/* Rules Modal */}

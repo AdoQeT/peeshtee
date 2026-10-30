@@ -55,7 +55,8 @@ const INITIAL_SETTINGS: GameSettings = {
   targetScore: 101,
   aiDifficulty: 'medium',
   playerCount: 2,
-  fiveRuleEnabled: false
+  fiveRuleEnabled: false,
+  dealSpeed: 'normal'
 };
 
 const SHUFFLE_STYLES: ShuffleStyle[] = [
@@ -603,11 +604,15 @@ export default function App() {
       tableToDeal: Card[],
       handsToDeal: Card[][],
       finalRemainingDeck: Card[],
-      totalPlayers: number
+      totalPlayers: number,
+      firstPlayerIdx: number = 0
     ) => {
       clearScheduledTimers();
       setIsDealingAnimation(true);
       setIsActionLocked(true);
+
+      const speedMode = settingsRef.current.dealSpeed || 'normal';
+      const speedFactor = speedMode === 'fast' ? 0.65 : speedMode === 'cinematic' ? 1.4 : 1.0;
 
       // Prepare deterministic pot offsets for initial 4 table cards
       const preparedTableCards: Card[] = tableToDeal.map((rawCard, idx) => ({
@@ -639,29 +644,34 @@ export default function App() {
         playerIdx?: number;
         cardIdxInHand?: number;
         delay: number;
+        pitch: number;
+        isLastOfBatch?: boolean;
       }
 
       const steps: DealStep[] = [];
-      let currentDelay = 70;
-      const stepInterval = 115;
+      let currentDelay = Math.round(70 * speedFactor);
+      const cardStepInterval = Math.round((totalPlayers === 4 ? 60 : 70) * speedFactor);
+      const playerPauseInterval = Math.round(220 * speedFactor);
 
-      // 1. Initial 4 table cards (first 3 face-down, 4th face-up)
-      preparedTableCards.forEach(cardWithOffset => {
+      // 1. Initial 4 table cards (first 3 face-down, 4th face-up flip)
+      preparedTableCards.forEach((cardWithOffset, cIdx) => {
         steps.push({
           kind: 'table',
           card: cardWithOffset,
-          delay: currentDelay
+          delay: currentDelay,
+          pitch: 0.95 + cIdx * 0.05
         });
-        currentDelay += stepInterval;
+        currentDelay += Math.round(110 * speedFactor);
       });
 
       if (preparedTableCards.length > 0) {
-        currentDelay += 140;
+        currentDelay += Math.round(160 * speedFactor);
       }
 
-      // 2. Deal 4 cards to each player round-robin
-      for (let cIdx = 0; cIdx < 4; cIdx++) {
-        for (let pIdx = 0; pIdx < totalPlayers; pIdx++) {
+      // 2. Deal 4 cards to each player IN BATCHES starting from firstPlayerIdx clockwise!
+      for (let stepIdx = 0; stepIdx < totalPlayers; stepIdx++) {
+        const pIdx = (firstPlayerIdx + stepIdx) % totalPlayers;
+        for (let cIdx = 0; cIdx < 4; cIdx++) {
           const card = handsToDeal[pIdx]?.[cIdx];
           if (!card) continue;
           steps.push({
@@ -669,10 +679,14 @@ export default function App() {
             card,
             playerIdx: pIdx,
             cardIdxInHand: cIdx,
-            delay: currentDelay
+            delay: currentDelay,
+            pitch: 1.0 + cIdx * 0.08,
+            isLastOfBatch: cIdx === 3
           });
-          currentDelay += totalPlayers === 4 ? 90 : 110;
+          currentDelay += cardStepInterval;
         }
+        // Extra pause between players for crisp batch pacing
+        currentDelay += playerPauseInterval;
       }
 
       let completedCount = 0;
@@ -689,7 +703,7 @@ export default function App() {
 
       steps.forEach((step, sIdx) => {
         const timerId = window.setTimeout(() => {
-          sound.playCardDeal();
+          sound.playCardDeal(step.pitch);
 
           const centerX = window.innerWidth / 2;
           const centerY = window.innerHeight / 2;
@@ -729,7 +743,7 @@ export default function App() {
               endFaceUp: step.card.faceUp,
               startScale: 1,
               targetScale: 1,
-              duration: 450,
+              duration: Math.round(380 * speedFactor),
               arcHeight: 88,
               size: 'md',
               zIndex: 60 + sIdx,
@@ -769,6 +783,9 @@ export default function App() {
               }
             }
 
+            // arcHeight: higher arc for opponents across the table
+            const arc = pIdx === 0 ? 80 : 115;
+
             const flyItem: FlyingCardData = {
               id: flyId,
               card: step.card,
@@ -782,8 +799,8 @@ export default function App() {
               endFaceUp: isHuman,
               startScale: 1,
               targetScale: 1,
-              duration: 460,
-              arcHeight: 92,
+              duration: Math.round(380 * speedFactor),
+              arcHeight: arc,
               size: fallback.size,
               zIndex: 60 + sIdx,
               onComplete: () => {
@@ -793,6 +810,10 @@ export default function App() {
                   return next;
                 });
                 setFlyingCards(prev => prev.filter(f => f.id !== flyId));
+
+                if (step.isLastOfBatch) {
+                  sound.playCardFan();
+                }
 
                 completedCount++;
                 if (completedCount >= totalSteps) {
@@ -811,7 +832,7 @@ export default function App() {
       // Master safety timer so 2P or 4P deals can never get stuck
       const masterFinishTimer = window.setTimeout(() => {
         finishAllDealing();
-      }, currentDelay + 550);
+      }, currentDelay + Math.round(500 * speedFactor));
       dealTimersRef.current.push(masterFinishTimer);
     },
     [clearScheduledTimers, getHandCardFallbackTarget]
@@ -1318,12 +1339,18 @@ export default function App() {
               setDeckCutState(null);
               setPendingDealContext(null);
 
-              // Deal hand cards round-robin (table pot cards are already on the felt!)
+              const N = configuredSettings.playerCount;
+              const startingSeat = pendingDealContext?.startingTurn ?? 0;
+              const mySeat = pendingDealContext?.mySeat ?? 0;
+              const firstPlayerIdx = (startingSeat - mySeat + N) % N;
+
+              // Deal hand cards in batches starting from cutter/starter clockwise!
               runDealChoreography(
                 [],
                 orientedHands,
                 initialDeal.remainingDeck,
-                configuredSettings.playerCount
+                configuredSettings.playerCount,
+                firstPlayerIdx
               );
             }, 450);
             dealTimersRef.current.push(timerComplete);
@@ -2550,11 +2577,13 @@ export default function App() {
         );
         setSeenCards(prev => [...prev, ...orientedHands[0]]);
 
+        const nextStarter = currentTurnRef.current;
         runDealChoreography(
           [],
           orientedHands,
           nextDeal.remainingDeck,
-          settings.playerCount
+          settings.playerCount,
+          nextStarter
         );
       }, 280);
       return () => window.clearTimeout(timer);
@@ -3152,6 +3181,8 @@ export default function App() {
             players={players}
             currentTurn={currentTurn}
             deckCount={deck.length}
+            dealerIndex={dealerIndex}
+            cutterIndex={(dealerIndex + 1) % settings.playerCount}
             isBusy={isBusy}
             isShuffling={isShuffling}
             hiddenCardIds={hiddenCardIds}

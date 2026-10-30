@@ -592,15 +592,17 @@ class SoundEngine {
   }
 
   /**
-   * Card deal / whoosh sound with tactile paper slide
+   * Card deal / whoosh sound with tactile paper slide and variable pitch
    */
-  public playCardDeal() {
+  public playCardDeal(playbackRate: number = 1.0) {
     if (!this.enabled) return;
     this.initCtx();
     if (!this.ctx) return;
 
+    const rate = Math.max(0.6, Math.min(2.0, playbackRate));
     const t = this.ctx.currentTime;
-    const bufferSize = Math.floor(this.ctx.sampleRate * 0.09);
+    const dur = 0.09 / rate;
+    const bufferSize = Math.floor(this.ctx.sampleRate * dur);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const output = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -609,22 +611,49 @@ class SoundEngine {
 
     const whiteNoise = this.ctx.createBufferSource();
     whiteNoise.buffer = buffer;
+    whiteNoise.playbackRate.setValueAtTime(rate, t);
 
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(1500, t);
-    filter.frequency.exponentialRampToValueAtTime(500, t + 0.08);
+    filter.frequency.setValueAtTime(1500 * rate, t);
+    filter.frequency.exponentialRampToValueAtTime(500 * rate, t + (0.08 / rate));
     filter.Q.value = 2.5;
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.24 * this.volume, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.085);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
 
     whiteNoise.connect(filter);
     filter.connect(gain);
     gain.connect(this.ctx.destination);
 
     whiteNoise.start(t);
+  }
+
+  /**
+   * Tactile click when a batch of cards arrives and fans out in hand
+   */
+  public playCardFan() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.04);
+
+    g.gain.setValueAtTime(0.18 * this.volume, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+    osc.connect(g);
+    g.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.05);
   }
 
   /**

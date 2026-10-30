@@ -508,6 +508,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="border-t border-white/10 pt-3.5 flex items-center justify-between">
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      Dağıtım Temposu
+                    </span>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      Kartların masaya ve ellere uçuş hızı
+                    </span>
+                  </div>
+                  <div className="flex bg-slate-950 border border-white/15 p-1 rounded-xl gap-1 shrink-0">
+                    {[
+                      { id: 'fast', label: 'Hızlı' },
+                      { id: 'normal', label: 'Normal' },
+                      { id: 'cinematic', label: 'Sinematik' }
+                    ].map(speed => (
+                      <button
+                        key={speed.id}
+                        onClick={() => {
+                          sound.playClick();
+                          onUpdateSettings({ dealSpeed: speed.id as any });
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          (settings.dealSpeed || 'normal') === speed.id
+                            ? 'bg-amber-400 text-slate-950 shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {speed.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-3.5 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Activity className="w-4 h-4 text-pink-400" />
                       Ekran Sarsıntısı
                     </span>

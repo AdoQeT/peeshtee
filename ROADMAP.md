@@ -6,7 +6,13 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.17.1 (Current)
+### v1.18.0 (Current)
+- **Authentic Batch Card Dealing Choreography**: Replaced round-robin dealing with sequential 4-card batch delivery starting from the cutting player clockwise, complete with 220ms pauses between seats and hand fanning resolution.
+- **Dynamic Audio Pitch Progression & Tactile Hand Settle**: Upgraded `playCardDeal` with pitch acceleration per card and added `playCardFan` audio upon batch delivery completion.
+- **Physical Table Role Badges**: Added Dealer ('D') and Cutter ('✂️') physical chips dynamically positioned adjacent to player avatars across 2-player and 4-player table configurations.
+- **Customizable Deal Speed Setting**: Introduced 'Fast' (0.65x), 'Normal' (1.0x), and 'Cinematic' (1.4x) deal pacing options in Settings.
+
+### v1.17.1
 - **Refactored MatchIntroOverlay Visual Architecture**: Replaced third-party animation dependencies with fully self-contained CSS `@keyframes` and inline palette styling across all table themes (Monaco Velvet, Melbourne Red, Estoril Blue, Alpine White, Traditional).
 - **Comprehensive 4-Player Team Roster**: Updated all `runWithIntro` initiations (singleplayer 4-player, online host, online guest) to display complete player lineups with Team A vs Team B groupings.
 - **Native Motion Accessibility**: Replaced the custom screenShake coupling with native `prefers-reduced-motion` auto-detection for smooth accessibility.

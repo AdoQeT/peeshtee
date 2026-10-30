@@ -306,6 +306,27 @@ export interface SlotReadinessInfo {
 
 export const cardDomElements = new Map<string, HTMLElement>();
 
+export const RoleChip: React.FC<{ role: 'dealer' | 'cutter'; className?: string }> = ({ role, className = '' }) => {
+  if (role === 'dealer') {
+    return (
+      <div
+        title="Dağıtıcı (Dealer)"
+        className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-200 text-slate-950 font-black text-[9px] sm:text-[11px] flex items-center justify-center shadow-lg border border-amber-300 ring-1 ring-black/40 select-none ${className}`}
+      >
+        D
+      </div>
+    );
+  }
+  return (
+    <div
+      title="Desteyi Kesen (Cutter)"
+      className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-cyan-600 via-sky-300 to-white text-slate-950 font-black text-[8px] sm:text-[10px] flex items-center justify-center shadow-lg border border-cyan-200 ring-1 ring-black/40 select-none ${className}`}
+    >
+      ✂
+    </div>
+  );
+};
+
 interface TableSurfaceProps {
   theme: TableTheme;
   cardBack: string;
@@ -313,6 +334,8 @@ interface TableSurfaceProps {
   players: Player[];
   currentTurn: number;
   deckCount: number;
+  dealerIndex?: number;
+  cutterIndex?: number;
   isBusy: boolean;
   isShuffling: boolean;
   hiddenCardIds?: Set<string>;
@@ -369,6 +392,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   players,
   currentTurn,
   deckCount,
+  dealerIndex = -1,
+  cutterIndex = -1,
   isBusy,
   isShuffling,
   hiddenCardIds,
@@ -716,6 +741,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 size="xs"
                 showBorder={false}
               />
+              {dealerIndex === topOpponentIdx && <RoleChip role="dealer" />}
+              {cutterIndex === topOpponentIdx && <RoleChip role="cutter" />}
               <span>{topOpponent.name}</span>
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
                 {topOpponent.customTitle || getAvatarPreset(topOpponent.avatarId || 'wolf').title}
@@ -804,6 +831,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   size="xs"
                   showBorder={false}
                 />
+                {dealerIndex === 3 && <RoleChip role="dealer" />}
+                {cutterIndex === 3 && <RoleChip role="cutter" />}
                 <span>{players[3].name}</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
                   {players[3].customTitle || getAvatarPreset(players[3].avatarId || 'wolf').title}
@@ -1550,6 +1579,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   size="xs"
                   showBorder={false}
                 />
+                {dealerIndex === 1 && <RoleChip role="dealer" />}
+                {cutterIndex === 1 && <RoleChip role="cutter" />}
                 <span>{players[1].name}</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
                   {players[1].customTitle || getAvatarPreset(players[1].avatarId || 'wolf').title}
@@ -1608,6 +1639,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               size="xs"
               showBorder={false}
             />
+            {dealerIndex === 0 && <RoleChip role="dealer" />}
+            {cutterIndex === 0 && <RoleChip role="cutter" />}
             <span className="text-[10px] font-bold text-white max-w-[50px] truncate">{user.name}</span>
           </div>
           {renderCollectedPile(user, 0, 'top')}

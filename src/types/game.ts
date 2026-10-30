@@ -95,6 +95,7 @@ export interface GameSettings {
   aiDifficulty: AIDifficulty;
   playerCount: 2 | 4;
   fiveRuleEnabled: boolean;
+  dealSpeed?: 'fast' | 'normal' | 'cinematic';
 }
 
 export type GameStatus =

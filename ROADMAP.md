@@ -6,7 +6,15 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.6 (Current)
+### v1.16.7 (Current)
+- **Firebase RTDB Payload Sanitization**: Implemented `cleanForRtdb` across all database write methods (`peerManager`, `friendNetwork`, `profileManager`) to strip `undefined` values and prevent synchronous Firebase property exceptions.
+- **Root Cause Resolution for Lobby Desync**: Fixed missing `GUEST_JOINED` and `HOST_LOBBY_SYNC` packets caused by undefined avatar fields when players use preset avatars without custom images.
+- **Conditional Envelope Token**: Safely omitted empty `roomToken` attributes from packet envelopes to eliminate undefined property propagation.
+- **Explicit Cloud Error Logging**: Replaced all silent `catch {}` and `.catch(() => {})` blocks across real-time modules with explicit console error logging.
+- **DEV Undefined Property Detector**: Added runtime deep undefined property scanner in `send()` to alert developers during local testing.
+- **Deep Payload Sanitization Unit Testing**: Introduced unit tests simulating real multiplayer and social payloads without custom avatars to guarantee zero undefined attributes reach the database.
+
+### v1.16.6
 - **Clock-Agnostic Packet Processing**: Removed strict client-timestamp filtering in `peerManager.ts` to accommodate device clock skew while relying securely on `roomToken` and collision-free room initialization.
 - **Heartbeat & Presence Decoupling**: Moved player heartbeats completely off the event log to `rooms/{code}/presence/{instanceId}` with real-time `onValue` peer health listeners.
 - **Safe Room Code Generation & Host Identification**: Added active room metadata inspection (6-hour freshness check) with up to 5 collision retries and stored `hostUid` for rule authorization.

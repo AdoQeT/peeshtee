@@ -1,4 +1,4 @@
-import { rtdb, ref, set, get, ensureFirebaseAuth } from '../../core/firebase';
+import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb } from '../../core/firebase';
 
 export interface AvatarPreset {
   id: string;
@@ -515,7 +515,7 @@ export async function syncProfileToFirebase(profile: UserProfile): Promise<void>
       stats: profile.stats || {},
       lastOnline: Date.now()
     };
-    await set(profileRef, dataToSync);
+    await set(profileRef, cleanForRtdb(dataToSync));
     remoteProfilesCache.set(profile.friendCode, dataToSync as any);
   } catch (err) {
     // Non-blocking offline fallback

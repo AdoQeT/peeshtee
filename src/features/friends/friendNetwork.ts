@@ -17,7 +17,8 @@ import {
   onValue,
   off,
   onDisconnect,
-  ensureFirebaseAuth
+  ensureFirebaseAuth,
+  cleanForRtdb
 } from '../../core/firebase';
 import {
   getUserProfile,
@@ -110,8 +111,12 @@ export class FriendNetwork {
             this.inviteListeners.forEach(cb => cb(inv));
             // Remove handled invite
             try {
-              remove(snapshot.ref).catch(() => {});
-            } catch {}
+              remove(snapshot.ref).catch(err => {
+                console.error('Firebase remove invite error:', err);
+              });
+            } catch (err) {
+              console.error('Firebase remove invite exception:', err);
+            }
           }
         });
       } catch (err) {
@@ -164,8 +169,12 @@ export class FriendNetwork {
           }
           // Remove handled notice
           try {
-            remove(snapshot.ref).catch(() => {});
-          } catch {}
+            remove(snapshot.ref).catch(err => {
+              console.error('Firebase remove notice error:', err);
+            });
+          } catch (err) {
+            console.error('Firebase remove notice exception:', err);
+          }
         });
       } catch (err) {
         console.warn('Firebase notice listener error:', err);
@@ -254,14 +263,20 @@ export class FriendNetwork {
 
     try {
       const myPresenceRef = ref(rtdb, `presence/${profile.friendCode}`);
-      set(myPresenceRef, {
+      set(myPresenceRef, cleanForRtdb({
         ...presence,
         ownerUid: user?.uid || null
-      }).catch(() => {});
+      })).catch((err) => {
+        console.error('Firebase presence set error:', err);
+      });
       try {
         onDisconnect(myPresenceRef).remove();
-      } catch {}
-    } catch {}
+      } catch (err) {
+        console.error('Firebase presence onDisconnect error:', err);
+      }
+    } catch (err) {
+      console.error('Firebase presence exception:', err);
+    }
   }
 
   public getOnlinePlayers(): OnlinePlayerPresence[] {
@@ -292,9 +307,11 @@ export class FriendNetwork {
     };
 
     try {
-      push(ref(rtdb, `invites/${cleanTargetCode}`), invite).catch(() => {});
+      push(ref(rtdb, `invites/${cleanTargetCode}`), cleanForRtdb(invite)).catch((err) => {
+        console.error('Send game invite error:', err);
+      });
     } catch (e) {
-      console.warn('Send game invite error:', e);
+      console.error('Send game invite exception:', e);
     }
   }
 
@@ -316,9 +333,11 @@ export class FriendNetwork {
     };
 
     try {
-      push(ref(rtdb, `requests/${cleanTargetCode}`), req).catch(() => {});
+      push(ref(rtdb, `requests/${cleanTargetCode}`), cleanForRtdb(req)).catch((err) => {
+        console.error('Send friend request error:', err);
+      });
     } catch (e) {
-      console.warn('Send friend request error:', e);
+      console.error('Send friend request exception:', e);
     }
   }
 
@@ -340,12 +359,14 @@ export class FriendNetwork {
     };
 
     try {
-      push(ref(rtdb, `notices/${cleanTargetCode}`), {
+      push(ref(rtdb, `notices/${cleanTargetCode}`), cleanForRtdb({
         ...notice,
         type: 'accept'
-      }).catch(() => {});
+      })).catch((err) => {
+        console.error('Send friend accept error:', err);
+      });
     } catch (e) {
-      console.warn('Send friend accept error:', e);
+      console.error('Send friend accept exception:', e);
     }
   }
 
@@ -361,12 +382,18 @@ export class FriendNetwork {
           const val = snap.val();
           Object.entries(val).forEach(([key, item]: [string, any]) => {
             if (item && item.fromFriendCode === cleanTargetCode) {
-              remove(ref(rtdb, `requests/${profile.friendCode}/${key}`)).catch(() => {});
+              remove(ref(rtdb, `requests/${profile.friendCode}/${key}`)).catch((err) => {
+                console.error('Remove declined request error:', err);
+              });
             }
           });
         }
-      }).catch(() => {});
-    } catch {}
+      }).catch((err) => {
+        console.error('Fetch requests for decline error:', err);
+      });
+    } catch (err) {
+      console.error('Decline friend request exception:', err);
+    }
   }
 
   public sendFriendRemovedNotice(target: { friendCode?: string; name?: string }) {
@@ -386,12 +413,14 @@ export class FriendNetwork {
     };
 
     try {
-      push(ref(rtdb, `notices/${cleanTargetCode}`), {
+      push(ref(rtdb, `notices/${cleanTargetCode}`), cleanForRtdb({
         ...notice,
         type: 'remove'
-      }).catch(() => {});
+      })).catch((err) => {
+        console.error('Send friend removed notice error:', err);
+      });
     } catch (e) {
-      console.warn('Send friend removed notice error:', e);
+      console.error('Send friend removed notice exception:', e);
     }
   }
 

@@ -58,7 +58,18 @@ export function ensureFirebaseAuth(): Promise<User | null> {
 
 // Auto-trigger anonymous auth in browser environments
 if (typeof window !== 'undefined') {
-  ensureFirebaseAuth().catch(() => {});
+  ensureFirebaseAuth().catch((err) => {
+    console.error('Firebase auto auth error:', err);
+  });
+}
+
+/**
+ * Strips all undefined properties from objects/arrays so Firebase Realtime Database
+ * does not throw the fatal "contains undefined in property" synchronous exception.
+ */
+export function cleanForRtdb<T>(v: T): T {
+  if (v === undefined || v === null) return v;
+  return JSON.parse(JSON.stringify(v));
 }
 
 export {

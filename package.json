@@ -1,12 +1,13 @@
 {
   "name": "project-pisti",
   "private": true,
-  "version": "1.16.6",
+  "version": "1.16.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "test": "node --test scripts/testPayloadSanitization.mjs",
     "changelog": "node scripts/sendDiscordChangelog.mjs"
   },
   "dependencies": {

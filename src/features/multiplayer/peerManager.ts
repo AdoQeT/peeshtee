@@ -16,7 +16,8 @@ import {
   remove,
   onDisconnect,
   serverTimestamp,
-  ensureFirebaseAuth
+  ensureFirebaseAuth,
+  cleanForRtdb
 } from '../../core/firebase';
 
 export interface LobbyPlayerSlot {
@@ -305,16 +306,18 @@ export class MultiplayerManager {
 
       // Track player presence in room with onDisconnect
       this.firebasePresenceRef = ref(rtdb, `rooms/${code}/presence/${this.instanceId}`);
-      set(this.firebasePresenceRef, {
+      set(this.firebasePresenceRef, cleanForRtdb({
         instanceId: this.instanceId,
         role: this.isHost ? 'host' : 'guest',
         lastSeen: serverTimestamp()
-      }).catch(err => {
-        console.warn('Firebase set presence warning:', err);
+      })).catch(err => {
+        console.error('Firebase set presence error:', err);
       });
       try {
         onDisconnect(this.firebasePresenceRef).remove();
-      } catch {}
+      } catch (err) {
+        console.error('Firebase onDisconnect presence error:', err);
+      }
 
       // Listen to room presences to monitor peer health directly
       this.roomPresenceRef = ref(rtdb, `rooms/${code}/presence`);
@@ -416,13 +419,13 @@ export class MultiplayerManager {
     this.roomCode = targetCode;
 
     // Register room in Firebase Realtime Database with 8 second timeout and hostUid
-    const setMetaPromise = set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
+    const setMetaPromise = set(ref(rtdb, `rooms/${this.roomCode}/meta`), cleanForRtdb({
       created: Date.now(),
       hostId: this.instanceId,
       hostUid: user?.uid || null,
       roomToken: this.roomToken,
       active: true
-    });
+    }));
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('TIMEOUT')), 8000);
@@ -558,11 +561,13 @@ export class MultiplayerManager {
     this.heartbeatTimer = window.setInterval(() => {
       if (this.roomCode && this.firebasePresenceRef) {
         // Direct server timestamp update to presence node without polluting event logs
-        set(this.firebasePresenceRef, {
+        set(this.firebasePresenceRef, cleanForRtdb({
           instanceId: this.instanceId,
           role: this.isHost ? 'host' : 'guest',
           lastSeen: serverTimestamp()
-        }).catch(() => {});
+        })).catch((err: any) => {
+          console.error('Firebase heartbeat presence error:', err?.code, err);
+        });
 
         if (this.isConnected) {
           const elapsed = Date.now() - this.lastRemoteMessageTime;
@@ -629,18 +634,31 @@ export class MultiplayerManager {
       __pistiEnvelope: true,
       msgId: `${this.instanceId}-${Date.now()}-${getCryptoRandomString(6)}`,
       roomCode: this.roomCode,
-      roomToken: this.roomToken || undefined,
+      ...(this.roomToken ? { roomToken: this.roomToken } : {}),
       seq: ++this.seq,
       senderId: this.instanceId,
       timestamp: Date.now(),
       payload
     };
 
+    // DEV: warn if any undefined sneaks into envelope
+    if (import.meta.env.DEV) {
+      const findUndef = (obj: any, path = ''): void => {
+        if (obj && typeof obj === 'object') {
+          Object.entries(obj).forEach(([k, v]) => {
+            if (v === undefined) console.error(`[RTDB-undefined] ${path}.${k} is undefined – fix the payload!`);
+            else findUndef(v, `${path}.${k}`);
+          });
+        }
+      };
+      findUndef(envelope, 'envelope');
+    }
+
     // 1. Firebase Realtime Database
     if (this.firebaseEventsRef) {
       try {
-        push(this.firebaseEventsRef, envelope).catch((err: any) => {
-          console.error('Firebase push error:', err);
+        push(this.firebaseEventsRef, cleanForRtdb(envelope)).catch((err: any) => {
+          console.error('Firebase push error:', err?.code, err?.message, err);
         });
       } catch (err) {
         console.error('Firebase push exception:', err);

@@ -1343,23 +1343,60 @@ export default function App() {
       const randomStyle = SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
       const freshDeck = shuffleDeck(createDeck());
 
-      const p1: MatchIntroPlayer = {
-        name: userProfile.name,
-        avatar: userProfile.avatarId || '🦁',
-        avatarId: userProfile.avatarId,
-        customAvatarUrl: userProfile.customAvatarDataUrl,
-        isMe: true
-      };
-      const p2: MatchIntroPlayer = {
-        name: configuredSettings.playerCount === 4 ? 'Takım Karşıtı' : 'Yapay Zeka',
-        avatar: '🤖',
-        avatarId: 'wolf',
-        isMe: false
-      };
+      const is4Player = configuredSettings.playerCount === 4;
+      const playersList: MatchIntroPlayer[] = [];
+
+      if (is4Player) {
+        playersList.push({
+          name: userProfile.name,
+          avatar: userProfile.avatarId || '🦁',
+          avatarId: userProfile.avatarId,
+          customAvatarUrl: userProfile.customAvatarDataUrl,
+          isMe: true,
+          team: 0
+        });
+        playersList.push({
+          name: 'Takım Arkadaşı',
+          avatar: '🤖',
+          avatarId: 'wolf',
+          isMe: false,
+          team: 0
+        });
+        playersList.push({
+          name: 'Rakip 1',
+          avatar: '🤖',
+          avatarId: 'lion',
+          isMe: false,
+          team: 1
+        });
+        playersList.push({
+          name: 'Rakip 2',
+          avatar: '🤖',
+          avatarId: 'eagle',
+          isMe: false,
+          team: 1
+        });
+      } else {
+        playersList.push({
+          name: userProfile.name,
+          avatar: userProfile.avatarId || '🦁',
+          avatarId: userProfile.avatarId,
+          customAvatarUrl: userProfile.customAvatarDataUrl,
+          isMe: true,
+          team: 0
+        });
+        playersList.push({
+          name: 'Yapay Zeka',
+          avatar: '🤖',
+          avatarId: 'wolf',
+          isMe: false,
+          team: 1
+        });
+      }
 
       runWithIntro(
         {
-          players: [p1, p2],
+          players: playersList,
           label: 'Tek Kişilik Maç',
           gameType: 'pisti'
         },
@@ -1992,25 +2029,15 @@ export default function App() {
           setInitialJoinCode('');
           setChatMessages([]);
 
-          const hostSlot = msg.slots.find(s => s.isHost) || msg.slots[0] || { name: 'Oda Kurucu', avatar: '🦁', avatarId: 'lion', customAvatarUrl: undefined };
-          const guestSlot = mySlot || { name: userProfile.name, avatar: '🐺', avatarId: 'wolf', customAvatarUrl: userProfile.customAvatarDataUrl };
-
-          const introPlayers: MatchIntroPlayer[] = [
-            {
-              name: guestSlot.name,
-              avatar: guestSlot.avatar,
-              avatarId: guestSlot.avatarId,
-              customAvatarUrl: guestSlot.customAvatarUrl,
-              isMe: true
-            },
-            {
-              name: hostSlot.name,
-              avatar: hostSlot.avatar,
-              avatarId: hostSlot.avatarId,
-              customAvatarUrl: hostSlot.customAvatarUrl,
-              isMe: false
-            }
-          ];
+          const activeSlots = msg.slots.filter(s => s && s.peerId);
+          const introPlayers: MatchIntroPlayer[] = activeSlots.map(s => ({
+            name: s.name,
+            avatar: s.avatar,
+            avatarId: s.avatarId,
+            customAvatarUrl: s.customAvatarUrl,
+            isMe: s.peerId === multiplayerManager.instanceId,
+            team: (s.seatIndex % 2 === mySeatIdx % 2 ? 0 : 1)
+          }));
 
           if (msg.gameType === 'uno') {
             setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
@@ -3233,25 +3260,15 @@ export default function App() {
           cleanUrlDeepLink();
           setInitialJoinCode('');
 
-          const p1Slot = finalSlots[0] || { name: 'Oda Kurucu', avatar: '🦁', avatarId: 'lion' };
-          const p2Slot = finalSlots[1] || { name: 'Konuk', avatar: '🐺', avatarId: 'wolf' };
-
-          const introPlayers: MatchIntroPlayer[] = [
-            {
-              name: p1Slot.name,
-              avatar: p1Slot.avatar,
-              avatarId: p1Slot.avatarId,
-              customAvatarUrl: p1Slot.customAvatarUrl,
-              isMe: true
-            },
-            {
-              name: p2Slot.name,
-              avatar: p2Slot.avatar,
-              avatarId: p2Slot.avatarId,
-              customAvatarUrl: p2Slot.customAvatarUrl,
-              isMe: false
-            }
-          ];
+          const activeSlots = finalSlots.filter(s => s && s.peerId);
+          const introPlayers: MatchIntroPlayer[] = activeSlots.map(s => ({
+            name: s.name,
+            avatar: s.avatar,
+            avatarId: s.avatarId,
+            customAvatarUrl: s.customAvatarUrl,
+            isMe: s.seatIndex === 0 || s.peerId === multiplayerManager.instanceId,
+            team: (s.seatIndex % 2 === 0 ? 0 : 1)
+          }));
 
           if (chosenGameType === 'uno') {
             const seedUno = shuffleUnoDeck(createUnoDeck());
@@ -3553,7 +3570,6 @@ export default function App() {
           players={matchIntro.players}
           theme={settings.theme}
           cardBack={settings.cardBack}
-          reducedMotion={!settings.screenShake}
           onReveal={() => {
             introStartRef.current?.();
             introStartRef.current = null;

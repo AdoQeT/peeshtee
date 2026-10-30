@@ -6,7 +6,12 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.17.0 (Current)
+### v1.17.1 (Current)
+- **Refactored MatchIntroOverlay Visual Architecture**: Replaced third-party animation dependencies with fully self-contained CSS `@keyframes` and inline palette styling across all table themes (Monaco Velvet, Melbourne Red, Estoril Blue, Alpine White, Traditional).
+- **Comprehensive 4-Player Team Roster**: Updated all `runWithIntro` initiations (singleplayer 4-player, online host, online guest) to display complete player lineups with Team A vs Team B groupings.
+- **Native Motion Accessibility**: Replaced the custom screenShake coupling with native `prefers-reduced-motion` auto-detection for smooth accessibility.
+
+### v1.17.0
 - **Resolved React 18 Lobby Sync Updater Bug**: Migrated `MultiplayerModal` slot computation outside the batched React setState updater onto `slotsRef.current` as the single source of truth, guaranteeing `HOST_LOBBY_SYNC` fires synchronously upon `GUEST_JOINED`, `REQUEST_SEAT_CHANGE`, and `PEER_DISCONNECTED`.
 - **Match Preparation & 5-Card Fan Intro Overlay**: Added `MatchIntroOverlay` featuring staggered card fan-out animations, VS player roster, dynamic table theme adaptation, progress indicator, and gameplay tips smoothly transitioning matches in singleplayer and multiplayer.
 - **Micro-Footprint Online Presence Engine**: Stripped stats, match history, and custom avatar dataURLs from RTDB presence nodes. Presence is indexed by `lastSeen` with `.indexOn` for 30-player explore queries and dedicated friend listeners.

@@ -428,10 +428,9 @@ export default function App() {
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('oda') || urlParams.get('room') || urlParams.get('kod');
       if (roomParam) {
-        const digits =
-          roomParam.trim().replace(/\D/g, '').slice(0, 6) || roomParam.trim().slice(0, 6);
-        if (digits) {
-          setInitialJoinCode(digits);
+        const normalized = multiplayerManager.normalizeCode(roomParam);
+        if (normalized) {
+          setInitialJoinCode(normalized);
           setIsMultiplayerOpen(true);
         }
       }

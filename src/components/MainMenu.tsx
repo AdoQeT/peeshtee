@@ -21,7 +21,7 @@ import { Card, GameSetupConfig, TableTheme } from '../types/game';
 import { CardView } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
 import { UserProfile } from '../features/profile/profileManager';
-import { getLanguage, translations, Language } from '../utils/i18n';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 import { AmbientParticles } from './AmbientParticles';
 
@@ -79,8 +79,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     defaultSetup.botDifficulty || 'medium'
   );
   const [isComingSoonOpen, setIsComingSoonOpen] = useState<boolean>(false);
-  const [lang] = useState<Language>(getLanguage());
+  const [lang, setLang] = useState<Language>(getLanguage());
+  const [isTransitioningLang, setIsTransitioningLang] = useState(false);
   const t = translations[lang];
+
+  React.useEffect(() => {
+    return onLanguageChange((newLang) => {
+      setIsTransitioningLang(true);
+      window.setTimeout(() => {
+        setLang(newLang);
+        window.setTimeout(() => {
+          setIsTransitioningLang(false);
+        }, 150);
+      }, 150);
+    });
+  }, []);
 
   const handleClick = (action: () => void) => {
     sound.playClick();
@@ -106,7 +119,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
   return (
     <div
-      className={`relative min-h-screen w-full flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden select-none ${bgGradient}`}
+      className={`relative min-h-screen w-full flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden select-none transition-opacity duration-200 ${
+        isTransitioningLang ? 'opacity-30 scale-[0.995]' : 'opacity-100 scale-100'
+      } ${bgGradient}`}
     >
       {/* High-Performance Theme Particle Engine */}
       <AmbientParticles theme={theme} intensity="normal" />
@@ -455,7 +470,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v1.16.2
+          v1.16.3
         </span>
       </div>
 

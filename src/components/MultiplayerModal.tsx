@@ -531,8 +531,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     setErrorMsg(null);
     setIsConnecting(true);
 
-    const raw = codeToJoin.trim().replace(/\D/g, '').slice(0, 6);
-    const normalized = raw || codeToJoin.trim().slice(0, 6);
+    const normalized = multiplayerManager.normalizeCode(codeToJoin);
     setCreatedRoomCode(normalized);
 
     const ok = await multiplayerManager.joinRoom(

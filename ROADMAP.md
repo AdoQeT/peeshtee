@@ -6,7 +6,13 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.2 (Current)
+### v1.16.3 (Current)
+- **Room Code & Invite Normalization**: Unified room code handling across direct input, invite notifications, and deep link URLs to prevent room key mismatches and join timeouts ("bağlanılamadı").
+- **Live Friend Presence Matching**: Enhanced presence sync with sanitized friend code comparison, heartbeat interval resilient to background throttling, and immediate visibility re-announcement.
+- **Firebase Realtime Database Quota & Storage Protection**: Implemented automated room cleanup on host disconnection (`onDisconnect().remove()`) and rolling packet pruning in active match event logs to prevent database bloat.
+- **Language Switch Transition & Synchronized i18n**: Added pub/sub reactive language listener with smooth fade-in/fade-out UI transitions when toggling between Turkish and English.
+
+### v1.16.2
 - **100% Pure Firebase Realtime Database Engine**: Completely removed public MQTT brokers (HiveMQ/EMQX) and legacy WebRTC dependencies. Matchmaking, room state, slot negotiation, in-game card events, and friend requests now run with 100% guaranteed delivery on Google Firebase RTDB.
 - **Synchronized Match Launch**: Resolved client transition desync where guests were entering matches after the host; all participants now receive synchronized match start packets and trigger animations simultaneously.
 - **Friend Request & Toast Auto-Dismissal**: Restored real-time request notifications and auto-dismissal timers for toast banners across the viewport.

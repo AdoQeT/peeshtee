@@ -4,7 +4,7 @@
  * are powered 100% directly through Google Firebase Realtime Database.
  */
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
-import { rtdb, ref, push, onChildAdded, set, get, off, remove } from '../../core/firebase';
+import { rtdb, ref, push, onChildAdded, set, get, off, remove, onDisconnect } from '../../core/firebase';
 
 export interface LobbyPlayerSlot {
   seatIndex: number; // 0 (Host), 1 (Right/Opp 1), 2 (Top/Teammate), 3 (Left/Opp 2)
@@ -257,7 +257,10 @@ export class MultiplayerManager {
   }
 
   public normalizeCode(code: string): string {
-    return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    if (!code) return '';
+    const digits = code.trim().replace(/\D/g, '');
+    if (digits.length >= 6) return digits.slice(-6);
+    return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-6);
   }
 
   private setupFirebaseRoom(code: string) {
@@ -318,13 +321,18 @@ export class MultiplayerManager {
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
 
-    // Register room in Firebase Realtime Database
+    // Register room in Firebase Realtime Database and set automatic cleanup on disconnect
     try {
+      const roomRef = ref(rtdb, `rooms/${this.roomCode}`);
       await set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
         created: Date.now(),
         hostId: this.instanceId,
         active: true
       });
+      // Automatically purge room from Firebase if host disconnects or tab closes
+      try {
+        onDisconnect(roomRef).remove();
+      } catch {}
     } catch (e) {
       console.warn('Host room registration warning:', e);
     }
@@ -393,21 +401,10 @@ export class MultiplayerManager {
         });
       };
 
-      // Announce immediately to Firebase
+      // Announce immediately to Firebase and local channels
       announce();
-      // Retry every 500ms until Host responds
-      pingInterval = window.setInterval(announce, 500);
-
-      // Verify room existence in Firebase
-      get(ref(rtdb, `rooms/${this.roomCode}/meta`))
-        .then(snap => {
-          if (!snap.exists()) {
-            setTimeout(() => {
-              if (!this.isConnected && !resolved) finish(false);
-            }, 3500);
-          }
-        })
-        .catch(() => {});
+      // Retry every 350ms until Host responds
+      pingInterval = window.setInterval(announce, 350);
 
       timeoutId = window.setTimeout(() => {
         finish(false);
@@ -500,6 +497,23 @@ export class MultiplayerManager {
     if (this.firebaseEventsRef) {
       try {
         push(this.firebaseEventsRef, envelope).catch(() => {});
+      } catch {}
+    }
+
+    // Storage auto-prune: Clean up oldest events if room event count exceeds 35
+    if (this.isHost && this.roomCode && this.seq % 15 === 0) {
+      try {
+        get(ref(rtdb, `rooms/${this.roomCode}/events`)).then(snap => {
+          if (snap.exists()) {
+            const keys = Object.keys(snap.val() || {});
+            if (keys.length > 35) {
+              const toDelete = keys.slice(0, keys.length - 20);
+              toDelete.forEach(k => {
+                remove(ref(rtdb, `rooms/${this.roomCode}/events/${k}`)).catch(() => {});
+              });
+            }
+          }
+        }).catch(() => {});
       } catch {}
     }
 

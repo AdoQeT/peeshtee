@@ -11,6 +11,7 @@ import {
   remove,
   update,
   off,
+  onDisconnect,
   serverTimestamp
 } from 'firebase/database';
 
@@ -42,5 +43,6 @@ export {
   remove,
   update,
   off,
+  onDisconnect,
   serverTimestamp
 };

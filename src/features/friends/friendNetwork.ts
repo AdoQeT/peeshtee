@@ -15,7 +15,8 @@ import {
   remove,
   onChildAdded,
   onValue,
-  off
+  off,
+  onDisconnect
 } from '../../core/firebase';
 import {
   getUserProfile,
@@ -172,11 +173,16 @@ export class FriendNetwork {
           if (data && typeof data === 'object') {
             const now = Date.now();
             this.onlinePlayers.clear();
+            const cleanMyCode = (myCode || '').replace(/\D/g, '');
             Object.values(data).forEach((p: any) => {
-              if (p && p.friendCode && p.friendCode !== myCode) {
-                // Online if heartbeat received within last 35 seconds
-                if (now - (p.lastSeen || 0) < 35000) {
-                  this.onlinePlayers.set(p.friendCode, p);
+              const pClean = (p?.friendCode || '').replace(/\D/g, '');
+              if (p && pClean && pClean !== cleanMyCode) {
+                // Online if heartbeat received within last 60 seconds
+                if (now - (p.lastSeen || 0) < 60000) {
+                  this.onlinePlayers.set(pClean, p);
+                  if (p.friendCode) {
+                    this.onlinePlayers.set(p.friendCode, p);
+                  }
                 }
               }
             });
@@ -191,10 +197,20 @@ export class FriendNetwork {
     // Publish initial presence immediately
     this.announcePresence();
 
-    // Heartbeat every 8 seconds to keep presence fresh in Firebase
+    // Re-announce immediately when tab becomes visible or focused
+    window.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        this.announcePresence();
+      }
+    });
+    window.addEventListener('focus', () => {
+      this.announcePresence();
+    });
+
+    // Heartbeat every 10 seconds to keep presence fresh in Firebase
     this.heartbeatInterval = window.setInterval(() => {
       this.announcePresence();
-    }, 8000);
+    }, 10000);
   }
 
   public setStatus(
@@ -230,7 +246,11 @@ export class FriendNetwork {
     };
 
     try {
-      set(ref(rtdb, `presence/${profile.friendCode}`), presence).catch(() => {});
+      const myPresenceRef = ref(rtdb, `presence/${profile.friendCode}`);
+      set(myPresenceRef, presence).catch(() => {});
+      try {
+        onDisconnect(myPresenceRef).remove();
+      } catch {}
     } catch {}
   }
 

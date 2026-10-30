@@ -1,6 +1,7 @@
 export type Language = 'tr' | 'en';
 
 const STORAGE_KEY = 'project_p_lang';
+const listeners = new Set<(lang: Language) => void>();
 
 export function getLanguage(): Language {
   if (typeof window === 'undefined') return 'tr';
@@ -11,6 +12,18 @@ export function getLanguage(): Language {
 export function setLanguage(lang: Language): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEY, lang);
+  listeners.forEach(cb => {
+    try {
+      cb(lang);
+    } catch {}
+  });
+}
+
+export function onLanguageChange(cb: (lang: Language) => void): () => void {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 export const translations = {

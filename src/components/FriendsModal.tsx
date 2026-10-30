@@ -115,10 +115,16 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   // Match online presence with saved friends
   const friendsList = useMemo(() => {
     return (activeProfile.friends || []).map(f => {
+      const cleanFriendCode = (f.friendCode || '').replace(/\D/g, '');
       const onlineMatch = onlinePlayers.find(
-        op =>
-          (f.friendCode && op.friendCode === f.friendCode) ||
-          op.name.toLowerCase() === f.name.toLowerCase()
+        op => {
+          const cleanOpCode = (op.friendCode || '').replace(/\D/g, '');
+          return (
+            (cleanFriendCode && cleanOpCode === cleanFriendCode) ||
+            (f.friendCode && op.friendCode === f.friendCode) ||
+            op.name.toLowerCase() === f.name.toLowerCase()
+          );
+        }
       );
       return {
         ...f,

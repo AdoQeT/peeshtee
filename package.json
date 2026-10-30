@@ -1,7 +1,7 @@
 {
   "name": "project-pisti",
   "private": true,
-  "version": "1.15.0",
+  "version": "1.16.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
     "@trystero-p2p/mqtt": "^0.26.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
+    "firebase": "^13.1.0",
     "lucide-react": "^1.16.0",
     "mqtt": "^5.10.0",
     "peerjs": "^1.5.5",

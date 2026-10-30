@@ -48,6 +48,14 @@ Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilomet
   - **Ana Menü Buton Temizliği**: Ana menüdeki mükerrer yüzen sosyal butonu kaldırılarak yalnızca sağ üst header butonunun kalması.
   - **Online Maç İstatistikleri & Geçmiş Senkronizasyonu**: Tek el ve çok oyunculu maçlarda (Pişti & RENQ) maç sonu ve el bitiminde galibiyet/mağlubiyet, skor ve rakip adının profildeki kariyer istatistiklerine ve maç geçmişine anında eksiksiz kaydedilmesi.
   - **Pişti Kartları Yerleşim & Uçuş Fiziği**: Pişti yapıldığında eşleşen açık kartın pişti yuvasına, alt kartın toplanan kartlar destesine uçması; yuva içine yerleşen kartların aynı açıyla, okunabilir ve kademeli üst üste sergilenmesi.
+- [x] **Firebase Realtime Database Bulut Altyapısı, Lobi Ses/Senkronizasyon Reformu, Otomatik Profil & Tema Overdrive (v1.16.0)**:
+  - **Firebase Realtime Database Bulut Entegrasyonu**: Ücretsiz Google Firebase Spark altyapısı ile lobiler, oda senkronizasyonu ve oyuncu profilleri için ultra hızlı (15-30ms) bulut bağlantı omurgası.
+  - **Lobi Ses Spamı & Bağlanma Takılmasının Çözümü**: Misafirin lobiye katılırken oluşturduğu sürekli ses döngüsü giderildi; ses yalnızca yeni bir oyuncu katıldığında 1 kez çalacak şekilde sınırlandırıldı; misafir bağlandığında lobide doğrudan "Hazır ✓" durumuna geçiş sağlandı.
+  - **İsim Sorma Saçmalığının Kaldırılması**: Davetle, linkle veya kodla odaya katılırken her seferinde isim sorma alanı kaldırıldı; oyuncunun mevcut profili, unvanı ve avatarı otomatik kullanılarak tek tıkla doğrudan odaya katılım sağlandı.
+  - **Profil Fotoğrafları & Detaylı İstatistikler**: Profil fotoğraflarının ve kariyer istatistiklerinin Firebase Realtime Database bulutuna eşitlenmesi; lobide ve oyun masasında tüm oyuncuların profil fotoğraflarının eksiksiz görünmesi.
+  - **Monaco Velvet Teması Ayrımı**: Zümrüt Kıraathane ile benzerliği ortadan kaldırılarak Monaco Velvet teması lüks Monte Carlo Casino Royale derin bordo kadife çuha, 24K altın varaklar ve altın taç süslemelerine dönüştürüldü.
+  - **Estoril Blue Overdrive Animasyonları**: Estoril Blue temasına dinamik M-Power neon lazer dalgaları, hız göstergesi takometre animasyonları, dönen siber dial çemberleri ve parlayan ambient parçacık efektleri eklendi.
+
 - [x] **Arkadaşlık Ağı, TR/EN Dil Seçeneği, Bot Kesim & 4 Kişilik RENQ Kararlılığı (v1.15.0)**:
   - **Çift Taraflı Arkadaş Çıkarma & İstek Sistemi**: Arkadaş silindiğinde karşı taraftan da eşzamanlı bildirimle silinmesi; kodla doğrudan istek gönderme ve bildirim akışının kusursuzlaştırılması.
   - **TR / EN Çok Dilli Dil Desteği**: Ana menü, oyun modları, butonlar ve yönlendirmelerin Türkçe ve İngilizce dilleri arasında dinamik değiştirilebilmesi (`🇹🇷 TR | 🇬🇧 EN`).

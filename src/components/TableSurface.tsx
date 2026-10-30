@@ -99,32 +99,62 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
           {/* Subtle Sport Fabric Weave */}
           <div
-            className="absolute inset-0 opacity-[0.035]"
+            className="absolute inset-0 opacity-[0.045]"
             style={{
               backgroundImage:
-                'repeating-linear-gradient(45deg, #e0f2fe 0, #e0f2fe 1px, transparent 1px, transparent 6px), repeating-linear-gradient(-45deg, #bae6fd 0, #bae6fd 1px, transparent 1px, transparent 6px)'
+                'repeating-linear-gradient(45deg, #38bdf8 0, #38bdf8 1px, transparent 1px, transparent 6px), repeating-linear-gradient(-45deg, #0284c7 0, #0284c7 1px, transparent 1px, transparent 6px)'
             }}
           />
-          {/* Aerodynamic Dual Silver-Sky Pinstripe Rail */}
-          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-sky-300/40 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]" />
-          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-sky-200/25" />
-          {/* Corner Aerodynamic Speed Accents */}
-          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-sky-300/60 rounded-tl-md" />
-          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-sky-300/60 rounded-tr-md" />
-          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-sky-300/60 rounded-bl-md" />
-          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-sky-300/60 rounded-br-md" />
-          {/* Central Estoril M-Sport Racing Crest */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] pointer-events-none">
-            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-sky-200" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <polygon points="100,18 175,55 175,145 100,182 25,145 25,55" strokeWidth="2" strokeDasharray="6 3" />
-              <polygon points="100,32 160,62 160,138 100,168 40,138 40,62" />
-              <circle cx="100" cy="100" r="42" strokeDasharray="4 2" />
-              <path d="M78 100 L122 100 M100 78 L100 122" strokeWidth="2" />
-              <circle cx="100" cy="100" r="16" />
-            </svg>
+
+          {/* Dynamic Ambient Electric Pulse Wave */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.18)_0%,_transparent_65%)] animate-estoril-pulse" />
+
+          {/* Aerodynamic Overdrive Neon Laser Rails */}
+          <div className="absolute inset-2 sm:inset-3 rounded-2xl p-[2px] estoril-laser-rail opacity-80 shadow-[0_0_25px_rgba(56,189,248,0.4)]">
+            <div className="w-full h-full rounded-[inherit] border border-sky-300/40" />
           </div>
-          {/* Deep Sapphire Felt Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(4,14,28,0.75)_100%)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-sky-400/35 shadow-[inset_0_0_20px_rgba(14,165,233,0.25)]" />
+
+          {/* Corner Aerodynamic Speed Fins & HUD Accents */}
+          <div className="absolute top-3.5 left-3.5 flex items-center gap-1 text-sky-400/80 animate-pulse">
+            <div className="w-5 h-5 border-t-2 border-l-2 border-sky-400 rounded-tl-md shadow-[0_0_8px_#38bdf8]" />
+            <div className="w-8 h-[2px] bg-gradient-to-r from-sky-400 to-transparent" />
+          </div>
+          <div className="absolute top-3.5 right-3.5 flex items-center gap-1 text-sky-400/80 animate-pulse">
+            <div className="w-8 h-[2px] bg-gradient-to-l from-sky-400 to-transparent" />
+            <div className="w-5 h-5 border-t-2 border-r-2 border-sky-400 rounded-tr-md shadow-[0_0_8px_#38bdf8]" />
+          </div>
+          <div className="absolute bottom-3.5 left-3.5 flex items-center gap-1 text-sky-400/80 animate-pulse">
+            <div className="w-5 h-5 border-b-2 border-l-2 border-sky-400 rounded-bl-md shadow-[0_0_8px_#38bdf8]" />
+            <div className="w-8 h-[2px] bg-gradient-to-r from-sky-400 to-transparent" />
+          </div>
+          <div className="absolute bottom-3.5 right-3.5 flex items-center gap-1 text-sky-400/80 animate-pulse">
+            <div className="w-8 h-[2px] bg-gradient-to-l from-sky-400 to-transparent" />
+            <div className="w-5 h-5 border-b-2 border-r-2 border-sky-400 rounded-br-md shadow-[0_0_8px_#38bdf8]" />
+          </div>
+
+          {/* Central Estoril M-Power Animated Tachometer / Racing Crest */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.16] pointer-events-none">
+            {/* Outer Slow Rotating Energy Dial */}
+            <svg viewBox="0 0 200 200" className="w-80 h-80 sm:w-[28rem] sm:h-[28rem] text-sky-400 animate-estoril-spin" fill="none" stroke="currentColor">
+              <circle cx="100" cy="100" r="92" strokeWidth="1.5" strokeDasharray="8 6" />
+              <circle cx="100" cy="100" r="82" strokeWidth="1" strokeDasharray="3 4" />
+            </svg>
+
+            {/* Inner Counter-Rotating Hex Speed Lattice */}
+            <svg viewBox="0 0 200 200" className="absolute w-72 h-72 sm:w-96 sm:h-96 text-sky-300 animate-estoril-spin-reverse" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <polygon points="100,18 175,55 175,145 100,182 25,145 25,55" strokeWidth="2" strokeDasharray="12 4" />
+              <polygon points="100,34 158,64 158,136 100,166 42,136 42,64" strokeWidth="1" />
+            </svg>
+
+            {/* Core Speed HUD Needle & Bullseye */}
+            <div className="absolute w-28 h-28 rounded-full border-2 border-sky-300/60 shadow-[0_0_30px_rgba(56,189,248,0.5)] flex items-center justify-center">
+              <div className="w-3 h-3 rounded-full bg-sky-300 shadow-[0_0_15px_#38bdf8]" />
+            </div>
+          </div>
+
+          {/* Deep Sapphire Edge Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(2,9,20,0.85)_100%)]" />
         </div>
       );
 
@@ -235,28 +265,33 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
     case 'monaco_velvet':
       return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
-          {/* Royal Emerald Damask Weave Texture */}
+          {/* Deep Royal Bordeaux Damask Weave Texture */}
           <div
-            className="absolute inset-0 opacity-[0.045]"
+            className="absolute inset-0 opacity-[0.05]"
             style={{
               backgroundImage:
-                'radial-gradient(circle at 50% 50%, #10b981 1px, transparent 1px), repeating-linear-gradient(45deg, #059669 0, #059669 1px, transparent 1px, transparent 10px)'
+                'radial-gradient(circle at 50% 50%, #f59e0b 1px, transparent 1px), repeating-linear-gradient(45deg, #e11d48 0, #e11d48 1px, transparent 1px, transparent 10px)'
             }}
           />
-          {/* French Casino Mahogany & Polished Emerald Inlay Rail */}
-          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-emerald-400/45 shadow-[inset_0_0_25px_rgba(16,185,129,0.2)]" />
-          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-emerald-300/25" />
-          {/* Central Casino Royale Fleur-de-Lis Medallion */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.09] pointer-events-none">
-            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+          {/* Monte Carlo High-Roller 24K Inlaid Gold Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-amber-400/55 shadow-[inset_0_0_28px_rgba(245,158,11,0.22)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-amber-300/35" />
+          {/* Corner Baroque Gold Accents */}
+          <div className="absolute top-3.5 left-3.5 w-6 h-6 border-t-2 border-l-2 border-amber-400/70 rounded-tl-lg" />
+          <div className="absolute top-3.5 right-3.5 w-6 h-6 border-t-2 border-r-2 border-amber-400/70 rounded-tr-lg" />
+          <div className="absolute bottom-3.5 left-3.5 w-6 h-6 border-b-2 border-l-2 border-amber-400/70 rounded-bl-lg" />
+          <div className="absolute bottom-3.5 right-3.5 w-6 h-6 border-b-2 border-r-2 border-amber-400/70 rounded-br-lg" />
+          {/* Central Casino Royale Fleur-de-Lis Gold Crest */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.11] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-amber-300" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="100" cy="100" r="90" strokeDasharray="4 3" strokeWidth="2" />
               <circle cx="100" cy="100" r="74" />
-              <polygon points="100,35 118,80 165,80 126,108 142,155 100,126 58,155 74,108 35,80 82,80" fill="currentColor" opacity="0.4" />
+              <polygon points="100,35 118,80 165,80 126,108 142,155 100,126 58,155 74,108 35,80 82,80" fill="currentColor" opacity="0.6" />
               <circle cx="100" cy="100" r="22" strokeWidth="2" />
             </svg>
           </div>
-          {/* Deep Royal Noir Emerald Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_42%,_rgba(1,8,4,0.88)_100%)]" />
+          {/* Deep Royal Wine Velvet Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_42%,_rgba(15,1,5,0.92)_100%)]" />
         </div>
       );
   }
@@ -413,13 +448,13 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       case 'sakura':
         return 'bg-[#120414] bg-[radial-gradient(ellipse_at_center,_#360c29_0%,_#1a051d_58%,_#0a010c_100%)] border-pink-900/80 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
       case 'estoril_blue':
-        return 'bg-[#061528] bg-[radial-gradient(ellipse_at_center,_#123a66_0%,_#081e36_50%,_#020b16_100%)] border-sky-400/40 shadow-[inset_0_0_100px_rgba(14,165,233,0.18),0_25px_60px_rgba(0,0,0,0.88)]';
+        return 'bg-[#030d1a] bg-[radial-gradient(ellipse_at_center,_#0e4277_0%,_#051d38_48%,_#010710_100%)] border-sky-400/60 shadow-[inset_0_0_120px_rgba(14,165,233,0.35),0_0_40px_rgba(56,189,248,0.2),0_25px_60px_rgba(0,0,0,0.95)]';
       case 'alpine_white':
         return 'bg-[#151921] bg-[radial-gradient(ellipse_at_center,_#333c48_0%,_#1b212b_52%,_#0b0e13_100%)] border-slate-400/40 shadow-[inset_0_0_100px_rgba(255,255,255,0.06),0_25px_60px_rgba(0,0,0,0.88)]';
       case 'melbourne_red':
         return 'bg-[#1a0407] bg-[radial-gradient(ellipse_at_center,_#520912_0%,_#290408_52%,_#0d0103_100%)] border-red-500/40 shadow-[inset_0_0_100px_rgba(220,38,38,0.2),0_25px_60px_rgba(0,0,0,0.9)]';
       case 'monaco_velvet':
-        return 'bg-[#03170e] bg-[radial-gradient(ellipse_at_center,_#0a3d28_0%,_#042114_55%,_#010b06_100%)] border-emerald-500/50 shadow-[inset_0_0_100px_rgba(16,185,129,0.25),0_25px_60px_rgba(0,0,0,0.9)]';
+        return 'bg-[#1a0208] bg-[radial-gradient(ellipse_at_center,_#4a0418_0%,_#28020d_55%,_#100104_100%)] border-amber-500/60 shadow-[inset_0_0_100px_rgba(245,158,11,0.22),0_25px_60px_rgba(0,0,0,0.92)]';
       case 'luxury_gold':
         return 'bg-[#140608] bg-[radial-gradient(ellipse_at_center,_#38150c_0%,_#1a090d_60%,_#070204_100%)] border-amber-600/50 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
       case 'traditional':
@@ -1563,8 +1598,18 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           3. BOTTOM HUMAN PLAYER HAND AREA & CONTROLS (Fixed 3-Column Lock)
          ========================================================= */}
       <div className="relative z-10 flex items-center justify-center w-full max-w-4xl mx-auto px-2">
-        {/* Left: User Collected Pile (Fixed 100px width so it NEVER shifts!) */}
-        <div className="w-24 sm:w-28 flex justify-end shrink-0">
+        {/* Left: User Avatar & Collected Pile (Fixed width so it NEVER shifts!) */}
+        <div className="w-24 sm:w-28 flex flex-col items-end gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 bg-slate-950/80 border border-white/15 px-2 py-0.5 rounded-full shadow-md">
+            <AvatarBadge
+              avatarId={user.avatarId || 'wolf'}
+              customAvatarUrl={user.customAvatarUrl}
+              fallbackEmoji={user.avatar}
+              size="xs"
+              showBorder={false}
+            />
+            <span className="text-[10px] font-bold text-white max-w-[50px] truncate">{user.name}</span>
+          </div>
           {renderCollectedPile(user, 0, 'top')}
         </div>
 

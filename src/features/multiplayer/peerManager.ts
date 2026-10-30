@@ -7,6 +7,7 @@
  */
 import type { MqttClient } from 'mqtt';
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
+import { rtdb, ref, push, onChildAdded, off } from '../../core/firebase';
 
 const BROKER_1 = 'wss://broker.emqx.io:8084/mqtt';
 const BROKER_2 = 'wss://broker.hivemq.com:8884/mqtt';
@@ -193,6 +194,7 @@ export class MultiplayerManager {
   private seenMsgIds: Set<string> = new Set();
   private lastSeenSeq: Map<string, number> = new Map();
   private storageListener: ((ev: StorageEvent) => void) | null = null;
+  private firebaseEventsRef: any = null;
   private heartbeatTimer: number | null = null;
   private lastRemoteMessageTime: number = 0;
   private isPeerReconnecting: boolean = false;
@@ -240,6 +242,30 @@ export class MultiplayerManager {
 
   public getTopic(code: string): string {
     return `pisti/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
+  }
+
+  private setupFirebaseRoom(code: string) {
+    this.cleanupFirebaseRoom();
+    try {
+      this.firebaseEventsRef = ref(rtdb, `rooms/${code}/events`);
+      onChildAdded(this.firebaseEventsRef, (snapshot: any) => {
+        const val = snapshot.val();
+        if (val) {
+          this.handleRawIncoming(val);
+        }
+      });
+    } catch (err) {
+      console.warn('Firebase RTDB listener setup failed:', err);
+    }
+  }
+
+  private cleanupFirebaseRoom() {
+    if (this.firebaseEventsRef) {
+      try {
+        off(this.firebaseEventsRef);
+      } catch {}
+      this.firebaseEventsRef = null;
+    }
   }
 
   private setupLocalBuses(code: string) {
@@ -338,6 +364,7 @@ export class MultiplayerManager {
     this.seq = 0;
     this.isConnected = false;
     this.setupLocalBuses(this.roomCode);
+    this.setupFirebaseRoom(this.roomCode);
     await this.setupMqttClient(this.roomCode);
     this.startHeartbeat();
     return this.roomCode;
@@ -351,6 +378,7 @@ export class MultiplayerManager {
     this.seq = 0;
     this.isConnected = false;
     this.setupLocalBuses(this.roomCode);
+    this.setupFirebaseRoom(this.roomCode);
     const connected = await this.setupMqttClient(this.roomCode);
     if (!connected) return false;
 
@@ -393,7 +421,8 @@ export class MultiplayerManager {
       };
 
       announce();
-      pingInterval = window.setInterval(announce, 450);
+      // Gentle interval to prevent flood and sound spam
+      pingInterval = window.setInterval(announce, 1200);
 
       timeoutId = window.setTimeout(() => {
         finish(false);
@@ -485,6 +514,14 @@ export class MultiplayerManager {
     const str = JSON.stringify(envelope);
     const topic = this.getTopic(this.roomCode);
 
+    // 1. Firebase Realtime Database Fast Cloud Lane
+    if (this.firebaseEventsRef) {
+      try {
+        push(this.firebaseEventsRef, envelope).catch(() => {});
+      } catch {}
+    }
+
+    // 2. Dual Public MQTT fallback
     this.clients.forEach(c => {
       if (c.connected) {
         try {
@@ -512,6 +549,7 @@ export class MultiplayerManager {
   }
 
   public disconnect() {
+    this.cleanupFirebaseRoom();
     if (this.heartbeatTimer) {
       window.clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;

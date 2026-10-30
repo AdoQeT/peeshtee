@@ -1,3 +1,5 @@
+import { rtdb, ref, set, get } from '../../core/firebase';
+
 export interface AvatarPreset {
   id: string;
   name: string;
@@ -441,9 +443,57 @@ export function removeFriend(friendId: string, friendCode?: string, name?: strin
   return profile;
 }
 
+export const remoteProfilesCache = new Map<string, Partial<UserProfile>>();
+
+export async function syncProfileToFirebase(profile: UserProfile): Promise<void> {
+  if (!profile.friendCode) return;
+  try {
+    const profileRef = ref(rtdb, `profiles/${profile.friendCode}`);
+    const dataToSync = {
+      id: profile.id,
+      friendCode: profile.friendCode,
+      name: profile.name,
+      avatarId: profile.avatarId,
+      customAvatarDataUrl: profile.customAvatarDataUrl || null,
+      customTitle: profile.customTitle || null,
+      isOwner: profile.isOwner || false,
+      level: profile.level || 1,
+      xp: profile.xp || 0,
+      stats: profile.stats || {},
+      lastOnline: Date.now()
+    };
+    await set(profileRef, dataToSync);
+    remoteProfilesCache.set(profile.friendCode, dataToSync as any);
+  } catch (err) {
+    // Non-blocking offline fallback
+    console.warn('Firebase profile sync warning:', err);
+  }
+}
+
+export async function fetchRemoteProfile(friendCode: string): Promise<Partial<UserProfile> | null> {
+  if (!friendCode) return null;
+  const clean = friendCode.trim().replace(/[^0-9A-Za-z]/g, '');
+  if (remoteProfilesCache.has(clean)) {
+    return remoteProfilesCache.get(clean)!;
+  }
+  try {
+    const snap = await get(ref(rtdb, `profiles/${clean}`));
+    if (snap.exists()) {
+      const data = snap.val() as Partial<UserProfile>;
+      remoteProfilesCache.set(clean, data);
+      return data;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch remote profile from Firebase:', err);
+  }
+  return null;
+}
+
 export function saveUserProfile(profile: UserProfile): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    // Asynchronously push to Firebase Realtime Database
+    syncProfileToFirebase(profile);
   } catch (e) {
     console.warn('Profile save error:', e);
   }

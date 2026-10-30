@@ -40,9 +40,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: 'estoril_blue',
       name: 'Estoril Blue',
-      subtitle: 'Tatlı Safir Metalik & Gümüş Hatlar',
-      preview: 'from-[#123e70] via-[#092548] to-[#031124] border-sky-400/80',
-      badge: 'M-SPORT',
+      subtitle: 'Elektrik Safir Metalik & Dinamik Neon Lazer Dalgaları',
+      preview: 'from-[#0284c7] via-[#034d82] to-[#021226] border-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.5)]',
+      badge: 'M-POWER',
       cardDesc: 'Estoril Sport Kart & Çift Yarış Deseni'
     },
     {
@@ -64,8 +64,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: 'monaco_velvet',
       name: 'Monaco Velvet',
-      subtitle: 'Casino Royale & Zümrüt Kadife Çuha',
-      preview: 'from-[#0c4028] via-[#062919] to-[#02130b] border-emerald-400/80',
+      subtitle: 'Monte Carlo Royale & Bordo Kadife Çuha & 24K Altın Varak',
+      preview: 'from-[#6b0821] via-[#3d0312] to-[#170106] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]',
       badge: 'ROYALE',
       cardDesc: 'Monaco Royal Kart & Altın Kraliyet Tacı'
     },

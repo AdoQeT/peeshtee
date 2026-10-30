@@ -78,16 +78,16 @@ function getCardThemeConfig(theme: TableTheme = 'traditional') {
       };
     case 'monaco_velvet':
       return {
-        bg: 'bg-gradient-to-b from-[#fbfdfa] via-[#f0f7f2] to-[#dcf0e4] border-2 border-emerald-600/80 shadow-[0_4px_14px_rgba(5,150,105,0.25)]',
-        innerFrame: 'border-emerald-600/35 bg-emerald-50/20',
+        bg: 'bg-gradient-to-b from-[#fffbf5] via-[#fdf4e8] to-[#fae8d2] border-2 border-amber-500/90 shadow-[0_4px_16px_rgba(245,158,11,0.3)]',
+        innerFrame: 'border-amber-600/35 bg-amber-50/20',
         fontClass: 'font-serif font-black',
-        watermarkColor: 'text-emerald-600/[0.08]',
+        watermarkColor: 'text-amber-600/[0.08]',
         getSuitColor: (suit: Suit) =>
           suit === 'hearts' || suit === 'diamonds'
             ? 'text-[#be123c] drop-shadow-[0_1px_2px_rgba(190,18,60,0.2)]'
-            : 'text-[#064e3b] drop-shadow-[0_1px_2px_rgba(6,78,59,0.2)]',
+            : 'text-[#4a0418] drop-shadow-[0_1px_2px_rgba(74,4,24,0.2)]',
         courtBg:
-          'border-emerald-600/60 bg-gradient-to-b from-[#ecfdf5] via-[#d1fae5] to-[#a7f3d0] text-[#064e3b]'
+          'border-amber-500/70 bg-gradient-to-b from-[#fef3c7] via-[#fde68a] to-[#fed7aa] text-[#78350f]'
       };
     case 'sakura':
       return {
@@ -152,13 +152,13 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
   const isGold = cardBack === 'gold_dragon';
 
   const themeStyles = isEstoril
-    ? 'bg-gradient-to-br from-[#123e70] via-[#092548] to-[#031124] border-2 border-sky-300/80 shadow-[0_4px_16px_rgba(56,189,248,0.2)]'
+    ? 'bg-gradient-to-br from-[#0284c7] via-[#034d82] to-[#011428] border-2 border-sky-300 shadow-[0_4px_20px_rgba(56,189,248,0.45)]'
     : isAlpine
     ? 'bg-gradient-to-br from-[#f8fafc] via-[#e2e8f0] to-[#cbd5e1] border-2 border-white shadow-[0_4px_16px_rgba(255,255,255,0.4)]'
     : isMelbourne
     ? 'bg-gradient-to-br from-[#8a0e1b] via-[#57050e] to-[#2b0206] border-2 border-red-400/80 shadow-[0_4px_16px_rgba(239,68,68,0.25)]'
     : isMonaco
-    ? 'bg-gradient-to-br from-[#0c4028] via-[#062919] to-[#02130b] border-2 border-amber-400/80 shadow-[0_4px_16px_rgba(16,185,129,0.25)]'
+    ? 'bg-gradient-to-br from-[#4a0418] via-[#28020d] to-[#120105] border-2 border-amber-400 shadow-[0_4px_18px_rgba(245,158,11,0.4)]'
     : isSakura
     ? 'bg-gradient-to-br from-[#3b0a28] via-[#1f0726] to-[#0f0318] border-2 border-pink-300/90 shadow-[0_4px_16px_rgba(244,114,182,0.25)]'
     : isGold
@@ -194,13 +194,13 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
             backgroundImage: isSakura
               ? 'radial-gradient(circle at 50% 50%, rgba(244,114,182,0.35) 1px, transparent 1px), repeating-linear-gradient(45deg, rgba(251,207,232,0.12) 0px, rgba(251,207,232,0.12) 1px, transparent 1px, transparent 7px)'
               : isEstoril
-              ? 'repeating-linear-gradient(45deg, rgba(56,189,248,0.2) 0px, rgba(56,189,248,0.2) 1px, transparent 1px, transparent 8px)'
+              ? 'repeating-linear-gradient(45deg, rgba(56,189,248,0.35) 0px, rgba(56,189,248,0.35) 1px, transparent 1px, transparent 8px)'
               : isAlpine
               ? 'repeating-linear-gradient(45deg, rgba(71,85,105,0.2) 0px, rgba(71,85,105,0.2) 1px, transparent 1px, transparent 6px), repeating-linear-gradient(-45deg, rgba(71,85,105,0.2) 0px, rgba(71,85,105,0.2) 1px, transparent 1px, transparent 6px)'
               : isMelbourne
               ? 'repeating-linear-gradient(45deg, rgba(239,68,68,0.2) 0px, rgba(239,68,68,0.2) 1px, transparent 1px, transparent 7px)'
               : isMonaco
-              ? 'repeating-linear-gradient(45deg, rgba(16,185,129,0.2) 0px, rgba(16,185,129,0.2) 1px, transparent 1px, transparent 8px)'
+              ? 'repeating-linear-gradient(45deg, rgba(245,158,11,0.25) 0px, rgba(245,158,11,0.25) 1px, transparent 1px, transparent 8px)'
               : 'repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 6px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 6px)',
             backgroundSize: isSakura ? '10px 10px, auto' : 'auto'
           }}
@@ -218,13 +218,13 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
             isSakura
               ? 'border-pink-300/60 bg-pink-950/60 text-pink-300 shadow-[0_0_15px_rgba(244,114,182,0.4)]'
               : isEstoril
-              ? 'border-sky-300/70 bg-sky-950/70 text-sky-200 shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+              ? 'border-sky-300 bg-sky-950/80 text-sky-200 shadow-[0_0_18px_rgba(56,189,248,0.5)]'
               : isAlpine
               ? 'border-slate-400 bg-white/90 text-slate-800 shadow-sm'
               : isMelbourne
               ? 'border-red-400/80 bg-red-950/70 text-amber-300 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
               : isMonaco
-              ? 'border-amber-400/80 bg-emerald-950/80 text-amber-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+              ? 'border-amber-400/90 bg-rose-950/90 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.5)]'
               : isGold
               ? 'border-amber-400/80 bg-amber-950/70 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
               : 'border-blue-300/60 bg-blue-950/70 text-blue-200'

@@ -17,9 +17,7 @@ import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/pee
 import { GameSettings } from '../types/game';
 import {
   getUserProfile,
-  saveUserProfile,
   addOrUpdateFriend,
-  isDefaultPlayerName,
   getAvatarPreset
 } from '../features/profile/profileManager';
 import { friendNetwork } from '../features/friends/friendNetwork';
@@ -73,9 +71,6 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
   const [joinCodeInput, setJoinCodeInput] = useState(initialJoinCode || '');
   const [invitedRoomCode, setInvitedRoomCode] = useState<string | null>(initialJoinCode || null);
-  const [customNameInput, setCustomNameInput] = useState(
-    profile.name && !isDefaultPlayerName(profile.name) ? profile.name : ''
-  );
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [inviteSentBanner, setInviteSentBanner] = useState<string | null>(null);
@@ -259,22 +254,24 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
     const unsubscribe = multiplayerManager.onEvent(event => {
       if (event.type === 'GUEST_JOINED') {
-        sound.playMatchSweep();
         if (multiplayerManager.isHost) {
           setSlots(prev => {
             const next = [...prev];
             const existingIdx = next.findIndex(s => s.peerId === event.guestPeerId);
             if (existingIdx !== -1) {
+              // Existing guest re-announcing or updating status: do NOT replay join sound!
               next[existingIdx] = {
                 ...next[existingIdx],
                 name: event.guestName,
                 avatar: event.guestAvatar,
                 avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
-                customAvatarUrl: event.guestCustomAvatarUrl,
-                customTitle: event.guestCustomTitle,
-                level: event.guestLevel || 1
+                customAvatarUrl: event.guestCustomAvatarUrl || next[existingIdx].customAvatarUrl,
+                customTitle: event.guestCustomTitle || next[existingIdx].customTitle,
+                level: event.guestLevel || next[existingIdx].level || 1
               };
             } else {
+              // Brand NEW player joining the lobby! Play sound exactly once.
+              sound.playMatchSweep();
               const emptyIdx = next.findIndex(
                 s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
               );
@@ -780,7 +777,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               </div>
 
               {invitedRoomCode ? (
-                /* INVITATION LINK VIEW: Focus exclusively on joining this room */
+                /* INVITATION LINK VIEW: Direct 1-click join with existing profile */
                 <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-cyan-500/30 space-y-4 shadow-xl">
                   <div className="text-center space-y-1">
                     <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
@@ -797,40 +794,33 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Nickname input: Mandatory if default name, or editable */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-300">
-                      Oyuncu Adın:{' '}
-                      {isDefaultPlayerName(profile.name) && (
-                        <span className="text-rose-400 font-normal">
-                          (*Odaya girmeden önce adını yaz)
-                        </span>
-                      )}
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={18}
-                      value={customNameInput}
-                      onChange={e => setCustomNameInput(e.target.value)}
-                      placeholder="Adını veya lakabını gir..."
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/20 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
-                    />
+                  {/* Profile Preview Card: No redundant name asking! */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AvatarBadge
+                        avatarId={localAvatarId}
+                        customAvatarUrl={localCustomAvatarUrl}
+                        fallbackEmoji={localAvatar}
+                        size="md"
+                        isOwner={profile.isOwner}
+                      />
+                      <div>
+                        <div className="text-xs text-slate-400 font-semibold">Giriş Yapan Profil:</div>
+                        <div className="text-sm font-black text-white flex items-center gap-1.5">
+                          <span>{localName}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                            #{profile.friendCode}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-lg">
+                      Hazır ✓
+                    </span>
                   </div>
 
                   <button
-                    onClick={() => {
-                      const chosen = customNameInput.trim();
-                      if (!chosen && isDefaultPlayerName(profile.name)) {
-                        setErrorMsg('Lütfen odaya girmeden önce adınızı belirleyin!');
-                        return;
-                      }
-                      if (chosen && chosen !== profile.name) {
-                        const updated = { ...profile, name: chosen };
-                        saveUserProfile(updated);
-                        setProfile(updated);
-                      }
-                      handleJoinRoomWithCode(invitedRoomCode);
-                    }}
+                    onClick={() => handleJoinRoomWithCode(invitedRoomCode)}
                     disabled={isConnecting}
                     className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm font-cyber flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
                   >
@@ -1094,19 +1084,29 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                           <AvatarBadge
                             avatarId={slot.avatarId || 'wolf'}
                             customAvatarUrl={slot.customAvatarUrl}
-                            size="sm"
+                            customTitle={slot.customTitle}
+                            isOwner={slot.isHost}
+                            size="md"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-sm">
+                          <div className="w-10 h-10 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-sm">
                             ⏳
                           </div>
                         )}
 
                         <div className="min-w-0">
-                          <div className="text-xs font-black text-white truncate">
-                            {slot.name} {isMe ? '(Sen)' : ''}
+                          <div className="text-xs font-black text-white truncate flex items-center gap-1.5">
+                            <span>{slot.name} {isMe ? '(Sen)' : ''}</span>
+                            {slot.level && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono">
+                                Lvl.{slot.level}
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {slot.customTitle ? (
+                              <span className="text-cyan-300/80">{slot.customTitle} • </span>
+                            ) : null}
                             {playerCount === 4
                               ? slot.seatIndex === 0 || slot.seatIndex === 2
                                 ? '🟢 A Takımı'
@@ -1118,20 +1118,29 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                         </div>
                       </div>
 
-                      {/* In 4-player mode, allow switching seats */}
-                      {playerCount === 4 && !isMe && (
-                        <button
-                          onClick={() => {
-                            const myCurrentSeat =
-                              slots.find(s => s.peerId === multiplayerManager.instanceId)
-                                ?.seatIndex ?? 0;
-                            handleSwapSeats(myCurrentSeat, slot.seatIndex);
-                          }}
-                          className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-cyan-300 border border-cyan-500/30 shrink-0 cursor-pointer"
-                        >
-                          Buraya Geç
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isOccupied && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>Hazır</span>
+                          </span>
+                        )}
+
+                        {/* In 4-player mode, allow switching seats */}
+                        {playerCount === 4 && !isMe && (
+                          <button
+                            onClick={() => {
+                              const myCurrentSeat =
+                                slots.find(s => s.peerId === multiplayerManager.instanceId)
+                                  ?.seatIndex ?? 0;
+                              handleSwapSeats(myCurrentSeat, slot.seatIndex);
+                            }}
+                            className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-cyan-300 border border-cyan-500/30 shrink-0 cursor-pointer"
+                          >
+                            Buraya Geç
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

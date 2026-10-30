@@ -68,6 +68,41 @@
   text-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 25px rgba(220, 38, 38, 0.6), 0 0 50px rgba(185, 28, 28, 0.4);
 }
 
+/* Estoril Blue Overdrive Special Effects */
+@keyframes estorilBeam {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes estorilPulseWave {
+  0%, 100% { opacity: 0.35; transform: scale(0.99); }
+  50% { opacity: 0.85; transform: scale(1.015); }
+}
+
+@keyframes estorilLaserBorder {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-estoril-pulse {
+  animation: estorilPulseWave 3.5s ease-in-out infinite;
+}
+
+.animate-estoril-spin {
+  animation: estorilBeam 24s linear infinite;
+}
+
+.animate-estoril-spin-reverse {
+  animation: estorilBeam 36s linear infinite reverse;
+}
+
+.estoril-laser-rail {
+  background: linear-gradient(90deg, rgba(56,189,248,0.2), rgba(14,165,233,0.8), rgba(99,102,241,0.6), rgba(56,189,248,0.2));
+  background-size: 200% 200%;
+  animation: estorilLaserBorder 6s ease infinite;
+}
+
 /* Accessibility: respect user prefers-reduced-motion settings */
 @media (prefers-reduced-motion: reduce) {
   *,

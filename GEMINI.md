@@ -8,7 +8,9 @@ Bu belge, proje genelinde çalışan tüm yapay zeka asistanları ve geliştiric
 
 Projede yeni bir sürüm çıkarıldığında (örn: `v1.14.4`, `v1.15.0` vb.) şu adımlar **istisnasız her zaman** uygulanmalıdır:
 
-### 1. Sürüm Numarasının Güncellenmesi
+### 1. Sürüm Numarasının Güncellenmesi & Artırma Kuralı
+- **Küçük Güncelleme & Yamalar**: Sürüm numarası **+0.00.1 (patch)** yükseltilir (örn: `1.15.0` -> `1.15.1`).
+- **Büyük Yamalar & Yeni Özellikler**: Sürüm numarası **+0.01 / +0.1.0 (minor)** yükseltilir (örn: `1.15.x` -> `1.16.0`).
 Aşağıdaki 3 dosyada sürüm numarası eşitlenmelidir:
 - `package.json` (`"version": "X.Y.Z"`)
 - `src/components/MainMenu.tsx` (`vX.Y.Z`)

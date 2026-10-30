@@ -1,4 +1,5 @@
 import type { MqttClient } from 'mqtt';
+import { rtdb, ref, push, onChildAdded } from '../../core/firebase';
 import {
   getUserProfile,
   addOrUpdateFriend,
@@ -138,6 +139,21 @@ class FriendNetworkManager {
       }
     });
 
+    // Firebase Cloud Realtime Invite Listener
+    try {
+      const myCode = getUserProfile().friendCode;
+      if (myCode) {
+        onChildAdded(ref(rtdb, `invites/${myCode}`), (snapshot: any) => {
+          const inv = snapshot.val() as IncomingGameInvite;
+          if (inv && inv.fromId !== getUserProfile().id) {
+            this.inviteListeners.forEach(cb => cb(inv));
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Firebase invite listener error:', err);
+    }
+
     import('mqtt').then(mqttModule => {
       const connectFn =
         (mqttModule as any)?.default?.connect ||
@@ -256,6 +272,13 @@ class FriendNetworkManager {
       type: 'GAME_INVITE',
       invite
     });
+
+    // Also push via Firebase Cloud for instant guaranteed delivery
+    if (invite.targetFriendCode) {
+      try {
+        push(ref(rtdb, `invites/${invite.targetFriendCode}`), invite).catch(() => {});
+      } catch {}
+    }
   }
 
   public sendFriendRequest(target: { friendCode?: string; name?: string }) {

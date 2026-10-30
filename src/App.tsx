@@ -180,7 +180,15 @@ export default function App() {
   const [isShuffling, setIsShuffling] = useState(false);
   const [shuffleStyle, setShuffleStyle] = useState<ShuffleStyle>('riffle_bridge');
   const [isDealingAnimation, setIsDealingAnimation] = useState(false);
+  const isDealingAnimationRef = useRef(false);
+  isDealingAnimationRef.current = isDealingAnimation;
+
   const [isActionLocked, setIsActionLocked] = useState(false);
+  const isActionLockedRef = useRef(false);
+  isActionLockedRef.current = isActionLocked;
+
+  const isShufflingRef = useRef(false);
+  isShufflingRef.current = isShuffling;
   const [flyingCards, setFlyingCards] = useState<FlyingCardData[]>([]);
   const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
   const [recentCapture, setRecentCapture] = useState<RecentCaptureFeedback | null>(null);
@@ -704,11 +712,13 @@ export default function App() {
         setFlyingCards([]);
         setDeck(finalRemainingDeck);
         setIsDealingAnimation(false);
-        // Small 120ms safety debounce before unlocking actions to ensure React DOM flush
-        // and prevent the "card flies and bounces back" glitch when clicking instantly!
+        isDealingAnimationRef.current = false;
+        // Debounce before unlocking actions to ensure React DOM flush and avoid race conditions
         window.setTimeout(() => {
           setIsActionLocked(false);
-        }, 120);
+          isActionLockedRef.current = false;
+          isBusyRef.current = false;
+        }, 220);
         setTurnTimeRemaining(15);
       };
 
@@ -1734,6 +1744,19 @@ export default function App() {
       initialTilt: number = 0,
       isRemoteMultiplayerMove: boolean = false
     ) => {
+      // Guard against click spam while dealing, shuffling, busy, already action-locked, out-of-turn, or card not in hand
+      if (
+        isBusyRef.current ||
+        isDealingAnimationRef.current ||
+        isShufflingRef.current ||
+        isActionLockedRef.current ||
+        currentTurnRef.current !== playerIndex ||
+        !playersRef.current[playerIndex]?.hand.some(c => c.id === card.id)
+      ) {
+        return;
+      }
+      isActionLockedRef.current = true;
+      isBusyRef.current = true;
       setIsActionLocked(true);
 
       const centerX = window.innerWidth / 2;
@@ -2325,14 +2348,17 @@ export default function App() {
           }
         : finalPlayersState[1];
 
-      const userCards = [
+      const rawUserCards = [
         ...userSideAggregate.collectedCards,
         ...(userSideAggregate.pistiPairs || []).flatMap(p => [p.bottomCard, p.topCard])
       ];
-      const oppCards = [
+      const userCards = Array.from(new Map(rawUserCards.map(c => [c.id, c])).values());
+
+      const rawOppCards = [
         ...oppSideAggregate.collectedCards,
         ...(oppSideAggregate.pistiPairs || []).flatMap(p => [p.bottomCard, p.topCard])
       ];
+      const oppCards = Array.from(new Map(rawOppCards.map(c => [c.id, c])).values());
 
       const userHasMajority = userCards.length > oppCards.length;
       const oppHasMajority = oppCards.length > userCards.length;
@@ -2724,6 +2750,8 @@ export default function App() {
 
   const isBusy =
     isShuffling || isDealingAnimation || isActionLocked || flyingCards.length > 0;
+  const isBusyRef = useRef(false);
+  isBusyRef.current = isBusy;
 
   // Synchronous Ready-Check calculation for Multiplayer Next Round
   const slotsReadiness = useMemo<SlotReadinessInfo[]>(() => {

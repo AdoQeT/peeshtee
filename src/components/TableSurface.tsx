@@ -489,7 +489,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     labelPos: 'top' | 'bottom' = 'bottom',
     _compact: boolean = false
   ) => {
-    const count = player.collectedCards.length;
+    // During table counting ceremony, the cards have physically glided to the table front for counting!
+    const count = isCountingActive ? 0 : player.collectedCards.length;
     const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
 
     const hasCapturePulse =
@@ -557,7 +558,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     labelPos: 'top' | 'bottom' = 'bottom',
     _compact: boolean = false
   ) => {
-    const pistiCount = player.pistiCount;
+    const totalPistiCount = (player.pistiCount || 0) + (player.doublePistiCount || 0);
+    const pistiCount = totalPistiCount;
     const pairs = player.pistiPairs || [];
     const visiblePairs = pairs.slice(-8);
     const hasPistiPulse =
@@ -616,7 +618,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           } bg-amber-500 border border-amber-200 text-slate-950 text-[11px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
         >
           <Flame className="w-2.5 h-2.5 fill-slate-950" />
-          <span>{pistiCount} Pişti</span>
+          <span>{pistiCount} Pişti{player.doublePistiCount > 0 ? ` (${player.doublePistiCount} Çift)` : ''}</span>
         </div>
       </div>
     );

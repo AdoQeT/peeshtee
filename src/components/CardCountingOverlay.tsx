@@ -1,17 +1,18 @@
 /**
  * CardCountingOverlay.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Otantik Pişti Masa İçi Canlı Sayım Seremonisi (NO FULLSCREEN MODAL / NO DARKENING):
+ * Otantik Pişti Masa İçi Canlı Sayım Seremonisi:
  *
- * 1. Ekran kararmaz, modal veya pencere açılmaz; doğrudan masa yüzeyinin üzerinde çalışır.
- * 2. Toplanan kart desteleri (soldaki toplama yerinden) eşzamanlı olarak masada
- *    kullanıcının ve rakiplerin tam önüne kayarak yerleşir.
- * 3. Kapalı desteden kartlar teker teker sağa/yana doğru kayar, 3D ters döner (flip)
- *    ve hemen yanında yeni bir açık deste oluşturur ("tık-tık" ritmi).
- * 4. Sayı kartı (Karo 10, Sinek 2, As, Vale) geldiğinde, açık desteye binmek yerine
- *    onun da bir yanında tek başına sergilenir ve parıldayarak puan eklenir.
- * 5. Sayım bitince çoğunluk (+3P) hesaplanır ve sadece masanın ortasında şık bir
- *    "Sonraki El" butonu belirir.
+ * - SIFIR PENCERE / SIFIR KARARTMA: Çuha ve masa olduğu gibi kalır, hiçbir modal
+ *   veya pencere açılmaz (`pointer-events-none`).
+ * - 52 kart fiziksel obje mantığı:
+ *   Sol tarafta "Kapalı Kalan Deste" (katmanlı sırt), hemen sağında "Sayılmış Açık Deste".
+ * - Kart en üstten çuha üzerinde yana doğru süzülerek yüzü yukarı döner (flip) ve
+ *   açık desteye oturur ("tık-tık" ritmi).
+ * - Eğer kart değerli sayı ise (Karo 10, Sinek 2, As, Vale), açık desteye girmek yerine
+ *   sağdaki "Değerli Puanlar" sırasına tek tek dizilir ve parıldayarak puan eklenir.
+ * - Kullanıcı ve rakip eşzamanlı sayılır; toplam kart adedi her an eksiksiz 52 adettir.
+ * - Sayım bitince masanın merkezinde net bir çoğunluk yazısı (+3P) ve "Sonraki El" çıkar.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -21,7 +22,7 @@ import { CardFrontSurface, CardBackSurface } from './CardView';
 import { DetailedRoundScore } from '../core/rules';
 import { sound } from '../core/audio/soundEngine';
 import confetti from 'canvas-confetti';
-import { RotateCcw, ArrowRight, Trophy, Sparkles } from 'lucide-react';
+import { RotateCcw, ArrowRight, Trophy } from 'lucide-react';
 
 interface Props {
   isActive: boolean;
@@ -67,10 +68,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
   onToggleReady,
   onCountingDone,
 }) => {
-  // Masaya ilerleme animasyon fazı: 'sliding_in' -> 'counting' -> 'completed'
   const [phase, setPhase] = useState<'sliding_in' | 'counting' | 'completed'>('sliding_in');
-  
-  // Eşzamanlı (Simultaneous) Deste İndeksleri
+
+  // Eşzamanlı Deste İndeksleri
   const [userIndex, setUserIndex] = useState(0);
   const [oppIndex, setOppIndex] = useState(0);
 
@@ -125,10 +125,10 @@ export const CardCountingOverlay: React.FC<Props> = ({
     setUserFlippingCard(null);
     setOppFlippingCard(null);
 
-    // Desteler köşelerden masanın ortasına doğru süzülür (450ms)
+    // Desteler sol toplama köşesinden masaya kayarak oturur
     const t = window.setTimeout(() => {
       setPhase('counting');
-    }, 450);
+    }, 380);
 
     return () => window.clearTimeout(t);
   }, [isActive]);
@@ -141,7 +141,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
     const oppHasMore = oppIndex < oppCards.length;
 
     if (!userHasMore && !oppHasMore) {
-      // Tüm desteler açıldı
       setPhase('completed');
       setIsDone(true);
       setUserFlippingCard(null);
@@ -224,116 +223,126 @@ export const CardCountingOverlay: React.FC<Props> = ({
     oppPistiPoints +
     (isDone && countState.oppMajority ? 3 : 0);
 
-  // Kullanıcı ve Rakip Açılmış Normal Kartları (Sayı kartları hariç destede kalanlar)
+  // Kullanıcı ve Rakip Açılmış Normal Kartları (Sayı kartları ayrıldığı için destede kalanlar)
   const userCountedPile = userCards.slice(0, userIndex).filter(c => (c.basePoints || 0) === 0);
   const oppCountedPile = oppCards.slice(0, oppIndex).filter(c => (c.basePoints || 0) === 0);
 
   const userTopCard = userCountedPile.length > 0 ? userCountedPile[userCountedPile.length - 1] : null;
   const oppTopCard = oppCountedPile.length > 0 ? oppCountedPile[oppCountedPile.length - 1] : null;
 
+  const userRemainingCount = Math.max(0, userCards.length - userIndex);
+  const oppRemainingCount = Math.max(0, oppCards.length - oppIndex);
+
+  const userRemainingLayers = Math.min(10, Math.max(userRemainingCount > 0 ? 1 : 0, Math.ceil(userRemainingCount / 2.5)));
+  const oppRemainingLayers = Math.min(10, Math.max(oppRemainingCount > 0 ? 1 : 0, Math.ceil(oppRemainingCount / 2.5)));
+
   return (
     <div className="fixed inset-0 z-40 pointer-events-none flex flex-col justify-between p-2 sm:p-4 select-none">
-      {/* ── TOP: Subtle HUD Controls on Table Surface (Pointer events enabled for buttons) ── */}
-      <div className="w-full flex items-center justify-between px-3 py-1.5 rounded-2xl bg-slate-950/70 border border-amber-400/30 backdrop-blur-sm pointer-events-auto max-w-4xl mx-auto shadow-xl">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
-          <span className="font-cyber font-black text-xs text-amber-300 tracking-wider uppercase">
-            Canlı Masaüstü Kart Sayımı
-          </span>
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
-            (Desteler masada açılıyor...)
-          </span>
+      {/* ── TOP RIGHT: Minik Hız Kontrol Çipleri (Pencere/banner YOK!) ── */}
+      {!isDone && (
+        <div className="absolute top-3 right-3 sm:right-6 flex items-center gap-2 pointer-events-auto z-50">
+          <button
+            onClick={() => setIsFast(prev => !prev)}
+            className="px-3 py-1 rounded-full text-xs font-bold bg-slate-950/85 text-amber-300 border border-amber-400/50 hover:bg-slate-900 transition-all cursor-pointer shadow-lg active:scale-95"
+            title="Sayım Hızını Ayarla"
+          >
+            {isFast ? 'Normal ⏱️' : '2x Hızlı ⏩'}
+          </button>
+          <button
+            onClick={handleSkipAll}
+            className="px-3 py-1 rounded-full text-xs font-bold bg-slate-950/85 text-slate-200 border border-white/20 hover:bg-slate-900 transition-all cursor-pointer shadow-lg active:scale-95"
+            title="Kart Sayımını Anında Tamamla"
+          >
+            Anında Say ⏭️
+          </button>
         </div>
+      )}
 
-        {!isDone && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsFast(prev => !prev)}
-              className="px-3 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 transition-all cursor-pointer"
-            >
-              {isFast ? 'Normal Hız' : '2x Hızlandır ⏩'}
-            </button>
-            <button
-              onClick={handleSkipAll}
-              className="px-3 py-0.5 rounded-full text-xs font-bold bg-white/10 text-slate-200 border border-white/20 hover:bg-white/20 transition-all cursor-pointer"
-            >
-              Anında Say ⏭️
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── 1. RAKİBİN MASADAKİ DESTESİ (ÜST ALAN) ── */}
-      <div className="w-full flex justify-center items-center my-1">
+      {/* ── 1. RAKİBİN MASADAKİ DESTESİ (DOĞRUDAN ÇUHANIN ÜSTÜNDE) ── */}
+      <div className="w-full flex justify-center items-center my-0.5">
         <div
-          className={`flex items-center gap-3 sm:gap-6 p-2.5 sm:p-4 rounded-3xl bg-slate-950/80 border border-rose-500/40 shadow-[0_0_30px_rgba(244,63,94,0.15)] transition-all duration-500 ${
-            phase === 'sliding_in' ? '-translate-y-12 opacity-0 scale-95' : 'translate-y-0 opacity-100 scale-100'
+          className={`flex items-center gap-3 sm:gap-5 p-2 rounded-2xl transition-all duration-500 ${
+            phase === 'sliding_in' ? '-translate-y-12 opacity-0' : 'translate-y-0 opacity-100'
           }`}
         >
-          {/* Rakip Kapalı Kalan Deste */}
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold text-slate-400 mb-1">
-              Kapalı ({Math.max(0, oppCards.length - oppIndex)})
+          {/* Rakip Kapalı Deste Kutusu */}
+          <div className="relative flex flex-col items-center">
+            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+              Kalan ({oppRemainingCount})
             </span>
-            <div className="relative w-14 h-20 sm:w-[88px] sm:h-[128px] rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/30">
-              {oppCards.length - oppIndex > 0 && (
-                <div className="absolute inset-0 rounded-xl overflow-hidden shadow-lg">
-                  <CardBackSurface cardBack="classic_blue" />
+            <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
+              {oppRemainingCount > 0 ? (
+                <div className="relative w-full h-full">
+                  {Array.from({ length: oppRemainingLayers }).map((_, layerIdx) => (
+                    <div
+                      key={layerIdx}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        transform: `translate3d(${((layerIdx * 13) % 5) - 2}px, ${layerIdx * -1}px, 0) rotate(${((layerIdx * 17) % 7) - 3}deg)`
+                      }}
+                      className="rounded-xl overflow-hidden shadow-md"
+                    >
+                      <CardBackSurface cardBack="classic_blue" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px] text-white/30 font-mono">Bitti (0)</span>
+              )}
+
+              {/* Rakip Çuha Üzerinde Yana Kayıp Dönen Kart */}
+              {oppFlippingCard && (
+                <div
+                  key={`opp-flip-${oppFlippingCard.index}`}
+                  className="absolute inset-0 rounded-xl overflow-hidden shadow-2xl z-30 pointer-events-none"
+                  style={{
+                    animation: `${oppFlippingCard.isPoint ? 'deckSlideToPoints' : 'deckSlideToOpen'} ${stepDelay * 0.9}ms cubic-bezier(0.25, 1, 0.5, 1) forwards`
+                  }}
+                >
+                  <CardFrontSurface card={oppFlippingCard.card} theme={theme} />
+                  {oppFlippingCard.isPoint && (
+                    <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black text-[9px] shadow-lg animate-bounce z-40">
+                      +{oppFlippingCard.card.basePoints}P
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Rakip Ters Dönen Kart (Flip Arc) */}
-          <div className="relative w-14 h-20 sm:w-[88px] sm:h-[128px] flex items-center justify-center">
-            {oppFlippingCard && (
-              <div
-                key={`opp-flip-${oppFlippingCard.index}`}
-                className="w-full h-full rounded-xl shadow-2xl relative"
-                style={{
-                  animation: `cardLiveFlip ${stepDelay * 0.88}ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards`
-                }}
-              >
-                <CardFrontSurface card={oppFlippingCard.card} theme={theme} />
-                {oppFlippingCard.isPoint && (
-                  <div className="absolute -top-2 -right-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black text-[10px] animate-bounce z-30">
-                    +{oppFlippingCard.card.basePoints}P
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold text-slate-400 mb-1">
-              Açılan ({oppCountedPile.length})
+            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+              Sayılmış ({oppCountedPile.length})
             </span>
-            <div className="relative w-14 h-20 sm:w-[88px] sm:h-[128px] rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/30">
-              {oppTopCard && (
-                <div className="absolute inset-0 rounded-xl overflow-hidden shadow-lg">
+            <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
+              {oppTopCard ? (
+                <div className="absolute inset-0 rounded-xl overflow-hidden shadow-2xl">
                   <CardFrontSurface card={oppTopCard} theme={theme} />
                 </div>
+              ) : (
+                <span className="text-[10px] text-white/30 font-mono">Açık Deste</span>
               )}
             </div>
           </div>
 
-          {/* Rakip Ayıklanan Değerli Puan Kartları (Yan Tarafta Tek Başına!) */}
-          <div className="flex flex-col items-start pl-2 sm:pl-4 border-l border-white/10 min-w-[90px] sm:min-w-[140px]">
+          {/* Rakip Ayıklanan Değerli Puan Kartları (Tek Başına Yan Tarafta!) */}
+          <div className="flex flex-col items-start pl-2 sm:pl-3 border-l border-white/15 min-w-[80px] sm:min-w-[130px]">
             <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider mb-1">
               💎 Puanlar (+{oppCardScore}P)
             </span>
-            <div className="flex items-center -space-x-4 sm:-space-x-7">
+            <div className="flex items-center -space-x-5 sm:-space-x-7">
               {oppPointCards.length === 0 ? (
-                <span className="text-[10px] text-slate-500 italic">Yok</span>
+                <span className="text-[10px] text-slate-500 italic">Henüz yok</span>
               ) : (
                 oppPointCards.map((pc, idx) => (
                   <div
                     key={`opp-pc-${pc.id}-${idx}`}
-                    className="relative w-10 h-14 sm:w-14 sm:h-20 rounded-lg shadow-xl border-2 border-rose-400 overflow-hidden shrink-0 animate-scaleUp"
+                    className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl shadow-2xl border-2 border-rose-400 overflow-hidden shrink-0 animate-scaleUp"
                   >
                     <CardFrontSurface card={pc} theme={theme} />
-                    <div className="absolute top-0 right-0 px-1 rounded-bl bg-rose-500 text-white font-black text-[9px]">
+                    <div className="absolute top-0 right-0 px-1.5 py-0.5 rounded-bl bg-rose-500 text-white font-black text-[10px]">
                       +{pc.basePoints}P
                     </div>
                   </div>
@@ -343,7 +352,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           </div>
 
           {/* Rakip Skor Özeti Rozeti */}
-          <div className="flex flex-col items-center px-2 py-1 rounded-2xl bg-rose-950/80 border border-rose-400/50">
+          <div className="flex flex-col items-center px-2.5 py-1 rounded-2xl bg-slate-950/80 border border-rose-400/50 shadow-lg">
             <span className="text-[10px] text-rose-300 font-bold">{opp?.name || 'Rakip'}</span>
             <span className="text-xl sm:text-2xl font-black font-cyber text-rose-300">+{oppTotalPts}P</span>
             {isDone && countState.oppMajority && (
@@ -442,77 +451,91 @@ export const CardCountingOverlay: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ── 3. KULLANICININ MASADAKİ DESTESİ (ALT ALAN - KULLANICININ TAM ÖNÜ) ── */}
-      <div className="w-full flex justify-center items-center my-1">
+      {/* ── 3. KULLANICININ MASADAKİ DESTESİ (DOĞRUDAN ÇUHANIN ÜSTÜNDE, KULLANICININ ÖNÜ) ── */}
+      <div className="w-full flex justify-center items-center my-0.5">
         <div
-          className={`flex items-center gap-3 sm:gap-6 p-2.5 sm:p-4 rounded-3xl bg-slate-950/80 border border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.15)] transition-all duration-500 ${
-            phase === 'sliding_in' ? 'translate-y-12 opacity-0 scale-95' : 'translate-y-0 opacity-100 scale-100'
+          className={`flex items-center gap-3 sm:gap-5 p-2 rounded-2xl transition-all duration-500 ${
+            phase === 'sliding_in' ? 'translate-y-12 opacity-0' : 'translate-y-0 opacity-100'
           }`}
         >
-          {/* Kullanıcı Kapalı Kalan Deste */}
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold text-slate-400 mb-1">
-              Kapalı ({Math.max(0, userCards.length - userIndex)})
+          {/* Kullanıcı Kapalı Deste Kutusu */}
+          <div className="relative flex flex-col items-center">
+            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+              Kalan ({userRemainingCount})
             </span>
-            <div className="relative w-14 h-20 sm:w-[88px] sm:h-[128px] rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/30">
-              {userCards.length - userIndex > 0 && (
-                <div className="absolute inset-0 rounded-xl overflow-hidden shadow-lg">
-                  <CardBackSurface cardBack="classic_blue" />
+            <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
+              {userRemainingCount > 0 ? (
+                <div className="relative w-full h-full">
+                  {Array.from({ length: userRemainingLayers }).map((_, layerIdx) => (
+                    <div
+                      key={layerIdx}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        transform: `translate3d(${((layerIdx * 13) % 5) - 2}px, ${layerIdx * -1}px, 0) rotate(${((layerIdx * 17) % 7) - 3}deg)`
+                      }}
+                      className="rounded-xl overflow-hidden shadow-md"
+                    >
+                      <CardBackSurface cardBack="classic_blue" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px] text-white/30 font-mono">Bitti (0)</span>
+              )}
+
+              {/* Kullanıcı Çuha Üzerinde Yana Kayıp Dönen Kart */}
+              {userFlippingCard && (
+                <div
+                  key={`user-flip-${userFlippingCard.index}`}
+                  className="absolute inset-0 rounded-xl overflow-hidden shadow-2xl z-30 pointer-events-none"
+                  style={{
+                    animation: `${userFlippingCard.isPoint ? 'deckSlideToPoints' : 'deckSlideToOpen'} ${stepDelay * 0.9}ms cubic-bezier(0.25, 1, 0.5, 1) forwards`
+                  }}
+                >
+                  <CardFrontSurface card={userFlippingCard.card} theme={theme} />
+                  {userFlippingCard.isPoint && (
+                    <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce z-40">
+                      +{userFlippingCard.card.basePoints}P
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Kullanıcı Ters Dönen Kart (Flip Arc) */}
-          <div className="relative w-14 h-20 sm:w-[88px] sm:h-[128px] flex items-center justify-center">
-            {userFlippingCard && (
-              <div
-                key={`user-flip-${userFlippingCard.index}`}
-                className="w-full h-full rounded-xl shadow-2xl relative"
-                style={{
-                  animation: `cardLiveFlip ${stepDelay * 0.88}ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards`
-                }}
-              >
-                <CardFrontSurface card={userFlippingCard.card} theme={theme} />
-                {userFlippingCard.isPoint && (
-                  <div className="absolute -top-2 -right-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] shadow-lg animate-bounce z-30">
-                    +{userFlippingCard.card.basePoints}P
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Kullanıcı Açılan Normal Deste */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold text-slate-400 mb-1">
-              Açılan ({userCountedPile.length})
+            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+              Sayılmış ({userCountedPile.length})
             </span>
-            <div className="relative w-14 h-20 sm:w-[88px] sm:h-[128px] rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/30">
-              {userTopCard && (
-                <div className="absolute inset-0 rounded-xl overflow-hidden shadow-lg">
+            <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
+              {userTopCard ? (
+                <div className="absolute inset-0 rounded-xl overflow-hidden shadow-2xl">
                   <CardFrontSurface card={userTopCard} theme={theme} />
                 </div>
+              ) : (
+                <span className="text-[10px] text-white/30 font-mono">Açık Deste</span>
               )}
             </div>
           </div>
 
-          {/* Kullanıcı Ayıklanan Değerli Puan Kartları (Yan Tarafta Tek Başına!) */}
-          <div className="flex flex-col items-start pl-2 sm:pl-4 border-l border-white/10 min-w-[90px] sm:min-w-[140px]">
+          {/* Kullanıcı Ayıklanan Değerli Puan Kartları (Tek Başına Yan Tarafta!) */}
+          <div className="flex flex-col items-start pl-2 sm:pl-3 border-l border-white/15 min-w-[80px] sm:min-w-[130px]">
             <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider mb-1">
               💎 Puanlar (+{userCardScore}P)
             </span>
-            <div className="flex items-center -space-x-4 sm:-space-x-7">
+            <div className="flex items-center -space-x-5 sm:-space-x-7">
               {userPointCards.length === 0 ? (
-                <span className="text-[10px] text-slate-500 italic">Yok</span>
+                <span className="text-[10px] text-slate-500 italic">Henüz yok</span>
               ) : (
                 userPointCards.map((pc, idx) => (
                   <div
                     key={`user-pc-${pc.id}-${idx}`}
-                    className="relative w-10 h-14 sm:w-14 sm:h-20 rounded-lg shadow-xl border-2 border-amber-400 overflow-hidden shrink-0 animate-scaleUp"
+                    className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl shadow-2xl border-2 border-amber-400 overflow-hidden shrink-0 animate-scaleUp"
                   >
                     <CardFrontSurface card={pc} theme={theme} />
-                    <div className="absolute top-0 right-0 px-1 rounded-bl bg-amber-400 text-slate-950 font-black text-[9px]">
+                    <div className="absolute top-0 right-0 px-1.5 py-0.5 rounded-bl bg-amber-400 text-slate-950 font-black text-[10px]">
                       +{pc.basePoints}P
                     </div>
                   </div>
@@ -522,7 +545,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           </div>
 
           {/* Kullanıcı Skor Özeti Rozeti */}
-          <div className="flex flex-col items-center px-2 py-1 rounded-2xl bg-emerald-950/80 border border-emerald-400/50">
+          <div className="flex flex-col items-center px-2.5 py-1 rounded-2xl bg-slate-950/80 border border-emerald-400/50 shadow-lg">
             <span className="text-[10px] text-emerald-300 font-bold">{isFourPlayers ? 'Bizim Takım' : (user?.name || 'Sen')}</span>
             <span className="text-xl sm:text-2xl font-black font-cyber text-amber-300">+{userTotalPts}P</span>
             {isDone && countState.userMajority && (
@@ -532,24 +555,38 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── Keyframe Stilleri ── */}
+      {/* ── Keyframe Stilleri: Doğal Elle Kart Kaydırma & Masaya Oturma ── */}
       <style>{`
-        @keyframes cardLiveFlip {
+        @keyframes deckSlideToOpen {
           0% {
-            opacity: 0.3;
-            transform: translateX(-35px) translateY(8px) rotateY(180deg) scale(0.9);
+            opacity: 0.9;
+            transform: translate3d(0, 0, 0) scale(1) rotateY(180deg);
           }
           45% {
             opacity: 1;
-            transform: translateX(0px) translateY(-20px) rotateY(90deg) scale(1.12);
+            transform: translate3d(52px, -8px, 12px) scale(1.03) rotateY(90deg);
           }
           100% {
             opacity: 1;
-            transform: translateX(35px) translateY(0px) rotateY(0deg) scale(1);
+            transform: translate3d(104px, 0, 0) scale(1) rotateY(0deg);
+          }
+        }
+        @keyframes deckSlideToPoints {
+          0% {
+            opacity: 0.9;
+            transform: translate3d(0, 0, 0) scale(1) rotateY(180deg);
+          }
+          45% {
+            opacity: 1;
+            transform: translate3d(105px, -12px, 16px) scale(1.05) rotateY(90deg);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(215px, 0, 0) scale(1) rotateY(0deg);
           }
         }
         @keyframes scaleUp {
-          0% { transform: scale(0.6); opacity: 0; }
+          0% { transform: scale(0.85); opacity: 0; }
           100% { transform: scale(1); opacity: 1; }
         }
       `}</style>

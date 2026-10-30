@@ -704,7 +704,11 @@ export default function App() {
         setFlyingCards([]);
         setDeck(finalRemainingDeck);
         setIsDealingAnimation(false);
-        setIsActionLocked(false);
+        // Small 120ms safety debounce before unlocking actions to ensure React DOM flush
+        // and prevent the "card flies and bounces back" glitch when clicking instantly!
+        window.setTimeout(() => {
+          setIsActionLocked(false);
+        }, 120);
         setTurnTimeRemaining(15);
       };
 
@@ -1667,7 +1671,8 @@ export default function App() {
           : (idx % 2 === 0 ? 1 : -1) * 3;
 
         const endFaceUp = isPistiSweep ? isTopCardOfPair : false;
-        const targetScale = isPistiSweep && isTopCardOfPair ? 0.65 : 0.76;
+        // Keep 1:1 scale with physical table collected box (no shrinking or teleporting!)
+        const targetScale = 1;
 
         return {
           id: flyId,

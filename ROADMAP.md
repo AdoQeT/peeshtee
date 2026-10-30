@@ -89,6 +89,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.20.1**: Zero modal / zero darkening authentic in-table deck counting ceremony (closed piles slide directly to user/opponent front, simultaneous flip opening to adjacent open stack with isolated point cards showcase), full collected pile card scaling (1:1 with table cards, no shrinking or teleportation artifacts), and deal-to-play debounce lock to prevent premature card play bounces.
 - **v1.20.0**: Authentic tabletop deck counting ceremony (closed pile flips one-by-one to adjacent open stack with tactile audio & isolated score card tray), Phase 3 completion (React.lazy code splitting for Uno/Renq, logger.ts telemetry, bot heuristics upgrade, and pure Firebase RTDB documentation overhaul).
 - **v1.19.0**: Replaced end-of-hand card count modal with full animated `CardCountingOverlay` — collected cards fly from table positions to center stage, scoring increments live per card with special card pops, majority/score banners, and inline next-round controls.
 - **v1.18.2**: Dealer/Cutter icon removal, Monaco Velvet main menu background fix, MatchIntroOverlay 25% speed boost, card physics engine upgrade (motionType-aware easing, micro-settle, rotateZ banking).

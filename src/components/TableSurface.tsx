@@ -487,7 +487,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     player: Player,
     playerIdx: number,
     labelPos: 'top' | 'bottom' = 'bottom',
-    compact: boolean = false
+    _compact: boolean = false
   ) => {
     const count = player.collectedCards.length;
     const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
@@ -495,9 +495,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     const hasCapturePulse =
       recentCapture && recentCapture.playerIdx === playerIdx && !recentCapture.isPisti;
 
-    const boxSize = compact
-      ? 'w-12 h-16 sm:w-14 sm:h-20'
-      : 'w-14 h-20 sm:w-16 sm:h-24';
+    const boxSize = 'w-[88px] h-[128px] sm:w-24 sm:h-36';
 
     return (
       <div className="relative flex items-center gap-2.5">
@@ -516,7 +514,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               <br />0
             </span>
           ) : (
-            <div className="relative w-10 h-14 sm:w-13 sm:h-19">
+            <div className="relative w-full h-full">
               {Array.from({ length: visibleLayers }).map((_, layerIdx) => {
                 const jitterRot = ((layerIdx * 17) % 11) - 5;
                 const jitterX = ((layerIdx * 13) % 7) - 3;
@@ -565,7 +563,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     const hasPistiPulse =
       recentCapture && recentCapture.playerIdx === playerIdx && recentCapture.isPisti;
 
-    const boxSize = CARD_DIMENSIONS.sm.classes;
+    const boxSize = 'w-[88px] h-[128px] sm:w-24 sm:h-36';
 
     return (
       <div

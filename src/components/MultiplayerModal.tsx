@@ -220,8 +220,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             localCustomAvatarUrl
           );
           setSlots(freshSlots);
-          await multiplayerManager.hostRoom(activeCode, localName || 'Oda Sahibi', localAvatar);
+          const res = await multiplayerManager.hostRoom(activeCode, localName || 'Oda Sahibi', localAvatar);
           setIsConnecting(false);
+          if (!res.success) {
+            setErrorMsg(res.error || 'Oda kurulamadı.');
+            return;
+          }
         }
 
         friendNetwork.setStatus('lobby', activeCode, targetFriend.gameType);
@@ -255,11 +259,13 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     const unsubscribe = multiplayerManager.onEvent(event => {
       if (event.type === 'GUEST_JOINED') {
         if (multiplayerManager.isHost) {
+          let isNewPlayer = false;
+          let updatedSlots: LobbyPlayerSlot[] = [];
+
           setSlots(prev => {
             const next = [...prev];
             const existingIdx = next.findIndex(s => s.peerId === event.guestPeerId);
             if (existingIdx !== -1) {
-              // Existing guest re-announcing or updating status: do NOT replay join sound!
               next[existingIdx] = {
                 ...next[existingIdx],
                 name: event.guestName,
@@ -270,8 +276,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 level: event.guestLevel || next[existingIdx].level || 1
               };
             } else {
-              // Brand NEW player joining the lobby! Play sound exactly once.
-              sound.playMatchSweep();
+              isNewPlayer = true;
               const emptyIdx = next.findIndex(
                 s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
               );
@@ -289,7 +294,16 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 };
               }
             }
+            updatedSlots = next;
+            return next;
+          });
 
+          // Perform side effects outside of the setState updater
+          if (isNewPlayer) {
+            sound.playMatchSweep();
+          }
+
+          if (updatedSlots.length > 0) {
             multiplayerManager.send({
               type: 'HOST_LOBBY_SYNC',
               hostName: localNameRef.current || 'Oda Kurucu',
@@ -301,14 +315,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 ...settingsRef.current,
                 playerCount: playerCountRef.current
               },
-              slots: next
+              slots: updatedSlots
             });
-            return next;
-          });
+          }
         }
       } else if (event.type === 'REQUEST_SEAT_CHANGE') {
         if (multiplayerManager.isHost) {
           sound.playClick();
+          let updatedSlots: LobbyPlayerSlot[] = [];
+
           setSlots(prev => {
             const next = [...prev];
             const senderIdx = next.findIndex(s => s.peerId === event.senderPeerId);
@@ -321,7 +336,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             next[senderIdx] = targetSlot;
             next[targetIdx] = senderSlot;
             next.sort((a, b) => a.seatIndex - b.seatIndex);
+            updatedSlots = next;
+            return next;
+          });
 
+          if (updatedSlots.length > 0) {
             multiplayerManager.send({
               type: 'HOST_LOBBY_SYNC',
               hostName: localNameRef.current || 'Oda Kurucu',
@@ -333,10 +352,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 ...settingsRef.current,
                 playerCount: playerCountRef.current
               },
-              slots: next
+              slots: updatedSlots
             });
-            return next;
-          });
+          }
         }
       } else if (event.type === 'HOST_LOBBY_SYNC') {
         sound.playMatchSweep();
@@ -353,8 +371,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       } else if (event.type === 'MP_GAME_START') {
         // Automatically close lobby modal when host launches the game
         onClose();
+      } else if (event.type === 'MP_MATCH_ABORTED') {
+        if (lobbyRole === 'guest') {
+          setErrorMsg(event.reason || 'Oda kurucusu lobiden ayrıldı.');
+          setLobbyRole('none');
+          setIsConnecting(false);
+        }
       } else if (event.type === 'PEER_DISCONNECTED') {
         if (multiplayerManager.isHost && event.peerId) {
+          let updatedSlots: LobbyPlayerSlot[] = [];
           setSlots(prev => {
             const next = prev.map(s => {
               if (s.peerId === event.peerId) {
@@ -372,6 +397,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               }
               return s;
             });
+            updatedSlots = next;
+            return next;
+          });
+
+          if (updatedSlots.length > 0) {
             multiplayerManager.send({
               type: 'HOST_LOBBY_SYNC',
               hostName: localNameRef.current || 'Oda Kurucu',
@@ -383,10 +413,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 ...settingsRef.current,
                 playerCount: playerCountRef.current
               },
-              slots: next
+              slots: updatedSlots
             });
-            return next;
-          });
+          }
+        } else if (!multiplayerManager.isHost) {
+          setErrorMsg('Oda kurucusu ile bağlantı kesildi.');
+          setLobbyRole('none');
         }
       }
     });
@@ -520,9 +552,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     );
     setSlots(freshSlots);
 
-    await multiplayerManager.hostRoom(code, localName || 'Oda Sahibi', localAvatar);
-    friendNetwork.setStatus('lobby', code, gameType);
+    const res = await multiplayerManager.hostRoom(code, localName || 'Oda Sahibi', localAvatar);
     setIsConnecting(false);
+    if (res.success) {
+      friendNetwork.setStatus('lobby', code, gameType);
+    } else {
+      setErrorMsg(res.error || 'Oda oluşturulamadı.');
+      setLobbyRole('none');
+    }
   };
 
   const handleJoinRoomWithCode = async (codeToJoin: string) => {
@@ -534,22 +571,22 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     const normalized = multiplayerManager.normalizeCode(codeToJoin);
     setCreatedRoomCode(normalized);
 
-    const ok = await multiplayerManager.joinRoom(
+    const res = await multiplayerManager.joinRoom(
       normalized,
       localName || 'Misafir Oyuncu',
       localAvatar,
       localAvatarId,
-      localCustomAvatarUrl,
+      undefined, // Stripped big customAvatarUrl from handshake packets
       profile.customTitle || getAvatarPreset(localAvatarId).title,
       profile.level || 1
     );
 
     setIsConnecting(false);
-    if (ok) {
+    if (res.success) {
       setLobbyRole('guest');
       friendNetwork.setStatus('lobby', normalized, gameType);
     } else {
-      setErrorMsg('Odaya bağlanılamadı. Kodu kontrol ediniz.');
+      setErrorMsg(res.error || 'Odaya bağlanılamadı. Kodu kontrol ediniz.');
     }
   };
 

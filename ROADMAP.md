@@ -6,7 +6,15 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.4 (Current)
+### v1.16.5 (Current)
+- **Deep-Link Protection**: Preserved URL search parameters (`?oda=...`, `?room=...`, `?kod=...`) on initial mount by evaluating deep links before URL cleanup effect.
+- **Robust Firebase Verification & Error Surfacing**: Added 5s timeout on `get(rooms/code/meta)` verification on room join, 8s timeout on room hosting, and surface explicit error messages (PERMISSION_DENIED, timeout, network failure) instead of silent failures.
+- **Clean Slate Room Hosting**: Automatically purges stale room event trees before creating rooms and adds `roomToken` handshake validation.
+- **Payload & Heartbeat Optimization**: Separated peer presence tracking from event log with `rooms/code/presence`, stripped large avatar dataURLs from packet payloads, and restricted multi-tab local broadcast fallback to DEV mode.
+- **Dependency & Type Pruning**: Completely uninstalled unused dependencies (`mqtt`, `peerjs`, `trystero`, `@trystero-p2p/mqtt`) and removed legacy unused `NetworkAdapter` types.
+- **Anonymous Authentication Integration**: Added `ensureFirebaseAuth()` via `signInAnonymously()` to secure database rules against unauthenticated writes.
+
+### v1.16.4
 - **Database & Local Profile Reset**: Completely cleared stale cloud database entities on Firebase and bumped local storage key to `project_p_user_profile_v2` for a clean slate across all clients.
 - **Robust Multiplayer Handshake Engine**: Streamlined sequence packet acceptance to prevent replayed sync packets from dropping valid `GUEST_JOINED` and `HOST_LOBBY_SYNC` events, extending guest handshake window.
 - **Full TR / EN Translation Coverage**: Translated remaining untranslated elements including scoreboard indicators, round markers, and main menu card labels.

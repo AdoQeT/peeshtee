@@ -114,7 +114,22 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
         sound.playCardDeal();
-        setCustomAvatarDataUrl(dataUrl);
+        // Resize avatar to a crisp 96x96 JPEG thumbnail (≤ 15-20KB) to keep RTDB and network super fast
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 96;
+          canvas.height = 96;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, 96, 96);
+            const thumbUrl = canvas.toDataURL('image/jpeg', 0.85);
+            setCustomAvatarDataUrl(thumbUrl);
+          } else {
+            setCustomAvatarDataUrl(dataUrl);
+          }
+        };
+        img.src = dataUrl;
       }
     };
     reader.readAsDataURL(file);

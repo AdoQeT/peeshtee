@@ -394,10 +394,36 @@ export default function App() {
     } catch {}
   }, [screen, isMultiplayerGame]);
 
+  // Instant room join via URL query params (?oda=... or ?room=...)
+  // Evaluated BEFORE URL synchronization so join code query params are preserved
+  const initialDeepLinkHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || initialDeepLinkHandledRef.current) return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('oda') || urlParams.get('room') || urlParams.get('kod');
+      if (roomParam) {
+        initialDeepLinkHandledRef.current = true;
+        const normalized = multiplayerManager.normalizeCode(roomParam);
+        if (normalized) {
+          setInitialJoinCode(normalized);
+          setIsMultiplayerOpen(true);
+        }
+      }
+    } catch (err) {
+      console.error('URL parse error:', err);
+    }
+  }, []);
+
   // Synchronize browser URL and close drawers on match start/exit
+  // CRITICAL: NEVER erase initial ?oda= query param while still on menu with unhandled deep-link
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      const currentParams = new URLSearchParams(window.location.search);
+      const hasPendingDeepLink = currentParams.has('oda') || currentParams.has('room') || currentParams.has('kod');
+
       if (screen === 'game') {
         setIsFriendsOpen(false);
         const code = multiplayerManager.roomCode;
@@ -415,29 +441,15 @@ export default function App() {
           window.history.pushState(null, '', '?mode=renq');
         }
       } else if (screen === 'menu') {
-        window.history.pushState(null, '', window.location.pathname);
+        // Only strip query params if user is not in the process of joining via deep link
+        if (!hasPendingDeepLink && !initialJoinCode) {
+          window.history.pushState(null, '', window.location.pathname);
+        }
       }
     } catch {
       // Ignore in restricted iframe environments
     }
-  }, [screen, isMultiplayerGame]);
-
-  // Instant room join via URL query params (?oda=... or ?room=...)
-  useEffect(() => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomParam = urlParams.get('oda') || urlParams.get('room') || urlParams.get('kod');
-      if (roomParam) {
-        const normalized = multiplayerManager.normalizeCode(roomParam);
-        if (normalized) {
-          setInitialJoinCode(normalized);
-          setIsMultiplayerOpen(true);
-        }
-      }
-    } catch (err) {
-      console.error('URL parse error:', err);
-    }
-  }, []);
+  }, [screen, isMultiplayerGame, initialJoinCode]);
 
   // Initialize Global Friend & Presence Network
   useEffect(() => {

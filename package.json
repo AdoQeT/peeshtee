@@ -1,7 +1,7 @@
 {
   "name": "project-pisti",
   "private": true,
-  "version": "1.16.4",
+  "version": "1.16.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,17 +10,13 @@
     "changelog": "node scripts/sendDiscordChangelog.mjs"
   },
   "dependencies": {
-    "@trystero-p2p/mqtt": "^0.26.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "firebase": "^13.1.0",
     "lucide-react": "^1.16.0",
-    "mqtt": "^5.10.0",
-    "peerjs": "^1.5.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.6.0",
-    "trystero": "^0.26.0"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

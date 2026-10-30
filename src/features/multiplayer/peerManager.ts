@@ -4,7 +4,19 @@
  * are powered 100% directly through Google Firebase Realtime Database.
  */
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
-import { rtdb, ref, push, onChildAdded, set, get, off, remove, onDisconnect } from '../../core/firebase';
+import {
+  rtdb,
+  ref,
+  push,
+  onChildAdded,
+  set,
+  get,
+  off,
+  remove,
+  onDisconnect,
+  serverTimestamp,
+  ensureFirebaseAuth
+} from '../../core/firebase';
 
 export interface LobbyPlayerSlot {
   seatIndex: number; // 0 (Host), 1 (Right/Opp 1), 2 (Top/Teammate), 3 (Left/Opp 2)
@@ -235,6 +247,8 @@ export class MultiplayerManager {
   private storageListener: ((ev: StorageEvent) => void) | null = null;
 
   private firebaseEventsRef: any = null;
+  private firebasePresenceRef: any = null;
+  private joinTimestamp: number = 0;
 
   // Heartbeat & reconnect monitoring
   private heartbeatTimer: number | null = null;
@@ -267,12 +281,39 @@ export class MultiplayerManager {
     this.cleanupFirebaseRoom();
     try {
       this.firebaseEventsRef = ref(rtdb, `rooms/${code}/events`);
-      onChildAdded(this.firebaseEventsRef, (snapshot: any) => {
-        const val = snapshot.val();
-        if (val) {
-          this.handleRawIncoming(val);
+      onChildAdded(
+        this.firebaseEventsRef,
+        (snapshot: any) => {
+          const val = snapshot.val();
+          if (val) {
+            this.handleRawIncoming(val);
+          }
+        },
+        (error: any) => {
+          console.error('Firebase onChildAdded error on room events:', error);
+          const userMsg =
+            error?.code === 'PERMISSION_DENIED'
+              ? 'Veritabanı erişim izni reddedildi (PERMISSION_DENIED).'
+              : 'Oda etkinliklerine bağlanılamadı. Lütfen internetinizi kontrol edin.';
+          this.dispatch({
+            type: 'MP_MATCH_ABORTED',
+            reason: userMsg
+          });
         }
+      );
+
+      // Track player presence in room with onDisconnect
+      this.firebasePresenceRef = ref(rtdb, `rooms/${code}/presence/${this.instanceId}`);
+      set(this.firebasePresenceRef, {
+        instanceId: this.instanceId,
+        role: this.isHost ? 'host' : 'guest',
+        lastSeen: serverTimestamp()
+      }).catch(err => {
+        console.warn('Firebase set presence warning:', err);
       });
+      try {
+        onDisconnect(this.firebasePresenceRef).remove();
+      } catch {}
     } catch (err) {
       console.warn('Firebase RTDB room listener error:', err);
     }
@@ -284,6 +325,12 @@ export class MultiplayerManager {
         off(this.firebaseEventsRef);
       } catch {}
       this.firebaseEventsRef = null;
+    }
+    if (this.firebasePresenceRef) {
+      try {
+        remove(this.firebasePresenceRef).catch(() => {});
+      } catch {}
+      this.firebasePresenceRef = null;
     }
   }
 
@@ -310,35 +357,56 @@ export class MultiplayerManager {
     }
   }
 
-  public async hostRoom(code: string, _hostName?: string, _avatar?: string): Promise<string> {
+  public async hostRoom(code: string, _hostName?: string, _avatar?: string): Promise<{ success: boolean; error?: string }> {
     this.disconnect();
     this.isHost = true;
     this.roomCode = this.normalizeCode(code);
     this.roomToken = `rtk_${Math.random().toString(36).slice(2, 9)}_${Date.now()}`;
     this.seq = 0;
     this.isConnected = false;
+    this.joinTimestamp = Date.now();
 
-    this.setupLocalBuses(this.roomCode);
-    this.setupFirebaseRoom(this.roomCode);
+    await ensureFirebaseAuth().catch(() => {});
 
-    // Register room in Firebase Realtime Database and set automatic cleanup on disconnect
+    // Clean previous stale room data before creating
     try {
+      await remove(ref(rtdb, `rooms/${this.roomCode}`));
+    } catch {}
+
+    // Register room in Firebase Realtime Database with 8 second timeout
+    const setMetaPromise = set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
+      created: Date.now(),
+      hostId: this.instanceId,
+      roomToken: this.roomToken,
+      active: true
+    });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT')), 8000);
+    });
+
+    try {
+      await Promise.race([setMetaPromise, timeoutPromise]);
       const roomRef = ref(rtdb, `rooms/${this.roomCode}`);
-      await set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
-        created: Date.now(),
-        hostId: this.instanceId,
-        active: true
-      });
-      // Automatically purge room from Firebase if host disconnects or tab closes
       try {
         onDisconnect(roomRef).remove();
       } catch {}
-    } catch (e) {
-      console.warn('Host room registration warning:', e);
+    } catch (e: any) {
+      console.error('Host room registration error:', e);
+      let errorMsg = 'Oda kurulamadı. Lütfen tekrar deneyin.';
+      if (e?.message === 'TIMEOUT') {
+        errorMsg = 'Sunucu yanıt vermedi (Zaman aşımı - 8s). İnternet bağlantınızı kontrol edin.';
+      } else if (e?.code === 'PERMISSION_DENIED') {
+        errorMsg = 'Veritabanı erişim izni reddedildi (PERMISSION_DENIED).';
+      }
+      this.disconnect();
+      return { success: false, error: errorMsg };
     }
 
+    this.setupLocalBuses(this.roomCode);
+    this.setupFirebaseRoom(this.roomCode);
     this.startHeartbeat();
-    return this.roomCode;
+    return { success: true };
   }
 
   public async joinRoom(
@@ -349,24 +417,52 @@ export class MultiplayerManager {
     guestCustomAvatarUrl?: string,
     guestCustomTitle?: string,
     guestLevel?: number
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; error?: string }> {
     this.disconnect();
     this.isHost = false;
     this.roomCode = this.normalizeCode(code);
     this.roomToken = '';
     this.seq = 0;
     this.isConnected = false;
+    this.joinTimestamp = Date.now();
+
+    await ensureFirebaseAuth().catch(() => {});
+
+    // Step 1: Verify room exists with 5s timeout
+    try {
+      const getMetaPromise = get(ref(rtdb, `rooms/${this.roomCode}/meta`));
+      const timeoutMeta = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 5000);
+      });
+      const snap: any = await Promise.race([getMetaPromise, timeoutMeta]);
+      if (!snap.exists()) {
+        return { success: false, error: 'Oda bulunamadı. Lütfen 6 haneli kodu kontrol ediniz.' };
+      }
+      const meta = snap.val();
+      if (meta?.roomToken) {
+        this.roomToken = meta.roomToken;
+      }
+    } catch (err: any) {
+      console.error('Room verification error on join:', err);
+      if (err?.message === 'TIMEOUT') {
+        return { success: false, error: 'Sunucu yanıt vermedi (5s zaman aşımı). Lütfen bağlantınızı kontrol edin.' };
+      }
+      if (err?.code === 'PERMISSION_DENIED') {
+        return { success: false, error: 'Veritabanı erişimi engellendi (PERMISSION_DENIED).' };
+      }
+      return { success: false, error: 'Oda doğrulanırken bir hata oluştu.' };
+    }
 
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
     this.startHeartbeat();
 
-    return new Promise<boolean>(resolve => {
+    return new Promise<{ success: boolean; error?: string }>(resolve => {
       let resolved = false;
       let pingInterval: number | null = null;
       let timeoutId: number | null = null;
 
-      const finish = (success: boolean) => {
+      const finish = (success: boolean, error?: string) => {
         if (!resolved) {
           resolved = true;
           if (pingInterval) window.clearInterval(pingInterval);
@@ -375,7 +471,7 @@ export class MultiplayerManager {
           if (success) {
             this.isConnected = true;
           }
-          resolve(success);
+          resolve({ success, error });
         }
       };
 
@@ -385,6 +481,8 @@ export class MultiplayerManager {
           finish(true);
         } else if (ev.type === 'MP_GAME_START') {
           finish(true);
+        } else if (ev.type === 'MP_MATCH_ABORTED') {
+          finish(false, ev.reason || 'Oda kurucusu tarafından iptal edildi.');
         }
       });
 
@@ -401,13 +499,11 @@ export class MultiplayerManager {
         });
       };
 
-      // Announce immediately to Firebase and local channels
       announce();
-      // Retry every 350ms until Host responds
       pingInterval = window.setInterval(announce, 350);
 
       timeoutId = window.setTimeout(() => {
-        finish(false);
+        finish(false, 'Oda sahibinden yanıt alınamadı. Oda kapatılmış olabilir.');
       }, 10000);
     });
   }
@@ -448,6 +544,13 @@ export class MultiplayerManager {
     if (envelope.senderId === this.instanceId || envelope.roomCode !== this.roomCode) return;
     if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
+
+    // Filter out stale events prior to guest joining (timestamp >= joinTimestamp - 2000)
+    if (this.joinTimestamp > 0 && typeof envelope.timestamp === 'number') {
+      if (envelope.timestamp < this.joinTimestamp - 2000) {
+        return;
+      }
+    }
 
     // Discard replayed or out-of-order packets (except important lobby syncs and handshakes)
     const isStateSync =
@@ -501,8 +604,12 @@ export class MultiplayerManager {
     // 1. Firebase Realtime Database
     if (this.firebaseEventsRef) {
       try {
-        push(this.firebaseEventsRef, envelope).catch(() => {});
-      } catch {}
+        push(this.firebaseEventsRef, envelope).catch((err: any) => {
+          console.error('Firebase push error:', err);
+        });
+      } catch (err) {
+        console.error('Firebase push exception:', err);
+      }
     }
 
     // Storage auto-prune: Clean up oldest events if room event count exceeds 35
@@ -522,18 +629,19 @@ export class MultiplayerManager {
       } catch {}
     }
 
-    // 2. Local Cross-Tab Fast Lane
-    if (this.broadcastChannel) {
-      try {
-        this.broadcastChannel.postMessage(envelope);
-      } catch {}
-    }
+    // 2. Local Cross-Tab Fast Lane (DEV only)
+    if (import.meta.env.DEV) {
+      if (this.broadcastChannel) {
+        try {
+          this.broadcastChannel.postMessage(envelope);
+        } catch {}
+      }
 
-    // LocalStorage fallback for multi-tab
-    if (typeof window !== 'undefined' && payload.type !== 'PEER_HEARTBEAT') {
-      try {
-        localStorage.setItem(`pisti-pkt-${this.roomCode}`, JSON.stringify(envelope));
-      } catch {}
+      if (typeof window !== 'undefined' && payload.type !== 'PEER_HEARTBEAT') {
+        try {
+          localStorage.setItem(`pisti-pkt-${this.roomCode}`, JSON.stringify(envelope));
+        } catch {}
+      }
     }
   }
 

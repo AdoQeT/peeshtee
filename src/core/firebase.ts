@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
 import {
   getDatabase,
   ref,
@@ -29,10 +30,39 @@ export const firebaseConfig = {
 // Initialize Firebase App singleton
 export const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Realtime Database
+// Initialize Auth & Realtime Database
+export const auth = getAuth(firebaseApp);
 export const rtdb = getDatabase(firebaseApp);
 
+let authInitPromise: Promise<User | null> | null = null;
+export function ensureFirebaseAuth(): Promise<User | null> {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  if (authInitPromise) return authInitPromise;
+
+  authInitPromise = new Promise((resolve) => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        resolve(user);
+      } else {
+        signInAnonymously(auth)
+          .then((cred) => resolve(cred.user))
+          .catch((err) => {
+            console.warn('Firebase anonymous auth warning:', err);
+            resolve(null);
+          });
+      }
+    });
+  });
+  return authInitPromise;
+}
+
+// Auto-trigger anonymous auth in browser environments
+if (typeof window !== 'undefined') {
+  ensureFirebaseAuth().catch(() => {});
+}
+
 export {
+  signInAnonymously,
   ref,
   set,
   get,

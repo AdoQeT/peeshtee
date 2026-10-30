@@ -7,11 +7,28 @@
  *   or: node scripts/sendDiscordChangelog.mjs "v1.15.0" "-feature A\n-bugfix B"
  */
 
-const WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Automatically load DISCORD_WEBHOOK_URL from .env if present
+let WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
+if (!WEBHOOK_URL) {
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      const match = envContent.match(/^\s*DISCORD_WEBHOOK_URL\s*=\s*["']?(.*?)["']?\s*$/m);
+      if (match && match[1]) {
+        WEBHOOK_URL = match[1].trim();
+      }
+    }
+  } catch {}
+}
 
 if (!WEBHOOK_URL) {
   console.error('❌ DISCORD_WEBHOOK_URL environment variable is missing.');
-  console.log('ℹ️  Skipping Discord changelog dispatch. Set DISCORD_WEBHOOK_URL to enable.');
+  console.log('ℹ️  Skipping Discord changelog dispatch. Set DISCORD_WEBHOOK_URL in environment or .env file to enable.');
   process.exit(0);
 }
 

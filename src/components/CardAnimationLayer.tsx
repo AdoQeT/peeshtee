@@ -25,6 +25,8 @@ export interface FlyingCardData {
   waypointOffset?: number;
   size?: 'sm' | 'md' | 'lg';
   zIndex?: number;
+  /** Motion type for physics engine tuning */
+  motionType?: 'deal' | 'play' | 'sweep' | 'jack';
   onComplete?: () => void;
 }
 
@@ -83,7 +85,8 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
         waypointY: fc.waypointY,
         waypointRotation: fc.waypointRotation,
         waypointScale: fc.waypointScale,
-        waypointOffset: fc.waypointOffset
+        waypointOffset: fc.waypointOffset,
+        motionType: fc.motionType
       },
       duration
     );

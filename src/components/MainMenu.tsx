@@ -104,6 +104,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   };
 
   const isSakura = theme === 'sakura';
+  const isMonaco = theme === 'monaco_velvet';
 
   const bgGradient =
     theme === 'sakura'
@@ -115,7 +116,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       : theme === 'melbourne_red'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#4d0b13_0%,_#240509_55%,_#0f0204_100%)]'
       : theme === 'monaco_velvet'
-      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0d4229_0%,_#062316_55%,_#020d08_100%)]'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#3b0764_0%,_#240440_52%,_#0a0114_100%)]'
       : theme === 'traditional'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#064e3b_0%,_#041f17_55%,_#020c09_100%)]'
       : 'bg-[radial-gradient(circle_at_50%_20%,_#451a03_0%,_#1c1917_55%,_#090807_100%)]';
@@ -139,6 +140,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         style={{
           background: isSakura
             ? 'radial-gradient(circle at 50% 45%, rgba(244, 114, 182, 0.12) 0%, rgba(225, 29, 72, 0.04) 38%, transparent 68%)'
+            : isMonaco
+            ? 'radial-gradient(circle at 50% 45%, rgba(245, 158, 11, 0.14) 0%, rgba(168, 85, 247, 0.08) 42%, transparent 70%)'
             : 'radial-gradient(circle at 50% 45%, rgba(245, 158, 11, 0.10) 0%, rgba(56, 189, 248, 0.04) 38%, transparent 68%)'
         }}
       />
@@ -478,7 +481,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.18.1'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.18.2'}
         </span>
       </div>
 

@@ -54,10 +54,10 @@ const PALETTES: Record<string, { glow: string; mid: string; edge: string }> = {
 
 // Yelpaze açıları (8 kart). Dönüş merkezi kartın altında olduğu için doğal bir el yelpazesi oluşur.
 const FAN = [-31, -22, -13, -4, 4, 13, 22, 31];
-const RIFFLE_STEP_MS = 95;
-const RIFFLE_MS = 480;
-const TAP_START_MS = RIFFLE_STEP_MS * (FAN.length - 1) + RIFFLE_MS + 40; // ~1185
-const FAN_START_MS = TAP_START_MS + 330; // ~1515
+const RIFFLE_STEP_MS = 70;
+const RIFFLE_MS = 360;
+const TAP_START_MS = RIFFLE_STEP_MS * (FAN.length - 1) + RIFFLE_MS + 30; // ~880
+const FAN_START_MS = TAP_START_MS + 250; // ~1130
 
 const CSS = `
 @keyframes mio-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -81,7 +81,7 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
   players,
   theme = 'traditional',
   cardBack = 'classic_blue',
-  durationMs = 3000,
+  durationMs = 2250,
   onReveal,
   onDone
 }) => {

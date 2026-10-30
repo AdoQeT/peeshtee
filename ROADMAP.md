@@ -41,6 +41,21 @@ This document establishes the official engineering roadmap, critical architectur
 
 ---
 
+### 🃏 Phase 2.5: Polish, UX & Quick Wins (Completed in v1.18.2)
+- [x] **Dealer/Cutter Icon Removal**: Removed `RoleChip` (D and ✂️ icons) from the table surface; component now renders nothing, preserving type compatibility.
+- [x] **Monaco Velvet Ana Menü Teması**: Ana menü arka plan degradesi, TableSurface'taki gerçek tema renkleriyle (deep purple/violet) uyumlu hale getirildi ve tema değişiminde ambient glow güncellendi.
+- [x] **Yükleme Ekranı Hız Optimizasyonu**: `MatchIntroOverlay` varsayılan süresi 3000ms'den **2250ms**'e (%75) düşürüldü; riffle/tap animasyon zamanlamaları buna göre kalibre edildi.
+- [x] **Kart Animasyonu Motor Yükseltmesi** (`cardPhysicsEngine.ts`):
+  - `motionType` alanı eklendi: `deal`, `play`, `sweep`, `jack` — her tip için ayrı easing, loft yüksekliği, banking ve süre baskısı.
+  - `play` kartları: hafif elastic spring (`cubic-bezier(0.20, 1.10, 0.30, 1.02)`) ile oynanan hissi.
+  - `sweep` kartları: accelerate easing ile hızlı ve kararlı toplama.
+  - `jack` kartları: daha dramatik 130px loft, geniş yay eğrisi ve 38° aerodynamic pitch.
+  - Landing micro-settle: son %10'da küçük scale overshoot ile gerçek kart dokunuş hissi.
+  - `rotateZ` banking: kartlar eğrinin içine doğal olarak yaslanıyor.
+  - Keyframe adımları 18'den **20'ye** çıkarıldı, bezier eğrileri daha pürüzsüz.
+
+---
+
 ### ⚡ Phase 3: Architectural Decoupling, Bundle Optimization & Deep Bot AI
 - [ ] **Large Component Modularization**:
   - Refactor monolithic `App.tsx` (3600+ lines) into specialized custom hooks:
@@ -49,7 +64,7 @@ This document establishes the official engineering roadmap, critical architectur
     - `usePistiGame`: Reducer-based game state management.
   - Refactor `UnoGameView.tsx` and `TableSurface.tsx` into modular sub-components.
 - [ ] **Code Splitting & Bundle Pruning**:
-  - Implement `React.lazy` for `UnoGameView` and `TableSurface` to slash initial chunk size from 746 kB down to ~250 kB.
+  - Implement `React.lazy` for `UnoGameView` and `TableSurface` to slash initial chunk size from 747 kB down to ~250 kB.
   - Dynamically load non-critical audio assets and procedural particles.
 - [ ] **Advanced Bot AI Heuristics**:
   - Upgrade Hard bot difficulty: compute table pot value, track played cards, calculate Pişti odds, and avoid feeding valuable cards to opponents.
@@ -60,9 +75,30 @@ This document establishes the official engineering roadmap, critical architectur
 
 ---
 
+### 🔮 Phase 4: Player Experience, Accessibility & Growth
+- [ ] **Erişilebilirlik (a11y)**:
+  - Klavye ile kart seçme ve oynama akışı (`Tab` → `Enter`); ARIA etiketleri kart elleri, skor tablosu ve modal'lar için tamamlanmalı.
+  - Ekran okuyucu desteği için anlamlı `aria-label` içerikleri (`"Karo 10 oyna"`, `"Vale ile süpür"` gibi).
+- [ ] **Gizlilik & Kullanıcı Hakları**:
+  - Hesap ve profil silme akışı (KVKK/GDPR uyumluluğu); "Tüm verilerimi sil" seçeneği ayarlar içinden.
+  - Gizlilik politikası sayfası ya da modal'ı.
+- [ ] **Hata İzleme & Prodüksiyon Gözlemleme**:
+  - Sentry veya benzeri bir araçla `ErrorBoundary` entegrasyonu; üretimde sessiz catch yerine yapılandırılmış error raporlama.
+- [ ] **Ranked & Turnuva Modu**:
+  - Elo-tabanlı sıralama sistemi; sezonluk liderboard; ELO badge görünümü.
+- [ ] **Sesli Sohbet (Voice Chat)**:
+  - WebRTC peer-to-peer ses kanalı veya Discord Activity entegrasyonu.
+- [ ] **Lonca / Guild Sistemi**:
+  - Takım bazlı arkadaş listesi grupları, lonca rekabeti ve günlük lonca görevi.
+
+---
+
 ## 📜 Historical Release Archive (Summary)
-- **v1.18.0**: Authentic batch card dealing choreography starting from cutter clockwise, pitch-shifting card deal sound, Dealer ('D') and Cutter ('✂️') physical table chips, and configurable Deal Speed (Fast / Normal / Cinematic).
+- **v1.18.2**: Dealer/Cutter icon removal, Monaco Velvet main menu background fix, MatchIntroOverlay 25% speed boost, card physics engine upgrade (motionType-aware easing, micro-settle, rotateZ banking).
+- **v1.18.1**: Comprehensive test suite (18 tests), GitHub Actions CI/CD, PWA manifest & offline service worker, public assets & OpenGraph social card.
+- **v1.18.0**: Security hardening (database.rules.json, firebase.json), anti-cheat verified sender checks, environment hygiene, Vite versioning single-source-of-truth.
 - **v1.17.1**: Fully self-contained CSS `@keyframes` and inline palette styling for `MatchIntroOverlay`, complete 4-player team roster integration.
 - **v1.17.0**: Resolved React 18 setState batching bug in lobby sync, introduced `MatchIntroOverlay`, implemented micro-footprint presence engine with indexed queries and transaction-based friend code reservations.
 - **v1.16.7**: Resolved synchronous RTDB undefined property crash using `cleanForRtdb` across all database mutations.
 - **v1.16.2**: Fully migrated from public MQTT brokers to 100% pure Firebase Realtime Database architecture.
+

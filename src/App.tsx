@@ -1270,7 +1270,8 @@ export default function App() {
                         startFaceUp: true,
                         endFaceUp: true,
                         duration: 700,
-                        arcHeight: 110,
+                        arcHeight: 130,
+                        motionType: 'jack' as const,
                         size: 'md',
                         zIndex: 90,
                         onComplete: () => {
@@ -1681,6 +1682,7 @@ export default function App() {
           targetScale,
           duration: isPistiSweep ? 540 : 440 + idx * 22,
           arcHeight: 78,
+          motionType: 'sweep' as const,
           size: 'md',
           zIndex: 75 + idx,
           onComplete: () => {
@@ -1812,6 +1814,7 @@ export default function App() {
         targetScale: 1,
         duration: isHuman ? 490 : 460,
         arcHeight: 96,
+        motionType: 'play',
         size: 'md',
         zIndex: 85,
         onComplete: () => {

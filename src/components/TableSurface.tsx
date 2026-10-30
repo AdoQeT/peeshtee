@@ -306,25 +306,8 @@ export interface SlotReadinessInfo {
 
 export const cardDomElements = new Map<string, HTMLElement>();
 
-export const RoleChip: React.FC<{ role: 'dealer' | 'cutter'; className?: string }> = ({ role, className = '' }) => {
-  if (role === 'dealer') {
-    return (
-      <div
-        title="Dağıtıcı (Dealer)"
-        className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-200 text-slate-950 font-black text-[9px] sm:text-[11px] flex items-center justify-center shadow-lg border border-amber-300 ring-1 ring-black/40 select-none ${className}`}
-      >
-        D
-      </div>
-    );
-  }
-  return (
-    <div
-      title="Desteyi Kesen (Cutter)"
-      className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-tr from-cyan-600 via-sky-300 to-white text-slate-950 font-black text-[8px] sm:text-[10px] flex items-center justify-center shadow-lg border border-cyan-200 ring-1 ring-black/40 select-none ${className}`}
-    >
-      ✂
-    </div>
-  );
+export const RoleChip: React.FC<{ role: 'dealer' | 'cutter'; className?: string }> = () => {
+  return null;
 };
 
 interface TableSurfaceProps {

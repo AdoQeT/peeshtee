@@ -453,16 +453,16 @@ export default function App() {
       sound.playClick();
       setUserProfile(getUserProfile());
       if (notice.id?.startsWith('fr-rem')) {
-        setDevToast(`👋 ${notice.fromName} (#${notice.fromFriendCode}) seni arkadaş listesinden çıkardı.`);
+        showDevToast(`👋 ${notice.fromName} (#${notice.fromFriendCode}) seni arkadaş listesinden çıkardı.`);
       } else {
-        setDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) ile artık arkadaşsınız!`);
+        showDevToast(`🤝 ${notice.fromName} (#${notice.fromFriendCode}) ile artık arkadaşsınız!`);
       }
     });
 
     const unsubReq = friendNetwork.onFriendRequest(req => {
       sound.playMatchSweep();
       setUserProfile(getUserProfile());
-      setDevToast(`📨 ${req.fromName} (#${req.fromFriendCode}) sana arkadaşlık isteği gönderdi!`);
+      showDevToast(`📨 ${req.fromName} (#${req.fromFriendCode}) sana arkadaşlık isteği gönderdi!`);
     });
 
     return () => {
@@ -3168,6 +3168,7 @@ export default function App() {
         isOpen={isFriendsOpen}
         hideBackdrop={screen === 'menu'}
         userProfile={userProfile}
+        onUpdateProfile={updated => setUserProfile(updated)}
         onJoinFriendRoom={(code: string) => {
           const trimmed = code.trim().toUpperCase();
           const clean = trimmed.replace(/[^A-Z0-9]/g, '');

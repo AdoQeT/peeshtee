@@ -38,6 +38,7 @@ interface FriendsModalProps {
   }) => void;
   onJoinFriendRoom: (roomCode: string) => void;
   onInspectProfile?: (inspected: UserProfile) => void;
+  onUpdateProfile?: (updated: UserProfile) => void;
   userProfile?: UserProfile;
   hideBackdrop?: boolean;
 }
@@ -48,6 +49,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onInviteFriendToMatch,
   onJoinFriendRoom,
   onInspectProfile,
+  onUpdateProfile,
   userProfile,
   hideBackdrop = false
 }) => {
@@ -156,6 +158,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     sound.playClick();
     const updated = acceptIncomingFriendRequest(req);
     setProfile(updated);
+    if (onUpdateProfile) onUpdateProfile(updated);
     friendNetwork.sendFriendAccept({ friendCode: req.friendCode, name: req.name });
     showToast(`🤝 ${req.name} ile artık arkadaşsınız!`);
   };
@@ -164,6 +167,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     sound.playClick();
     const updated = removeIncomingFriendRequest(friendCode);
     setProfile(updated);
+    if (onUpdateProfile) onUpdateProfile(updated);
     friendNetwork.sendFriendDecline(friendCode);
     showToast('İstek reddedildi.');
   };
@@ -172,6 +176,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     sound.playClick();
     const updated = removeFriend(friendId, friendCode, friendName);
     setProfile(updated);
+    if (onUpdateProfile) onUpdateProfile(updated);
     friendNetwork.sendFriendRemovedNotice({ friendCode, name: friendName });
     showToast(`${friendName || 'Arkadaş'} arkadaş listenden çıkarıldı.`);
   };

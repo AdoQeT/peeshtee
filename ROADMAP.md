@@ -6,7 +6,13 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.1 (Current)
+### v1.16.2 (Current)
+- **100% Pure Firebase Realtime Database Engine**: Completely removed public MQTT brokers (HiveMQ/EMQX) and legacy WebRTC dependencies. Matchmaking, room state, slot negotiation, in-game card events, and friend requests now run with 100% guaranteed delivery on Google Firebase RTDB.
+- **Synchronized Match Launch**: Resolved client transition desync where guests were entering matches after the host; all participants now receive synchronized match start packets and trigger animations simultaneously.
+- **Friend Request & Toast Auto-Dismissal**: Restored real-time request notifications and auto-dismissal timers for toast banners across the viewport.
+- **Bi-directional Profile State Sync**: Instant profile data propagation between social panels, active state contexts, and cloud records.
+
+### v1.16.1
 - **Firebase Realtime Database Social Network**: Overhauled the friend system to synchronize directly via Firebase RTDB (`requests/`, `notices/`, `presence/`, `invites/`). Replaced lossy broker topic messaging with verified cloud event listeners.
 - **Connection Handshake Optimization**: Decoupled blocking MQTT connection attempts from lobby room resolution. Room metadata is registered and retrieved instantly via Firebase RTDB, preventing client spinner hangs.
 - **Theme Distinction Refactoring**: Redesigned `monaco_velvet` with dedicated midnight purple (`#3b0764`) and imperial gold styling, eliminating aesthetic overlap with `melbourne_red`.

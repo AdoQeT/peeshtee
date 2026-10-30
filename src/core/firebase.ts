@@ -1,5 +1,18 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, set, get, onValue, onChildAdded, push, remove, update, off, serverTimestamp } from 'firebase/database';
+import {
+  getDatabase,
+  ref,
+  set,
+  get,
+  onValue,
+  onChildAdded,
+  onChildRemoved,
+  push,
+  remove,
+  update,
+  off,
+  serverTimestamp
+} from 'firebase/database';
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCiw2jWuKVqtfUCULXXiqy1n3OUctEEt-o",
@@ -18,4 +31,16 @@ export const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(fireb
 // Initialize Realtime Database
 export const rtdb = getDatabase(firebaseApp);
 
-export { ref, set, get, onValue, onChildAdded, push, remove, update, off, serverTimestamp };
+export {
+  ref,
+  set,
+  get,
+  onValue,
+  onChildAdded,
+  onChildRemoved,
+  push,
+  remove,
+  update,
+  off,
+  serverTimestamp
+};

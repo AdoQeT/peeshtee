@@ -15,7 +15,6 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
           'vendor-icons': ['lucide-react'],
-          'vendor-mqtt': ['mqtt'],
           'vendor-confetti': ['canvas-confetti']
         }
       }

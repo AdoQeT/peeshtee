@@ -349,6 +349,7 @@ export function getUserProfile(): UserProfile {
             : parsed.customTitle || '🃏 Kart Ustası',
           isOwner,
           friends: parsed.friends || [],
+          incomingFriendRequests: parsed.incomingFriendRequests || [],
           stats: {
             matchesPlayed: parsed.stats?.matchesPlayed || 0,
             wins: parsed.stats?.wins || 0,

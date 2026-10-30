@@ -350,6 +350,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         setLobbyRole('guest');
         setIsConnecting(false);
         setErrorMsg(null);
+      } else if (event.type === 'MP_GAME_START') {
+        // Automatically close lobby modal when host launches the game
+        onClose();
       } else if (event.type === 'PEER_DISCONNECTED') {
         if (multiplayerManager.isHost && event.peerId) {
           setSlots(prev => {
@@ -596,6 +599,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     });
 
     friendNetwork.setStatus('playing', createdRoomCode, gameType);
+
+    onClose();
 
     onHostLaunchMatch(
       createdRoomCode,

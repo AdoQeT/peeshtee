@@ -1,16 +1,10 @@
 /**
- * Project Pişti - Dual-Broker MQTT + BroadcastChannel + LocalStorage Multiplayer Engine
- * Taken directly from the proven "çalışan online" architecture:
- * Powered by dual public MQTT brokers (HiveMQ & EMQX) over WebSockets (WSS)
- * + Local BroadcastChannel & LocalStorage fast lanes for 0ms same-origin tabs.
- * Supports 2-player and 4-player lobbies and real-time game synchronization.
+ * Project Pişti - Pure Firebase Realtime Database Multiplayer Engine
+ * All matchmaking, lobbies, player slots, card events, and match transitions
+ * are powered 100% directly through Google Firebase Realtime Database.
  */
-import type { MqttClient } from 'mqtt';
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
-import { rtdb, ref, push, onChildAdded, off, set, get } from '../../core/firebase';
-
-const BROKER_1 = 'wss://broker.emqx.io:8084/mqtt';
-const BROKER_2 = 'wss://broker.hivemq.com:8884/mqtt';
+import { rtdb, ref, push, onChildAdded, set, get, off, remove } from '../../core/firebase';
 
 export interface LobbyPlayerSlot {
   seatIndex: number; // 0 (Host), 1 (Right/Opp 1), 2 (Top/Teammate), 3 (Left/Opp 2)
@@ -106,8 +100,12 @@ export type MultiplayerEvent =
     }
   | {
       type: 'MP_UNO_NEXT_ROUND';
-      seedCards: any[];
-      startingTurnSeat: number;
+      seedCards?: any[];
+      seedUnoDeck?: any[];
+      nextDealerSeat?: number;
+      startingTurnSeat?: number;
+      round?: number;
+      senderPeerId?: string;
     }
   | {
       type: 'MP_NEXT_ROUND';
@@ -117,25 +115,32 @@ export type MultiplayerEvent =
       startingTurnSeat: number;
     }
   | {
-      type: 'REQUEST_SEAT_CHANGE';
-      targetSeatIndex: number;
-      senderPeerId: string;
-    }
-  | {
       type: 'MP_ROUND_READY';
       seatIndex: number;
-      senderPeerId: string;
+      senderPeerId?: string;
       isReady: boolean;
     }
   | {
-      type: 'MP_CHAT_MESSAGE';
-      senderPeerId: string;
-      senderName: string;
-      senderAvatarId?: string;
-      senderAvatar?: string;
-      text: string;
+      type: 'REQUEST_RESYNC';
       seatIndex: number;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_CHAT_MESSAGE';
+      id?: string;
+      senderName: string;
+      senderSeat?: number;
+      seatIndex?: number;
+      text: string;
       timestamp: number;
+      isHost?: boolean;
+      avatar?: string;
+      avatarId?: string;
+      senderAvatar?: string;
+      senderAvatarId?: string;
+      customAvatarUrl?: string;
+      customTitle?: string;
+      senderPeerId?: string;
     }
   | {
       type: 'MP_EMOTE';
@@ -144,25 +149,46 @@ export type MultiplayerEvent =
       senderPeerId?: string;
     }
   | {
+      type: 'MP_NEXT_ROUND_READY';
+      seatIndex: number;
+      round: number;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_ROUND_RESET';
+      seedDeck: Card[];
+      round: number;
+      dealerIndex: number;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_MATCH_ABORTED';
+      senderPeerId?: string;
+      senderName?: string;
+      reason?: string;
+      gameType?: 'pisti' | 'uno';
+    }
+  | {
       type: 'PEER_HEARTBEAT';
       role: 'host' | 'guest';
       peerId: string;
       timestamp: number;
     }
-  | { type: 'PEER_RECONNECTING'; secondsLeft: number }
-  | { type: 'PEER_RECONNECTED' }
-  | { type: 'PEER_DISCONNECTED'; peerId?: string }
   | {
-      type: 'REQUEST_RESYNC';
-      seatIndex: number;
-      senderPeerId?: string;
+      type: 'PEER_RECONNECTING';
+      secondsLeft: number;
     }
   | {
-      type: 'MP_MATCH_ABORTED';
-      reason: string;
-      senderPeerId?: string;
-      senderName?: string;
-      gameType?: 'pisti' | 'uno';
+      type: 'PEER_RECONNECTED';
+    }
+  | {
+      type: 'PEER_DISCONNECTED';
+      peerId?: string;
+    }
+  | {
+      type: 'REQUEST_SEAT_CHANGE';
+      targetSeatIndex: number;
+      senderPeerId: string;
     };
 
 interface PacketEnvelope {
@@ -176,72 +202,62 @@ interface PacketEnvelope {
   payload: MultiplayerEvent;
 }
 
-export function getCryptoRandomString(len: number = 8): string {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const arr = new Uint8Array(len);
-    crypto.getRandomValues(arr);
-    return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('').slice(0, len);
+function getCryptoRandomString(length: number = 8): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  const cryptoObj = typeof window !== 'undefined' ? window.crypto : null;
+  if (cryptoObj && cryptoObj.getRandomValues) {
+    const values = new Uint8Array(length);
+    cryptoObj.getRandomValues(values);
+    for (let i = 0; i < length; i++) {
+      result += chars[values[i] % chars.length];
+    }
+  } else {
+    for (let i = 0; i < length; i++) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
   }
-  return Math.random().toString(36).slice(2, 2 + len);
+  return result;
 }
 
 export class MultiplayerManager {
-  public instanceId: string = `peer-${getCryptoRandomString(8)}-${Date.now()}`;
-  public client: MqttClient | null = null;
-  public clients: MqttClient[] = [];
-  public broadcastChannel: BroadcastChannel | null = null;
-  private eventListeners: ((event: MultiplayerEvent) => void)[] = [];
-  private seenMsgIds: Set<string> = new Set();
+  public instanceId: string;
+  public roomCode: string = '';
+  public isHost: boolean = false;
+  public isConnected: boolean = false;
+  private roomToken: string = '';
+  private seq: number = 0;
   private lastSeenSeq: Map<string, number> = new Map();
+  private seenMsgIds: Set<string> = new Set();
+  private eventListeners: Array<(event: MultiplayerEvent) => void> = [];
+
+  private broadcastChannel: BroadcastChannel | null = null;
   private storageListener: ((ev: StorageEvent) => void) | null = null;
+
   private firebaseEventsRef: any = null;
+
+  // Heartbeat & reconnect monitoring
   private heartbeatTimer: number | null = null;
   private lastRemoteMessageTime: number = 0;
   private isPeerReconnecting: boolean = false;
-  private seq: number = 0;
-
-  public isHost: boolean = false;
-  public roomCode: string = '';
-  public roomToken: string = '';
-  public isConnected: boolean = false;
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('beforeunload', () => {
-        if (this.isConnected && this.roomCode) {
-          this.send({ type: 'PEER_DISCONNECTED', peerId: this.instanceId });
-        }
-      });
-    }
-  }
+    let storedId = '';
+    try {
+      storedId = sessionStorage.getItem('pisti_client_instance_id') || '';
+    } catch {}
 
-  public onEvent(callback: (event: MultiplayerEvent) => void) {
-    this.eventListeners.push(callback);
-    return () => {
-      this.eventListeners = this.eventListeners.filter(cb => cb !== callback);
-    };
-  }
-
-  private dispatch(event: MultiplayerEvent) {
-    this.eventListeners.forEach(cb => {
+    if (!storedId) {
+      storedId = `p-${Date.now().toString(36)}-${getCryptoRandomString(6)}`;
       try {
-        cb(event);
-      } catch (err) {
-        console.warn('Listener error in MultiplayerManager:', err);
-      }
-    });
+        sessionStorage.setItem('pisti_client_instance_id', storedId);
+      } catch {}
+    }
+    this.instanceId = storedId;
   }
 
   public normalizeCode(code: string): string {
-    const digits = code.trim().replace(/\D/g, '');
-    if (digits.length >= 4) {
-      return digits.slice(0, 6);
-    }
     return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-  }
-
-  public getTopic(code: string): string {
-    return `pisti/room/${code.replace(/[^A-Z0-9]/g, '').toLowerCase()}/events`;
   }
 
   private setupFirebaseRoom(code: string) {
@@ -255,7 +271,7 @@ export class MultiplayerManager {
         }
       });
     } catch (err) {
-      console.warn('Firebase RTDB listener setup failed:', err);
+      console.warn('Firebase RTDB room listener error:', err);
     }
   }
 
@@ -291,71 +307,6 @@ export class MultiplayerManager {
     }
   }
 
-  public async setupMqttClient(code: string): Promise<boolean> {
-    const topic = this.getTopic(code);
-    const mqttModule = await import('mqtt');
-    const connectFn =
-      (mqttModule as any)?.default?.connect ||
-      (mqttModule as any)?.connect ||
-      (mqttModule as any);
-
-    this.clients = [BROKER_1, BROKER_2].map(brokerUrl => {
-      const client = connectFn(brokerUrl, {
-        keepalive: 30,
-        clientId: `pisti-${this.instanceId}-${Math.random().toString(36).slice(2, 6)}`,
-        clean: true,
-        connectTimeout: 3500,
-        reconnectPeriod: 2000
-      });
-
-      client.on('connect', () => {
-        client.subscribe(topic, { qos: 0 }, (err: any) => {
-          if (err) console.warn('MQTT sub error:', brokerUrl, err);
-        });
-      });
-
-      client.on('message', (_t: string, payload: any) => {
-        try {
-          const envelope = JSON.parse(payload.toString());
-          this.handleRawIncoming(envelope);
-        } catch (e) {
-          console.warn('Malformed MQTT packet:', e);
-        }
-      });
-
-      client.on('error', (err: any) => {
-        console.warn('MQTT broker error:', brokerUrl, err && err.message);
-      });
-
-      return client;
-    });
-
-    this.client = this.clients[0];
-    const clients = this.clients;
-
-    return new Promise<boolean>(resolve => {
-      let resolved = false;
-      const done = (val: boolean) => {
-        if (!resolved) {
-          resolved = true;
-          window.clearInterval(checkInterval);
-          window.clearTimeout(timeoutId);
-          resolve(val);
-        }
-      };
-
-      const checkInterval = window.setInterval(() => {
-        if (clients.some(c => c.connected)) {
-          done(true);
-        }
-      }, 100);
-
-      const timeoutId = window.setTimeout(() => {
-        done(clients.some(c => c.connected));
-      }, 10000);
-    });
-  }
-
   public async hostRoom(code: string, _hostName?: string, _avatar?: string): Promise<string> {
     this.disconnect();
     this.isHost = true;
@@ -363,20 +314,21 @@ export class MultiplayerManager {
     this.roomToken = `rtk_${Math.random().toString(36).slice(2, 9)}_${Date.now()}`;
     this.seq = 0;
     this.isConnected = false;
+
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
 
-    // Save room existence to Firebase Realtime Database
+    // Register room in Firebase Realtime Database
     try {
-      set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
+      await set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
         created: Date.now(),
         hostId: this.instanceId,
         active: true
-      }).catch(() => {});
-    } catch {}
+      });
+    } catch (e) {
+      console.warn('Host room registration warning:', e);
+    }
 
-    // Setup MQTT as auxiliary fallback in background without blocking
-    this.setupMqttClient(this.roomCode).catch(() => {});
     this.startHeartbeat();
     return this.roomCode;
   }
@@ -396,11 +348,9 @@ export class MultiplayerManager {
     this.roomToken = '';
     this.seq = 0;
     this.isConnected = false;
+
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
-
-    // Start MQTT in background
-    this.setupMqttClient(this.roomCode).catch(() => {});
     this.startHeartbeat();
 
     return new Promise<boolean>(resolve => {
@@ -443,19 +393,21 @@ export class MultiplayerManager {
         });
       };
 
-      // Announce immediately
+      // Announce immediately to Firebase
       announce();
-      // Retry every 600ms until Host responds with HOST_LOBBY_SYNC
-      pingInterval = window.setInterval(announce, 600);
+      // Retry every 500ms until Host responds
+      pingInterval = window.setInterval(announce, 500);
 
-      // Check if room meta exists in Firebase for instant feedback
-      get(ref(rtdb, `rooms/${this.roomCode}/meta`)).then(snap => {
-        if (!snap.exists()) {
-          setTimeout(() => {
-            if (!this.isConnected && !resolved) finish(false);
-          }, 4500);
-        }
-      }).catch(() => {});
+      // Verify room existence in Firebase
+      get(ref(rtdb, `rooms/${this.roomCode}/meta`))
+        .then(snap => {
+          if (!snap.exists()) {
+            setTimeout(() => {
+              if (!this.isConnected && !resolved) finish(false);
+            }, 3500);
+          }
+        })
+        .catch(() => {});
 
       timeoutId = window.setTimeout(() => {
         finish(false);
@@ -479,12 +431,12 @@ export class MultiplayerManager {
 
         if (this.isConnected) {
           const elapsed = Date.now() - this.lastRemoteMessageTime;
-          // Fast Disconnect Detection: Grace Period if no packet for > 3.5s and <= 8.5s
-          if (elapsed > 3500 && elapsed <= 8500) {
+          // Grace period if no packet received
+          if (elapsed > 4000 && elapsed <= 9000) {
             this.isPeerReconnecting = true;
-            const secondsLeft = Math.max(1, Math.ceil((8500 - elapsed) / 1000));
+            const secondsLeft = Math.max(1, Math.ceil((9000 - elapsed) / 1000));
             this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft });
-          } else if (elapsed > 8500) {
+          } else if (elapsed > 9000) {
             this.isConnected = false;
             this.isPeerReconnecting = false;
             this.dispatch({ type: 'PEER_DISCONNECTED', peerId: this.instanceId });
@@ -544,74 +496,91 @@ export class MultiplayerManager {
       payload
     };
 
-    const str = JSON.stringify(envelope);
-    const topic = this.getTopic(this.roomCode);
-
-    // 1. Firebase Realtime Database Fast Cloud Lane
+    // 1. Firebase Realtime Database
     if (this.firebaseEventsRef) {
       try {
         push(this.firebaseEventsRef, envelope).catch(() => {});
       } catch {}
     }
 
-    // 2. Dual Public MQTT fallback
-    this.clients.forEach(c => {
-      if (c.connected) {
-        try {
-          c.publish(topic, str, { qos: 0 });
-        } catch {}
-      }
-    });
-
+    // 2. Local Cross-Tab Fast Lane
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.postMessage(envelope);
       } catch {}
     }
 
-    // Do NOT write periodic heartbeats to localStorage (avoids disk I/O & storage event spam)
+    // LocalStorage fallback for multi-tab
     if (typeof window !== 'undefined' && payload.type !== 'PEER_HEARTBEAT') {
       try {
-        localStorage.setItem(`pisti-pkt-${this.roomCode}`, str);
+        localStorage.setItem(`pisti-pkt-${this.roomCode}`, JSON.stringify(envelope));
       } catch {}
     }
   }
 
   public leaveRoom() {
+    if (this.roomCode && this.isConnected) {
+      this.send({
+        type: 'MP_MATCH_ABORTED',
+        senderPeerId: this.instanceId,
+        reason: 'Oyuncu odadan ayrıldı.'
+      });
+    }
     this.disconnect();
   }
 
   public disconnect() {
     this.cleanupFirebaseRoom();
-    if (this.heartbeatTimer) {
-      window.clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-    if (this.clients.length) {
-      this.clients.forEach(c => {
-        try {
-          c.end(true);
-        } catch {}
-      });
-      this.clients = [];
-      this.client = null;
-    }
+
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.close();
       } catch {}
       this.broadcastChannel = null;
     }
+
     if (this.storageListener && typeof window !== 'undefined') {
       window.removeEventListener('storage', this.storageListener);
       this.storageListener = null;
     }
+
+    if (this.heartbeatTimer) {
+      window.clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+
+    // Clean up room in Firebase if host is leaving
+    if (this.isHost && this.roomCode) {
+      try {
+        remove(ref(rtdb, `rooms/${this.roomCode}`)).catch(() => {});
+      } catch {}
+    }
+
+    this.roomCode = '';
+    this.roomToken = '';
+    this.isHost = false;
+    this.isConnected = false;
+    this.seq = 0;
     this.seenMsgIds.clear();
     this.lastSeenSeq.clear();
-    this.isConnected = false;
     this.isPeerReconnecting = false;
-    this.roomCode = '';
-    this.isHost = false;
+  }
+
+  public onEvent(callback: (event: MultiplayerEvent) => void): () => void {
+    this.eventListeners.push(callback);
+    return () => {
+      this.eventListeners = this.eventListeners.filter(cb => cb !== callback);
+    };
+  }
+
+  private dispatch(event: MultiplayerEvent) {
+    this.eventListeners.forEach(cb => {
+      try {
+        cb(event);
+      } catch (err) {
+        console.error('Error in multiplayer event listener:', err);
+      }
+    });
   }
 }
 

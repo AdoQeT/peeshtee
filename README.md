@@ -1,128 +1,127 @@
-# 🎴 Project P: Pişti & RENQ Overdrive
+# Project P (Peeshtee: Overdrive)
 
-[![Version](https://img.shields.io/badge/version-v1.14.1-blue.svg)](./package.json)
-[![React](https://img.shields.io/badge/React-18.x-61dafb.svg?logo=react&logoColor=black)](https://react.dev/)
+A high-performance, deterministic card game platform and real-time multiplayer engine built with TypeScript, React 18, Web Animations API (WAAPI), procedural Web Audio API, and Firebase Realtime Database.
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.x-61dafb.svg?logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.x-38b2ac.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Multiplayer](https://img.shields.io/badge/Multiplayer-Dual_MQTT_%2B_BroadcastChannel-brightgreen.svg)](#-güçlü-çevrimiçi-multiplayer-mimarisi)
-[![License](https://img.shields.io/badge/license-MIT-purple.svg)](#-lisans)
-
-> **Geleneksel Türk Kart Oyunu Pişti ve Heyecan Dolu Kart Düellosu RENQ'in; Arcade Görsel Efektler, Prosedürel Web Audio, 60–240Hz Adaptif WAAPI Fiziği ve P2P/MQTT Ağ Mimarisiyle Yeniden Doğuşu.**
+[![Firebase](https://img.shields.io/badge/Firebase-RTDB-FFA611.svg?logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![License](https://img.shields.io/badge/License-MIT-emerald.svg)](./LICENSE)
 
 ---
 
-## 🌟 Proje Özeti & Vizyon
+## Architecture Overview
 
-**Project P**, klasik kart oyunlarını sıradan 2D düzlemden çıkarıp, her hamlenin tatmin ettiği bir **"Juicy Arcade"** deneyimine dönüştüren modern bir web oyunudur. İki amiral gemisi oyun modunu tek çatı altında buluşturur:
-
-1. **Pişti: Overdrive**: Yüzyıllardır kahvehanelerde ve evlerde oynanan 52'lik geleneksel Türk iskambil oyunu; dramatik kart sarsıntıları, 5 farklı profesyonel deste karma sekansı, Vale girdapları, altın şok dalgaları ve canlı masa sayım töreniyle taçlandırılmıştır.
-2. **RENQ**: Stratejik renk, sayı ve aksiyon kartlarının (+2, +4, Pas, Yön Değiştirme, Renk Seçici) yarıştığı, hızlı tempolu ve dinamik bir parti kart oyunu.
-
----
-
-## 🎮 Oyun Modları & Mekanikler
-
-### 1. Pişti: Overdrive
-- **Klasik & 5'e Basmalı Varyantı**: Standart puanlamanın yanı sıra tek 5'e 5 basıldığında maçı anında kazandıran opsiyonel kahvehane kuralı.
-- **2 ve 4 Kişilik (Eşli Takım)**: Teke tek düello veya karşılıklı ortaklı eşli mücadele.
-- **Canlı Masa Sayım Töreni**: 52 kart bittiğinde kartlar masaya dökülür; prosedürel ses efektleriyle tek tek sayılarak puan kartları (♦10, ♣2, As, Vale) ve çoğunluk bonusu canlı hesaplanır.
-- **Çapraz Pişti Yığını**: Yapılan Piştiler sıradan desteye karışmaz; masanın kenarında 90 derece dik açıyla istiflenir.
-
-### 2. RENQ
-- **Dinamik Kart Çekme ve Eşleme**: Renk, sembol veya aksiyon eşlemesi.
-- **Ceza ve Pas Senkronizasyonu**: Masadaki biriken +2 / +4 cezaları, pas geçme ve renk seçimi anlık olarak tüm rakiplere senkronize edilir.
-- **Son Kart Uyarısı**: Elinde tek kart kalan oyuncunun "RENQ!" butonuna basma zorunluluğu; unutursa +2 ceza kartı çekme mekaniği.
-
----
-
-## ⚡ "Overdrive" Görsellik ve Fizik Motoru
-
-Sıradan kart oyunlarının aksine **Project P**, her hamlede dokunsal ve görsel geri bildirim sunar:
-
-- **60–240Hz Adaptif WAAPI Fizik Motoru**: Monitör yenileme hızına duyarlı Web Animations API tabanlı yörüngeli 3D kart uçuşları.
-- **5 Farklı Gerçekçi Deste Karma Stili**:
-  1. *Harman & Şelale Köprüsü (Riffle & Bridge Cascade)*
-  2. *Hindu / Üstten Paket Çekme (Packet Slide)*
-  3. *Kahvehane 3'lü Masa Kesimi (Triple Cut)*
-  4. *Masa Üstü Çorba Karıştırma (Casino Table Wash)*
-  5. *Kavisli Yelpaze & Dalga Şelalesi (Farot S-Curve)*
-- **Prosedürel Web Audio**: Dışarıdan MP3 indirmeden, HTML5 Web Audio API ile sıfır gecikmeli üretilen kart fışırtıları, ahşap vuruşları, bas patlamaları ve zafer arpejleri.
-- **7 Dinamik Masa Teması**: Kıraathane Lüksü, Zümrüt Yeşili, Gece Mavisi, Cyberpunk Neon Grid, Galaktik Kozmos, Sonbahar Meşesi ve Minimalist Slate.
-- **Parçacık Efektleri**: Sakura yaprakları, neon kıvılcımlar, alev dalgaları ve zafer konfetisi.
-
----
-
-## 🌐 Güçlü Çevrimiçi Multiplayer Mimarisi
-
-- **Çift Broker Yedekliliği (Dual MQTT Fallback)**: HiveMQ ve EMQX genel WebSocket broker'ları arasında otomatik geçiş ve yedekleme.
-- **Yerel Sekmeler Arası Ağ**: Aynı tarayıcıda veya yerel ağda `BroadcastChannel` ile anında sıfır gecikmeli test imkanı.
-- **Güvenli Oda Kodları**: `PST-xxxxxx` ve `RNQ-xxxxxx` formatında 2 milyardan fazla kombinasyona sahip kriptografik oda anahtarları.
-- **Paket Doğrulama & Anti-Replay**:
-  - Koltuk ve Gönderici Kimlik Doğrulaması (`senderSlot.peerId === msg.senderPeerId`).
-  - Sıra kontrolü ve yetkisiz hamle engelleme.
-  - Monoton dizi numarası (`seq`) takibiyle tekrarlanan/sahte paketlerin filtrelenmesi.
-- **Sosyal Etkileşim**: Canlı emoji fırlatma (☕ Çay, 🔥 Alev, 😂 Kahkaha vb.) ve 80 karakter sınırlı sanitize edilmiş masa içi sohbet.
-
----
-
-## 🏗️ Mimari Şema
+Project P is structured as a modular client application separating core simulation logic, rendering pipelines, audio synthesis, and distributed networking.
 
 ```mermaid
 graph TD
-    subgraph UI_Presentation["Görsel & Sunum Katmanı (React 18 + Canvas)"]
-        Menu["Ana Menü & Ayarlar"]
-        TablePisti["3D Pişti Masası (TableSurface)"]
-        TableRenq["RENQ Masası (UnoGameView)"]
-        FXEngine["Canvas Parçacık & Sarsıntı Motoru"]
-        AudioEngine["WebAudio Prosedürel Sentezleyici"]
+    subgraph Client["Client Application Layer"]
+        UI["React 18 Component Tree & Modals"]
+        State["Application State & Session Controller"]
+        Anim["WAAPI Card Animation Pipeline"]
+        Audio["Procedural Web Audio Engine"]
     end
 
-    subgraph Core_Engine["Çekirdek Mantık (Deterministik & Headless)"]
-        PistiEngine["Pişti Rules & State Machine"]
-        RenqEngine["RENQ Round & Deck Manager"]
-        BotAI["Yapay Zeka (Acemi, Kurnaz, Usta)"]
+    subgraph Core["Deterministic Core Layer"]
+        Rules["Rules Evaluator & Score Calculator"]
+        Deck["Deck Shuffler & Dealing State Machine"]
+        AI["Heuristic Bot Decision Engine"]
     end
 
-    subgraph Network_Layer["Ağ Katmanı (peerManager)"]
-        MQTTPrimary["HiveMQ WSS"]
-        MQTTFallback["EMQX WSS"]
-        BroadcastCh["BroadcastChannel (Local)"]
-        PacketValidator["Seq & Peer ID Doğrulayıcı"]
+    subgraph Network["Distributed Networking Layer"]
+        Firebase["Firebase Realtime Database (Meta / Presence / Social)"]
+        MQTT["Dual MQTT WebSocket Mesh (HiveMQ / EMQX)"]
+        LocalMesh["BroadcastChannel Cross-Tab Synchronization"]
+        Validator["Monotonic Sequence & Peer ID Validator"]
     end
 
-    TablePisti --> PistiEngine
-    TableRenq --> RenqEngine
-    PistiEngine --> FXEngine
-    PistiEngine --> AudioEngine
-    PistiEngine <--> Network_Layer
-    RenqEngine <--> Network_Layer
-    Network_Layer <--> PacketValidator
+    UI --> State
+    State --> Core
+    Core --> Anim
+    Core --> Audio
+    State <--> Network
+    Network --> Validator
 ```
 
 ---
 
-## 🚀 Hızlı Başlangıç
+## Technical Specifications
 
-### Gereksinimler
-- Node.js v18 veya üzeri (v20+ önerilir)
-- npm, pnpm veya yarn
+### 1. Deterministic Core Engine
+- **Headless State Evaluation**: Core rule checks and round computations execute independently of the presentation tree.
+- **Rule Matrix**: Computes matching conditions, bonus card values, sweeps, capture points, and team scores with deterministic outcomes.
+- **Bot Engine**: Heuristic decision trees operating across three difficulty tiers (Easy, Medium, Hard) taking into account pile memory, card distributions, and risk assessments.
 
-### Kurulum ve Çalıştırma
+### 2. Animation & Rendering Pipeline
+- **WAAPI (Web Animations API)**: 60Hz–240Hz adaptive animation execution bypassing main-thread UI layout thrashing.
+- **Physical Deck Choreography**: 3D transform trajectories for multi-step shuffle sequences, pack sliding, cut-deck displacement, and collection gathering.
+- **Hardware-Accelerated FX**: 2D Canvas particles and GPU composite layers for dynamic impact and particle simulations.
 
-```bash
-# 1. Bağımlılıkları yükleyin
-npm install
+### 3. Procedural Audio Synthesis
+- **Zero Static Audio Assets**: Procedural Web Audio API sound generator synthesizing card slides, strikes, sweeps, and fanfares dynamically.
+- **Polyphonic Ambient Synthesis**: Real-time ambient backdrop synthesis with independent volume control and master mute states.
 
-# 2. Geliştirme sunucusunu başlatın
-npm run dev
+### 4. Distributed Networking & Cloud Synchronization
+- **Cloud State & Persistence**: Google Firebase Realtime Database for instantaneous room discovery, persistent presence indicators, real-time friend graph synchronization, and direct match invites.
+- **P2P/WebSocket Transport**: Dual MQTT WebSocket broker fallback (HiveMQ + EMQX) with sub-second handshake resolution.
+- **Security & Integrity**:
+  - Peer ID slot validation (`senderSlot.peerId === msg.senderPeerId`).
+  - Monotonic packet sequence counter (`seq`) to reject duplicates and out-of-order replay attacks.
+  - Sanitized in-game payload filtering.
 
-# 3. Tarayıcınızda açın:
-# http://localhost:5173
+---
+
+## Project Structure
+
+```
+├── public/                 # Static public assets
+├── scripts/                # CI/CD and deployment scripts
+│   └── sendDiscordChangelog.mjs
+├── src/
+│   ├── components/         # React presentation layer & table components
+│   ├── core/
+│   │   ├── ai/             # Bot heuristic algorithms
+│   │   ├── audio/          # Procedural Web Audio API sound synthesizer
+│   │   ├── deck/           # Deck generation and shuffle routines
+│   │   ├── particles/      # Canvas 2D particle simulation
+│   │   └── rules/          # Deterministic game rules & score breakdowns
+│   ├── features/
+│   │   ├── friends/        # Firebase friend graph & presence network
+│   │   ├── multiplayer/    # WebRTC/MQTT/Firebase room connection manager
+│   │   ├── profile/        # Local & cloud profile data management
+│   │   └── uno/            # Secondary card game engine (Renq)
+│   ├── types/              # TypeScript definitions & data contracts
+│   ├── utils/              # i18n localization and shared helpers
+│   ├── App.tsx             # Root application orchestrator
+│   └── main.tsx            # Entry point
+├── LICENSE                 # MIT License
+├── package.json            # Dependencies and version configuration
+├── ROADMAP.md              # Technical milestone release history
+└── tsconfig.json           # TypeScript configuration
 ```
 
-### Üretim (Build) Alma
+---
 
+## Getting Started
+
+### Prerequisites
+- **Node.js**: v18.0.0 or higher
+- **Package Manager**: npm v9.0.0 or higher
+
+### Installation
+```bash
+git clone https://github.com/adoqet/peeshtee.git
+cd peeshtee
+npm install
+```
+
+### Local Development
+```bash
+npm run dev
+```
+
+### Production Build
 ```bash
 npm run build
 npm run preview
@@ -130,12 +129,6 @@ npm run preview
 
 ---
 
-## 🗺️ Gelecek Yol Haritası
+## License
 
-Gelecek sürümlerde hedeflenen yetkili sunucu mimarisi, maç replay motoru, günlük tohum bulmacaları, mobil haptik dokunmatik kontroller ve daha fazlası için lütfen [ROADMAP.md](./ROADMAP.md) belgesini inceleyin.
-
----
-
-## 📄 Lisans
-
-Bu proje MIT lisansı kapsamında korunmaktadır. Detaylar için `LICENSE` dosyasına başvurabilirsiniz.
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.

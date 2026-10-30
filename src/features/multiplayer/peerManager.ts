@@ -7,7 +7,7 @@
  */
 import type { MqttClient } from 'mqtt';
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
-import { rtdb, ref, push, onChildAdded, off } from '../../core/firebase';
+import { rtdb, ref, push, onChildAdded, off, set, get } from '../../core/firebase';
 
 const BROKER_1 = 'wss://broker.emqx.io:8084/mqtt';
 const BROKER_2 = 'wss://broker.hivemq.com:8884/mqtt';
@@ -365,12 +365,31 @@ export class MultiplayerManager {
     this.isConnected = false;
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
-    await this.setupMqttClient(this.roomCode);
+
+    // Save room existence to Firebase Realtime Database
+    try {
+      set(ref(rtdb, `rooms/${this.roomCode}/meta`), {
+        created: Date.now(),
+        hostId: this.instanceId,
+        active: true
+      }).catch(() => {});
+    } catch {}
+
+    // Setup MQTT as auxiliary fallback in background without blocking
+    this.setupMqttClient(this.roomCode).catch(() => {});
     this.startHeartbeat();
     return this.roomCode;
   }
 
-  public async joinRoom(code: string, guestName: string, guestAvatar: string): Promise<boolean> {
+  public async joinRoom(
+    code: string,
+    guestName: string,
+    guestAvatar: string,
+    guestAvatarId?: string,
+    guestCustomAvatarUrl?: string,
+    guestCustomTitle?: string,
+    guestLevel?: number
+  ): Promise<boolean> {
     this.disconnect();
     this.isHost = false;
     this.roomCode = this.normalizeCode(code);
@@ -379,9 +398,9 @@ export class MultiplayerManager {
     this.isConnected = false;
     this.setupLocalBuses(this.roomCode);
     this.setupFirebaseRoom(this.roomCode);
-    const connected = await this.setupMqttClient(this.roomCode);
-    if (!connected) return false;
 
+    // Start MQTT in background
+    this.setupMqttClient(this.roomCode).catch(() => {});
     this.startHeartbeat();
 
     return new Promise<boolean>(resolve => {
@@ -416,17 +435,31 @@ export class MultiplayerManager {
           type: 'GUEST_JOINED',
           guestName,
           guestAvatar,
+          guestAvatarId,
+          guestCustomAvatarUrl,
+          guestCustomTitle,
+          guestLevel,
           guestPeerId: this.instanceId
         });
       };
 
+      // Announce immediately
       announce();
-      // Gentle interval to prevent flood and sound spam
-      pingInterval = window.setInterval(announce, 1200);
+      // Retry every 600ms until Host responds with HOST_LOBBY_SYNC
+      pingInterval = window.setInterval(announce, 600);
+
+      // Check if room meta exists in Firebase for instant feedback
+      get(ref(rtdb, `rooms/${this.roomCode}/meta`)).then(snap => {
+        if (!snap.exists()) {
+          setTimeout(() => {
+            if (!this.isConnected && !resolved) finish(false);
+          }, 4500);
+        }
+      }).catch(() => {});
 
       timeoutId = window.setTimeout(() => {
         finish(false);
-      }, 9000);
+      }, 7000);
     });
   }
 

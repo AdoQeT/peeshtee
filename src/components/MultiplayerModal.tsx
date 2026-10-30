@@ -535,23 +535,17 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     const ok = await multiplayerManager.joinRoom(
       normalized,
       localName || 'Misafir Oyuncu',
-      localAvatar
+      localAvatar,
+      localAvatarId,
+      localCustomAvatarUrl,
+      profile.customTitle || getAvatarPreset(localAvatarId).title,
+      profile.level || 1
     );
 
     setIsConnecting(false);
     if (ok) {
       setLobbyRole('guest');
       friendNetwork.setStatus('lobby', normalized, gameType);
-      multiplayerManager.send({
-        type: 'GUEST_JOINED',
-        guestName: localName || 'Misafir Oyuncu',
-        guestAvatar: localAvatar,
-        guestAvatarId: localAvatarId,
-        guestCustomAvatarUrl: localCustomAvatarUrl,
-        guestCustomTitle: profile.customTitle || getAvatarPreset(localAvatarId).title,
-        guestLevel: profile.level || 1,
-        guestPeerId: multiplayerManager.instanceId
-      });
     } else {
       setErrorMsg('Odaya bağlanılamadı. Kodu kontrol ediniz.');
     }

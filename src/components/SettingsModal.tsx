@@ -9,10 +9,12 @@ import {
   Sparkles,
   Trophy,
   Bot,
-  Flame
+  Flame,
+  Globe
 } from 'lucide-react';
 import { GameSettings, TableTheme, AIDifficulty, getCardBackForTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, setLanguage, Language } from '../utils/i18n';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,6 +30,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose
 }) => {
   const [activeTab, setActiveTab] = useState<'themes' | 'audio' | 'rules'>('themes');
+  const [lang, setLang] = useState<Language>(getLanguage());
 
   if (!isOpen) return null;
 
@@ -40,7 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: 'estoril_blue',
       name: 'Estoril Blue',
-      subtitle: 'Elektrik Safir Metalik & Dinamik Neon Lazer Dalgaları',
+      subtitle: 'Safir Metalik & Dinamik Neon Efektleri',
       preview: 'from-[#0284c7] via-[#034d82] to-[#021226] border-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.5)]',
       badge: 'M-POWER',
       cardDesc: 'Estoril Sport Kart & Çift Yarış Deseni'
@@ -48,7 +51,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: 'alpine_white',
       name: 'Alpine White',
-      subtitle: 'Saf Beyaz Mermer Çuha & Platin İşleme',
+      subtitle: 'Beyaz Mermer Çuha & Platin İşleme',
       preview: 'from-[#e2e8f0] via-[#94a3b8] to-[#334155] border-slate-300 text-slate-900',
       badge: 'PLATINUM',
       cardDesc: 'Alpine Platinum Kart & Fildişi Doku'
@@ -56,7 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: 'melbourne_red',
       name: 'Melbourne Red',
-      subtitle: 'Derin Metalik Kırmızı & Altın Yarış Dikişi',
+      subtitle: 'Derin Metalik Kırmızı & Altın Dikiş',
       preview: 'from-[#8a0e1b] via-[#57050e] to-[#1c0205] border-red-400/80',
       badge: 'SPEED',
       cardDesc: 'Melbourne Speed Kart & Yakut Bordür'
@@ -64,8 +67,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: 'monaco_velvet',
       name: 'Monaco Velvet',
-      subtitle: 'Monte Carlo Royale & Bordo Kadife Çuha & 24K Altın Varak',
-      preview: 'from-[#6b0821] via-[#3d0312] to-[#170106] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]',
+      subtitle: 'Monte Carlo Royale & Gece Moru & Kraliyet Altını',
+      preview: 'from-[#3b0764] via-[#240440] to-[#0f011a] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]',
       badge: 'ROYALE',
       cardDesc: 'Monaco Royal Kart & Altın Kraliyet Tacı'
     },
@@ -113,7 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">AYARLAR</h2>
-            <p className="text-[11px] text-slate-400">Masa Teması, Ses ve Oyun Tercihleri</p>
+            <p className="text-[11px] text-slate-400">Masa Teması, Ses, Dil ve Oyun Tercihleri</p>
           </div>
         </div>
 
@@ -142,7 +145,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" />
-            <span>Ses & Ambiyans</span>
+            <span>Ses & Dil</span>
           </button>
 
           <button
@@ -229,9 +232,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: SES & AMBİYANS */}
+          {/* TAB 2: SES & DİL */}
           {activeTab === 'audio' && (
             <div className="space-y-4">
+              {/* Dil Tercihi */}
+              <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-sky-400" />
+                  <div>
+                    <span className="font-bold text-xs sm:text-sm block text-white">Dil Seçimi / Language</span>
+                    <span className="text-[11px] text-slate-400">Arayüz dili</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setLanguage('tr');
+                      setLang('tr');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      lang === 'tr' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🇹🇷 TR
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setLanguage('en');
+                      setLang('en');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      lang === 'en' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🇬🇧 EN
+                  </button>
+                </div>
+              </div>
+
+              {/* Master Ses Efektleri */}
               <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -241,8 +282,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <VolumeX className="w-5 h-5 text-rose-400" />
                     )}
                     <div>
-                      <span className="font-bold text-xs sm:text-sm block text-white">Prosedürel Ses Efektleri</span>
-                      <span className="text-[11px] text-slate-400">Kart atma, süpürme, pişti ve masa sesleri</span>
+                      <span className="font-bold text-xs sm:text-sm block text-white">Oyun Ses Efektleri</span>
+                      <span className="text-[11px] text-slate-400">Kart atma, süpürme ve pişti sesleri</span>
                     </div>
                   </div>
                   <button
@@ -268,7 +309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {settings.soundEnabled && (
                   <div className="space-y-1.5 pt-2 border-t border-white/10">
                     <div className="flex justify-between text-xs text-slate-300">
-                      <span className="font-medium">Efekt Ses Düzeyi</span>
+                      <span className="font-medium">Ses Düzeyi</span>
                       <span className="font-mono font-bold text-emerald-300">{Math.round(settings.sfxVolume * 100)}%</span>
                     </div>
                     <input
@@ -293,7 +334,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-bold text-xs sm:text-sm text-white block">Arka Plan Ambiyansı</span>
-                    <span className="text-[11px] text-slate-400">Masa başında rahatlatıcı arka plan sesleri</span>
+                    <span className="text-[11px] text-slate-400">Ortam arka plan sesleri</span>
                   </div>
                   <span className="text-xs text-purple-300 font-mono font-bold">
                     {settings.ambience === 'cafe'
@@ -335,7 +376,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {settings.ambience !== 'none' && (
                   <div className="space-y-1 pt-2 border-t border-white/10">
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>Ambiyans Ses Düzeyi</span>
+                      <span>Ambiyans Düzeyi</span>
                       <span className="font-mono font-bold text-purple-300">
                         {Math.round((settings.ambienceVolume ?? 0.25) * 100)}%
                       </span>
@@ -402,7 +443,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </span>
                   <span className="text-xs text-cyan-300 font-bold">
                     {settings.aiDifficulty === 'hard'
-                      ? 'Usta AI'
+                      ? 'Usta'
                       : settings.aiDifficulty === 'medium'
                       ? 'Normal'
                       : 'Rahat'}
@@ -413,7 +454,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     [
                       { id: 'easy', label: 'Rahat' },
                       { id: 'medium', label: 'Normal' },
-                      { id: 'hard', label: 'Usta AI' }
+                      { id: 'hard', label: 'Usta' }
                     ] as const
                   ).map(b => (
                     <button
@@ -441,10 +482,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Flame className="w-4 h-4 text-amber-400" />
-                      5'e Basmalı Özel Kuralı
+                      5'e Basmalı Kuralı
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Yerde tek 5 varken 5 basılırsa Pişti & anında maç kazanılır (50 Puan). Yerde kart varken +5 ek puan.
+                      Yerde tek 5 varken 5 atılırsa Pişti & anında maç kazanılır (+50 Puan).
                     </span>
                   </div>
                   <button
@@ -468,10 +509,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Activity className="w-4 h-4 text-pink-400" />
-                      Ekran Sarsıntısı (Screen Shake)
+                      Ekran Sarsıntısı
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Pişti yapıldığında masanın tok sarsılması
+                      Pişti anında masa sarsıntı efekti
                     </span>
                   </div>
                   <button
@@ -495,10 +536,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Sparkles className="w-4 h-4 text-emerald-400" />
-                      Dinamik Parçacık Motoru (144Hz / 240Hz+ Sınırsız)
+                      Görsel Parçacık Efektleri
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Yüksek yenileme hızlı monitörlerde akıcı GPU parçacıkları ve ışık efektleri
+                      Masa ve kart animasyon efektleri
                     </span>
                   </div>
                   <button

@@ -265,24 +265,24 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
     case 'monaco_velvet':
       return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
-          {/* Deep Royal Bordeaux Damask Weave Texture */}
+          {/* Royal Midnight Purple & Imperial Gold Luxury Texture */}
           <div
             className="absolute inset-0 opacity-[0.05]"
             style={{
               backgroundImage:
-                'radial-gradient(circle at 50% 50%, #f59e0b 1px, transparent 1px), repeating-linear-gradient(45deg, #e11d48 0, #e11d48 1px, transparent 1px, transparent 10px)'
+                'radial-gradient(circle at 50% 50%, #fbbf24 1px, transparent 1px), repeating-linear-gradient(45deg, #a855f7 0, #a855f7 1px, transparent 1px, transparent 10px)'
             }}
           />
-          {/* Monte Carlo High-Roller 24K Inlaid Gold Rail */}
-          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-amber-400/55 shadow-[inset_0_0_28px_rgba(245,158,11,0.22)]" />
-          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-amber-300/35" />
+          {/* Monte Carlo Royale 24K Inlaid Gold Rail */}
+          <div className="absolute inset-2.5 sm:inset-3.5 rounded-2xl border-2 border-amber-400/60 shadow-[inset_0_0_28px_rgba(245,158,11,0.25)]" />
+          <div className="absolute inset-4 sm:inset-5 rounded-xl border border-dashed border-amber-300/40" />
           {/* Corner Baroque Gold Accents */}
-          <div className="absolute top-3.5 left-3.5 w-6 h-6 border-t-2 border-l-2 border-amber-400/70 rounded-tl-lg" />
-          <div className="absolute top-3.5 right-3.5 w-6 h-6 border-t-2 border-r-2 border-amber-400/70 rounded-tr-lg" />
-          <div className="absolute bottom-3.5 left-3.5 w-6 h-6 border-b-2 border-l-2 border-amber-400/70 rounded-bl-lg" />
-          <div className="absolute bottom-3.5 right-3.5 w-6 h-6 border-b-2 border-r-2 border-amber-400/70 rounded-br-lg" />
+          <div className="absolute top-3.5 left-3.5 w-6 h-6 border-t-2 border-l-2 border-amber-400/80 rounded-tl-lg" />
+          <div className="absolute top-3.5 right-3.5 w-6 h-6 border-t-2 border-r-2 border-amber-400/80 rounded-tr-lg" />
+          <div className="absolute bottom-3.5 left-3.5 w-6 h-6 border-b-2 border-l-2 border-amber-400/80 rounded-bl-lg" />
+          <div className="absolute bottom-3.5 right-3.5 w-6 h-6 border-b-2 border-r-2 border-amber-400/80 rounded-br-lg" />
           {/* Central Casino Royale Fleur-de-Lis Gold Crest */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.11] pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.14] pointer-events-none">
             <svg viewBox="0 0 200 200" className="w-72 h-72 sm:w-96 sm:h-96 text-amber-300" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="100" cy="100" r="90" strokeDasharray="4 3" strokeWidth="2" />
               <circle cx="100" cy="100" r="74" />
@@ -290,8 +290,8 @@ const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
               <circle cx="100" cy="100" r="22" strokeWidth="2" />
             </svg>
           </div>
-          {/* Deep Royal Wine Velvet Vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_42%,_rgba(15,1,5,0.92)_100%)]" />
+          {/* Deep Royal Midnight Purple Vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_42%,_rgba(10,2,20,0.94)_100%)]" />
         </div>
       );
   }
@@ -454,7 +454,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       case 'melbourne_red':
         return 'bg-[#1a0407] bg-[radial-gradient(ellipse_at_center,_#520912_0%,_#290408_52%,_#0d0103_100%)] border-red-500/40 shadow-[inset_0_0_100px_rgba(220,38,38,0.2),0_25px_60px_rgba(0,0,0,0.9)]';
       case 'monaco_velvet':
-        return 'bg-[#1a0208] bg-[radial-gradient(ellipse_at_center,_#4a0418_0%,_#28020d_55%,_#100104_100%)] border-amber-500/60 shadow-[inset_0_0_100px_rgba(245,158,11,0.22),0_25px_60px_rgba(0,0,0,0.92)]';
+        return 'bg-[#13031f] bg-[radial-gradient(ellipse_at_center,_#3b0764_0%,_#240440_55%,_#0a0114_100%)] border-amber-400/60 shadow-[inset_0_0_100px_rgba(245,158,11,0.25),0_25px_60px_rgba(0,0,0,0.95)]';
       case 'luxury_gold':
         return 'bg-[#140608] bg-[radial-gradient(ellipse_at_center,_#38150c_0%,_#1a090d_60%,_#070204_100%)] border-amber-600/50 shadow-[inset_0_0_100px_rgba(0,0,0,0.85),0_25px_60px_rgba(0,0,0,0.85)]';
       case 'traditional':

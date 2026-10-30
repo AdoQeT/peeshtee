@@ -104,8 +104,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Seçilen resim 2 MB boyutundan küçük olmalıdır.');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Seçilen resim 10 MB boyutundan küçük olmalıdır.');
       return;
     }
 

@@ -158,7 +158,7 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
     : isMelbourne
     ? 'bg-gradient-to-br from-[#8a0e1b] via-[#57050e] to-[#2b0206] border-2 border-red-400/80 shadow-[0_4px_16px_rgba(239,68,68,0.25)]'
     : isMonaco
-    ? 'bg-gradient-to-br from-[#4a0418] via-[#28020d] to-[#120105] border-2 border-amber-400 shadow-[0_4px_18px_rgba(245,158,11,0.4)]'
+    ? 'bg-gradient-to-br from-[#3b0764] via-[#240440] to-[#0f011a] border-2 border-amber-400 shadow-[0_4px_18px_rgba(245,158,11,0.45)]'
     : isSakura
     ? 'bg-gradient-to-br from-[#3b0a28] via-[#1f0726] to-[#0f0318] border-2 border-pink-300/90 shadow-[0_4px_16px_rgba(244,114,182,0.25)]'
     : isGold

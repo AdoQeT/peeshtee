@@ -394,6 +394,34 @@ export default function App() {
     } catch {}
   }, [screen, isMultiplayerGame]);
 
+  // Synchronize browser URL and close drawers on match start/exit
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (screen === 'game') {
+        setIsFriendsOpen(false);
+        const code = multiplayerManager.roomCode;
+        if (isMultiplayerGame && code) {
+          window.history.pushState(null, '', `?oda=${code}`);
+        } else {
+          window.history.pushState(null, '', '?mode=pisti');
+        }
+      } else if (screen === 'uno') {
+        setIsFriendsOpen(false);
+        const code = multiplayerManager.roomCode;
+        if (isMultiplayerGame && code) {
+          window.history.pushState(null, '', `?oda=${code}&mode=renq`);
+        } else {
+          window.history.pushState(null, '', '?mode=renq');
+        }
+      } else if (screen === 'menu') {
+        window.history.pushState(null, '', window.location.pathname);
+      }
+    } catch {
+      // Ignore in restricted iframe environments
+    }
+  }, [screen, isMultiplayerGame]);
+
   // Instant room join via URL query params (?oda=... or ?room=...)
   useEffect(() => {
     try {

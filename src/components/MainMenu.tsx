@@ -5,14 +5,12 @@ import {
   BookOpen,
   Settings as SettingsIcon,
   Sparkles,
-  Volume2,
-  VolumeX,
   Swords,
   SlidersHorizontal,
   Flame,
   Trophy,
-  Globe,
   UserPlus,
+  Globe,
   Shield,
   Palette,
   Mic,
@@ -23,7 +21,7 @@ import { Card, GameSetupConfig, TableTheme } from '../types/game';
 import { CardView } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
 import { UserProfile } from '../features/profile/profileManager';
-import { getLanguage, setLanguage, translations, Language } from '../utils/i18n';
+import { getLanguage, translations, Language } from '../utils/i18n';
 
 import { AmbientParticles } from './AmbientParticles';
 
@@ -61,10 +59,10 @@ const TARGET_SCORES = [51, 101, 151];
 export const MainMenu: React.FC<MainMenuProps> = ({
   theme,
   cardBack,
-  soundEnabled,
+  soundEnabled: _soundEnabled,
   defaultSetup,
   userProfile,
-  onToggleSound,
+  onToggleSound: _onToggleSound,
   onQuickStartGame,
   onStartSinglePlayer,
   onOpenMultiplayer,
@@ -81,19 +79,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     defaultSetup.botDifficulty || 'medium'
   );
   const [isComingSoonOpen, setIsComingSoonOpen] = useState<boolean>(false);
-  const [lang, setLangState] = useState<Language>(getLanguage());
+  const [lang] = useState<Language>(getLanguage());
   const t = translations[lang];
 
   const handleClick = (action: () => void) => {
     sound.playClick();
     action();
-  };
-
-  const toggleLanguage = () => {
-    sound.playClick();
-    const nextLang = lang === 'tr' ? 'en' : 'tr';
-    setLanguage(nextLang);
-    setLangState(nextLang);
   };
 
   const isSakura = theme === 'sakura';
@@ -180,17 +171,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </span>
           </button>
 
-          {/* TR / EN Language Toggle */}
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
-            title={lang === 'tr' ? 'Switch to English' : 'Türkçe\'ye Geç'}
-          >
-            <span className="text-[11px] font-mono font-bold">
-              {lang === 'tr' ? '🇹🇷 TR' : '🇬🇧 EN'}
-            </span>
-          </button>
-
           {/* Discord Community Button */}
           <a
             href="https://discord.gg/WSrKGWyGWd"
@@ -230,23 +210,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           <button
             onClick={() => handleClick(onOpenSettings)}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
-            title="Temalar, Kart Arkaları, Sesler ve Oyun Ayarları"
+            title="Ayarlar & Sesler"
           >
             <SettingsIcon className="w-3.5 h-3.5 text-pink-400" />
             <span className="hidden lg:inline">{t.settings}</span>
-          </button>
-
-          {/* Sound Toggle */}
-          <button
-            onClick={onToggleSound}
-            className="p-2 sm:px-2.5 sm:py-1.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-white/15 text-xs font-bold text-slate-200 transition-colors shadow-md cursor-pointer"
-            title={soundEnabled ? t.soundOff : t.soundOn}
-          >
-            {soundEnabled ? (
-              <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-            ) : (
-              <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-            )}
           </button>
 
           {/* Social (Friends, Requests & Invites) Button — Top Right */}
@@ -488,7 +455,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v1.16.0
+          v1.16.1
         </span>
       </div>
 

@@ -1,5 +1,5 @@
 import type { MqttClient } from 'mqtt';
-import { rtdb, ref, push, onChildAdded } from '../../core/firebase';
+import { rtdb, ref, push, onChildAdded, set, onValue } from '../../core/firebase';
 import {
   getUserProfile,
   addOrUpdateFriend,
@@ -126,34 +126,103 @@ class FriendNetworkManager {
         this.handleIncomingRaw(ev.data);
       };
     } catch {
-      // Ignore if BroadcastChannel unsupported
+      // Ignore
     }
 
     window.addEventListener('storage', ev => {
       if (ev.key === 'pisti-social-pkt' && ev.newValue) {
         try {
           this.handleIncomingRaw(JSON.parse(ev.newValue));
-        } catch {
-          // Ignore
-        }
+        } catch {}
       }
     });
 
-    // Firebase Cloud Realtime Invite Listener
-    try {
-      const myCode = getUserProfile().friendCode;
-      if (myCode) {
+    const myProfile = getUserProfile();
+    const myCode = myProfile.friendCode;
+
+    // 1. Firebase Cloud: Listen for Incoming Game Invites
+    if (myCode) {
+      try {
         onChildAdded(ref(rtdb, `invites/${myCode}`), (snapshot: any) => {
           const inv = snapshot.val() as IncomingGameInvite;
           if (inv && inv.fromId !== getUserProfile().id) {
             this.inviteListeners.forEach(cb => cb(inv));
           }
         });
+      } catch (err) {
+        console.warn('Firebase invite listener error:', err);
       }
-    } catch (err) {
-      console.warn('Firebase invite listener error:', err);
+
+      // 2. Firebase Cloud: Listen for Incoming Friend Requests
+      try {
+        onChildAdded(ref(rtdb, `requests/${myCode}`), (snapshot: any) => {
+          const req = snapshot.val();
+          if (req && req.fromId !== getUserProfile().id) {
+            addIncomingFriendRequest({
+              id: req.fromId,
+              friendCode: req.fromFriendCode,
+              name: req.fromName,
+              avatarId: req.fromAvatarId,
+              customAvatarDataUrl: req.fromCustomAvatarUrl,
+              customTitle: req.fromCustomTitle,
+              lastPlayedAt: Date.now()
+            });
+            this.requestListeners.forEach(cb => cb(req));
+            this.notifyListeners();
+          }
+        });
+      } catch (err) {
+        console.warn('Firebase friend request listener error:', err);
+      }
+
+      // 3. Firebase Cloud: Listen for Social Notices (Accept / Remove)
+      try {
+        onChildAdded(ref(rtdb, `notices/${myCode}`), (snapshot: any) => {
+          const notice = snapshot.val();
+          if (!notice) return;
+          if (notice.type === 'accept') {
+            addOrUpdateFriend({
+              id: notice.fromId,
+              friendCode: notice.fromFriendCode,
+              name: notice.fromName,
+              avatarId: notice.fromAvatarId,
+              customAvatarDataUrl: notice.fromCustomAvatarUrl
+            });
+            this.noticeListeners.forEach(cb => cb(notice));
+            this.notifyListeners();
+          } else if (notice.type === 'remove') {
+            removeFriend(notice.fromId, notice.fromFriendCode, notice.fromName);
+            this.noticeListeners.forEach(cb => cb(notice));
+            this.notifyListeners();
+          }
+        });
+      } catch (err) {
+        console.warn('Firebase notice listener error:', err);
+      }
+
+      // 4. Firebase Cloud: Listen for Global Presence of other players
+      try {
+        onValue(ref(rtdb, 'presence'), (snapshot: any) => {
+          const data = snapshot.val();
+          if (data && typeof data === 'object') {
+            const now = Date.now();
+            Object.values(data).forEach((p: any) => {
+              if (p && p.friendCode && p.friendCode !== myCode) {
+                // If last seen within 30 seconds
+                if (now - (p.lastSeen || 0) < 30000) {
+                  this.onlinePlayers.set(p.friendCode, p);
+                }
+              }
+            });
+            this.notifyListeners();
+          }
+        });
+      } catch (err) {
+        console.warn('Firebase presence listener error:', err);
+      }
     }
 
+    // Secondary MQTT fallback
     import('mqtt').then(mqttModule => {
       const connectFn =
         (mqttModule as any)?.default?.connect ||
@@ -183,21 +252,17 @@ class FriendNetworkManager {
             try {
               const parsed = JSON.parse(payload.toString());
               this.handleIncomingRaw(parsed);
-            } catch {
-              // Ignore malformed
-            }
+            } catch {}
           });
 
           this.clients.push(client);
-        } catch {
-          // Ignore broker init failure
-        }
+        } catch {}
       });
     }).catch(err => {
       console.warn('Dynamic mqtt import failed for social network:', err);
     });
 
-    // Periodic heartbeat every 8 seconds + prune stale players
+    // Periodic heartbeat every 8 seconds
     this.heartbeatInterval = window.setInterval(() => {
       this.announcePresence();
       const now = Date.now();
@@ -242,6 +307,13 @@ class FriendNetworkManager {
       lastSeen: Date.now()
     };
 
+    // Firebase presence update
+    if (profile.friendCode) {
+      try {
+        set(ref(rtdb, `presence/${profile.friendCode}`), presence).catch(() => {});
+      } catch {}
+    }
+
     this.sendPacket({
       type: 'PRESENCE_HEARTBEAT',
       player: presence
@@ -254,6 +326,7 @@ class FriendNetworkManager {
     gameType: 'pisti' | 'uno' = 'pisti'
   ) {
     const profile = getUserProfile();
+    const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
     const invite: IncomingGameInvite = {
       inviteId: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
@@ -261,28 +334,28 @@ class FriendNetworkManager {
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
       fromCustomAvatarUrl: profile.customAvatarDataUrl,
-      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      targetFriendCode: cleanTargetCode,
       targetName: target.name?.trim(),
       roomCode,
       gameType,
       timestamp: Date.now()
     };
 
+    if (cleanTargetCode) {
+      try {
+        push(ref(rtdb, `invites/${cleanTargetCode}`), invite).catch(() => {});
+      } catch {}
+    }
+
     this.sendPacket({
       type: 'GAME_INVITE',
       invite
     });
-
-    // Also push via Firebase Cloud for instant guaranteed delivery
-    if (invite.targetFriendCode) {
-      try {
-        push(ref(rtdb, `invites/${invite.targetFriendCode}`), invite).catch(() => {});
-      } catch {}
-    }
   }
 
   public sendFriendRequest(target: { friendCode?: string; name?: string }) {
     const profile = getUserProfile();
+    const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
     const req = {
       id: `freq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
@@ -291,9 +364,15 @@ class FriendNetworkManager {
       fromAvatarId: profile.avatarId,
       fromCustomAvatarUrl: profile.customAvatarDataUrl,
       fromCustomTitle: profile.customTitle,
-      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      targetFriendCode: cleanTargetCode,
       timestamp: Date.now()
     };
+
+    if (cleanTargetCode) {
+      try {
+        push(ref(rtdb, `requests/${cleanTargetCode}`), req).catch(() => {});
+      } catch {}
+    }
 
     this.sendPacket({
       type: 'FRIEND_REQUEST',
@@ -303,6 +382,7 @@ class FriendNetworkManager {
 
   public sendFriendAccept(target: { friendCode?: string; name?: string }) {
     const profile = getUserProfile();
+    const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
     const notice: IncomingFriendNotice = {
       id: `fr-acc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
@@ -310,10 +390,19 @@ class FriendNetworkManager {
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
       fromCustomAvatarUrl: profile.customAvatarDataUrl,
-      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      targetFriendCode: cleanTargetCode,
       targetName: target.name?.trim(),
       timestamp: Date.now()
     };
+
+    if (cleanTargetCode) {
+      try {
+        push(ref(rtdb, `notices/${cleanTargetCode}`), {
+          ...notice,
+          type: 'accept'
+        }).catch(() => {});
+      } catch {}
+    }
 
     this.sendPacket({
       type: 'FRIEND_ACCEPT',
@@ -323,45 +412,36 @@ class FriendNetworkManager {
 
   public sendFriendDecline(targetFriendCode: string) {
     const profile = getUserProfile();
+    const cleanTargetCode = targetFriendCode?.replace(/[^0-9A-Za-z]/g, '');
     this.sendPacket({
       type: 'FRIEND_DECLINE',
       fromFriendCode: profile.friendCode,
-      targetFriendCode: targetFriendCode?.replace(/[^0-9A-Za-z]/g, '')
-    });
-  }
-
-  public sendFriendAddedNotice(target: { friendCode?: string; name?: string }) {
-    const profile = getUserProfile();
-    const notice: IncomingFriendNotice = {
-      id: `fr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      fromId: profile.id,
-      fromFriendCode: profile.friendCode,
-      fromName: profile.name,
-      fromAvatarId: profile.avatarId,
-      fromCustomAvatarUrl: profile.customAvatarDataUrl,
-      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
-      targetName: target.name?.trim(),
-      timestamp: Date.now()
-    };
-
-    this.sendPacket({
-      type: 'FRIEND_ADDED_NOTICE',
-      notice
+      targetFriendCode: cleanTargetCode
     });
   }
 
   public sendFriendRemovedNotice(target: { friendCode?: string; name?: string }) {
     const profile = getUserProfile();
+    const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
     const notice: IncomingFriendNotice = {
       id: `fr-rem-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
       fromFriendCode: profile.friendCode,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
-      targetFriendCode: target.friendCode?.replace(/[^0-9A-Za-z]/g, ''),
+      targetFriendCode: cleanTargetCode,
       targetName: target.name?.trim(),
       timestamp: Date.now()
     };
+
+    if (cleanTargetCode) {
+      try {
+        push(ref(rtdb, `notices/${cleanTargetCode}`), {
+          ...notice,
+          type: 'remove'
+        }).catch(() => {});
+      } catch {}
+    }
 
     this.sendPacket({
       type: 'FRIEND_REMOVED_NOTICE',
@@ -383,26 +463,20 @@ class FriendNetworkManager {
       if (c.connected) {
         try {
           c.publish(SOCIAL_TOPIC, raw, { qos: 0 });
-        } catch {
-          // Ignore
-        }
+        } catch {}
       }
     });
 
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.postMessage(wrapper);
-      } catch {
-        // Ignore
-      }
+      } catch {}
     }
 
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('pisti-social-pkt', raw);
-      } catch {
-        // Ignore
-      }
+      } catch {}
     }
   }
 
@@ -431,7 +505,6 @@ class FriendNetworkManager {
         lastSeen: Date.now()
       });
 
-      // Also auto-update friendCode or roomCode if this person is already in our friends list
       const existingFriend = (myProfile.friends || []).find(
         f =>
           (f.friendCode && f.friendCode === pkt.player.friendCode) ||
@@ -497,7 +570,6 @@ class FriendNetworkManager {
         this.notifyListeners();
       }
     } else if (pkt.type === 'FRIEND_DECLINE') {
-      // Clean up outgoing state if needed
       this.notifyListeners();
     } else if (pkt.type === 'FRIEND_ADDED_NOTICE') {
       const notice = pkt.notice;

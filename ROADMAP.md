@@ -1,148 +1,65 @@
-# 🗺️ Project P: İleriye Yönelik Yol Haritası (Product Roadmap)
+# Engineering Roadmap & Release Milestones
 
-Bu belge, **Project P (Pişti & RENQ: Overdrive)** projesinin tamamlanan kilometre taşlarını, planlanan ana geliştirme fazlarını ve geleceğe yönelik inovasyon fikirleri havuzunu detaylandırmaktadır.
-
----
-
-## 📍 Tamamlanan Kilometre Taşları (v1.0 – v1.11)
-
-- [x] **Çekirdek Pişti Motoru (v1.0 - v1.9)**:
-  - %100 kurallara uygun deterministik Pişti motoru (2 ve 4 kişilik eşli mod).
-  - 5'e Basmalı Özel Kahvehane Varyantı (tek 5'e basıldığında anında galibiyet).
-  - 60–240Hz uyumlu Web Animations API (WAAPI) ile gerçekçi 3D kart uçuş fiziği ve havada yüz çevirme.
-  - **5 Farklı Profesyonel Deste Karma Animasyonu**: Şelale Köprüsü (Riffle), Hindu Paket Çekme, Kahvehane 3'lü Kesim, Çorba Wash ve Dalga Yelpaze.
-  - Pişti kartlarının 90 derece dik açıyla (çapraz) ayrı yığında istiflenmesi.
-  - El bitimi masada kartların açılıp *"Tık Tık Tık"* sesleriyle tek tek canlı sayıldığı puan ayırma töreni.
-  - Prosedürel Web Audio API ses motoru (sıfır harici ses dosyası bağımlılığı, sentetik fışırtı, tokmak ve patlama sesleri).
-  - 7 farklı dinamik masa teması (Kıraathane, Gece Mavisi, Zümrüt Yeşili, Cyberpunk Neon, Galaktik Kozmos, Sonbahar Meşesi, Minimalist Slate) ve Sakura yaprak parçacıkları.
-- [x] **RENQ Oyun Modu & Çift Broker Hibrit Multiplayer (v1.10)**:
-  - Renk ve sayı eşleme kart oyunu RENQ'in tam teşekküllü entegrasyonu (+2, +4, Pas, Yön Değiştirme, Renk Seçimi ve Ceza çarkı).
-  - HiveMQ + EMQX genel MQTT WebSocket broker'ları arasında otomatik yedekleme (failover) ve yerel `BroadcastChannel` hibrit ağı.
-  - Kriptografik 6 haneli oda kodları (`PST-xxxxxx` / `RNQ-xxxxxx`), canlı emoji fırlatma ve masa içi sohbet.
-- [x] **Güvenlik, Denge ve v1.11 Stabilizasyonu (v1.11)**:
-  - **RENQ Online Sıra Senkronizasyonu**: Koltuk rotasyonuyla eşzamanlı sıra çakışması (`currentTurn = 0`) çözüldü; çekilen kart oynanamadığında karşı tarafa `MP_UNO_PASS` anlık iletilerek kilitlenmeler giderildi.
-  - **Global RENQ Markalaması**: Tüm arayüz, sohbet şablonları, masa halkası, WhatsApp davetleri ve kural kitapçığı UNO'dan RENQ'e uyarlandı.
-  - **Ağ Güvenliği & Paket Doğrulama**: `senderPeerId` ile koltuk eşleştirmesi doğrulandı; sırası olmayan oyuncunun kart oynaması engellendi; monoton dizi numarası (`seq`) ile yinelenen paketler elendi.
-  - **Storage & Disk Optimizasyonu**: Periyodik heartbeat paketlerinin `localStorage` ve sekme `storage` event'lerini gereksiz tetiklemesi önlendi.
-  - **Puanlama Doğruluğu**: 5'e basmalı ve kurallardan gelen bonus puanlar (`bonusPoints`) detaylı döküm ve toplam skora dahil edildi.
-  - **Yetki Güvenliği**: İsim bazlı sahte kurucu rozeti açığı kapatıldı; kriptografik oturum doğrulaması getirildi.
-  - **Build & Paketleme**: Versiyon numarası `package.json` üzerinden dinamik okundu, bundle bölündü ve `.gitignore` temizlendi.
-- [x] **Özel Avatar & Arkadaşlar Ağı (v1.12)**:
-  - Kullanıcı yüklediği özel profil fotoğraflarının arkadaşlar ve çevrimiçi oyuncular listesinde anlık yayınlanması ve senkronizasyonu.
-- [x] **Deste Kesme & RENQ Ceza Senkronizasyonu (v1.13)**:
-  - **Online RENQ Ceza Senkronizasyonu & Fizik**: +2 ve +4 ceza kartları oynandığında mükerrer paket gönderimi önlendi, sıra kilitlenmesi giderildi; yerdeki ceza kartlarının oyuncuya uçarken fiziksel olarak masadan kalkması sağlandı.
-  - **Maç İçi Profil Rozetleri**: Oyuncu ünvanlarının (`customTitle`) maç içi skor tabelası ve oyuncu kartlarında gösterilmesi.
-  - **Lobi Temizliği**: Maçtan çıkıldığında eski lobi durumunun tamamen sıfırlanması.
-  - **Kural & Ses Ayarları**: 5'e basmalı kuralı varsayılan olarak kapatıldı; varsayılan ses düzeyi %50'ye ayarlandı.
-- [x] **Sağdan Kayan Bağımsız Sosyal Menüsü & UI Ergonomisi (v1.14.1)**:
-  - **Sağdan Kayan Drawer Sosyal Paneli**: Ekranın sağ üst köşesine bağımsız "Sosyal" erişim butonu eklendi.
-- [x] **Fiziksel Deste Koreografisi, Canlı İstatistikler & Discord Webhook (v1.14.2)**:
-  - **Tek ve Sürekli Deste Geçişi**: Karıştırma sonrası oluşan hayalet çift deste giderildi; deste yuvasından akıcı biçimde masaya yayılıyor ve kesim sonrası birleşip yuvaya dönüyor.
-  - **Açık Pişti Kartları & Dağınık Toplanan Deste**: Pişti yapılan kartlar masada açık ve kademeli sergileniyor; toplanan kartlar ters ve hafif dağınık/açılı olarak fiziki yığın hissiyle birikiyor.
-  - **Sosyal Panel & Ekran Sabitliği**: Sosyal menü genişliği %60-70 aralığına küçültüldü; çekmece açıldığında ana menüdeki içerikler sabit kalıyor; göz simgesi kaldırılarak avatar/isim tıklamasıyla inceleme ve anında lobiye davet eklendi.
-  - **Canlı Ağ İstatistikleri & Oyun İçi Ünvanlar**: Arkadaş profillerindeki yapay sabit değerler yerine gerçek kariyer istatistikleri ve maç geçmişi yayınlanıyor; oyuncu unvanları eksiksiz gösteriliyor.
-  - **Emote Görünürlüğü**: Reaksiyonlar `z-[100]` katmanına taşınarak çerçevenin arkasında kalması ve kırpılması önlendi.
-  - **Discord Webhook Entegrasyonu**: Güncelleme notlarının Discord kanalına anlık zengin Embed mesajı olarak gönderilmesi (`npm run changelog`).
-- [x] **Deste Kesim Fiziği, Mükerrer Buton Temizliği & Online Maç Geçmişi Güvencesi (v1.14.3)**:
-  - **Mükerrer Deste & Işınlanma Giderimi**: Deste masaya yayılırken deste yuvasının (`deckEl`) tamamen boş kalması; kartların standart masa kartlarıyla birebir aynı boyutta (`CARD_DIMENSIONS.md`) yayılması; kesim ve birleşim sonrasında destenin tam yuva koordinatına (`deckSlotOffset`) sıfır ışınlanma ve kesintisiz ölçekle yerleşmesi.
-  - **Ana Menü Buton Temizliği**: Ana menüdeki mükerrer yüzen sosyal butonu kaldırılarak yalnızca sağ üst header butonunun kalması.
-  - **Online Maç İstatistikleri & Geçmiş Senkronizasyonu**: Tek el ve çok oyunculu maçlarda (Pişti & RENQ) maç sonu ve el bitiminde galibiyet/mağlubiyet, skor ve rakip adının profildeki kariyer istatistiklerine ve maç geçmişine anında eksiksiz kaydedilmesi.
-  - **Pişti Kartları Yerleşim & Uçuş Fiziği**: Pişti yapıldığında eşleşen açık kartın pişti yuvasına, alt kartın toplanan kartlar destesine uçması; yuva içine yerleşen kartların aynı açıyla, okunabilir ve kademeli üst üste sergilenmesi.
-- [x] **Firebase Realtime Database Bulut Altyapısı, Lobi Ses/Senkronizasyon Reformu, Otomatik Profil & Tema Overdrive (v1.16.0)**:
-  - **Firebase Realtime Database Bulut Entegrasyonu**: Ücretsiz Google Firebase Spark altyapısı ile lobiler, oda senkronizasyonu ve oyuncu profilleri için ultra hızlı (15-30ms) bulut bağlantı omurgası.
-  - **Lobi Ses Spamı & Bağlanma Takılmasının Çözümü**: Misafirin lobiye katılırken oluşturduğu sürekli ses döngüsü giderildi; ses yalnızca yeni bir oyuncu katıldığında 1 kez çalacak şekilde sınırlandırıldı; misafir bağlandığında lobide doğrudan "Hazır ✓" durumuna geçiş sağlandı.
-  - **İsim Sorma Saçmalığının Kaldırılması**: Davetle, linkle veya kodla odaya katılırken her seferinde isim sorma alanı kaldırıldı; oyuncunun mevcut profili, unvanı ve avatarı otomatik kullanılarak tek tıkla doğrudan odaya katılım sağlandı.
-  - **Profil Fotoğrafları & Detaylı İstatistikler**: Profil fotoğraflarının ve kariyer istatistiklerinin Firebase Realtime Database bulutuna eşitlenmesi; lobide ve oyun masasında tüm oyuncuların profil fotoğraflarının eksiksiz görünmesi.
-  - **Monaco Velvet Teması Ayrımı**: Zümrüt Kıraathane ile benzerliği ortadan kaldırılarak Monaco Velvet teması lüks Monte Carlo Casino Royale derin bordo kadife çuha, 24K altın varaklar ve altın taç süslemelerine dönüştürüldü.
-  - **Estoril Blue Overdrive Animasyonları**: Estoril Blue temasına dinamik M-Power neon lazer dalgaları, hız göstergesi takometre animasyonları, dönen siber dial çemberleri ve parlayan ambient parçacık efektleri eklendi.
-
-- [x] **Arkadaşlık Ağı, TR/EN Dil Seçeneği, Bot Kesim & 4 Kişilik RENQ Kararlılığı (v1.15.0)**:
-  - **Çift Taraflı Arkadaş Çıkarma & İstek Sistemi**: Arkadaş silindiğinde karşı taraftan da eşzamanlı bildirimle silinmesi; kodla doğrudan istek gönderme ve bildirim akışının kusursuzlaştırılması.
-  - **TR / EN Çok Dilli Dil Desteği**: Ana menü, oyun modları, butonlar ve yönlendirmelerin Türkçe ve İngilizce dilleri arasında dinamik değiştirilebilmesi (`🇹🇷 TR | 🇬🇧 EN`).
-  - **RENQ Maç Geçmişi & İstatistik Entegrasyonu**: Hem tek oyunculu hem de online RENQ maçlarının el ve oyun bitişlerinde eksiksiz olarak maç geçmişine ve oyuncu istatistiklerine kaydedilmesi.
-  - **Oyun İçi Sohbet Temizliği**: Her yeni maça başlandığında eski maçlardan kalan sohbet geçmişinin otomatik sıfırlanması.
-  - **Discord Topluluk Butonu & Yakında Modalı**: Header'da doğrudan Discord sunucusuna yönlendiren buton ve gelecek güncellemeleri sergileyen "Yakında / Coming Soon" yol haritası modalı.
-  - **Bot Deste Kesimi & Masa Temizliği**: Tek ve çok oyunculu modlarda botların beklemeden sırası geldiğinde desteyi kesmesi; deste kesimi esnasında ortadaki eski deste kutusunun gizlenerek pürüzsüz fiziksel his sağlanması.
-  - **4 Kişilik RENQ Freeze Giderimi**: 4 oyunculu RENQ modunda bot sıralarının kilitlenmesi ve koltuk koordinat hatalarının giderilmesi.
-
-- [x] **Fiziki Masa Kesimi, Sosyal İstekler, Seviye & Görev Sistemi (v1.14)**:
-  - **Fiziki Masa Üstü Deste Kesme (In-Table Physical Deck Cut)**: Ayrı pencere yerine doğrudan masa çuhasında yayılan 52 kart; sadece tura başlayacak oyuncunun kesebilmesi; çok oyunculuda `MP_DECK_CUT` ile anlık senkronizasyon; kesilen 2 destenin kalınlıklarıyla masada ayrılması, 4 yer kartının dağıtımı (Vale kesene yarar ödülü) ve destelerin birleşimi.
-  - **Sosyal (Social) Çekmecesi & Arkadaşlık İstekleri**: "Arkadaşlar" -> "Sosyal" revizyonu; ana menüde sağ üstte konumlandırma; anında ekleme yerine istek gönderme (`FRIEND_REQUEST`), kabul etme (`FRIEND_ACCEPT`) ve reddetme akışı.
-  - **Tüm Oyuncular ve Rakipler İçin Ünvanlar**: Pişti masasında, skor tabelasında, RENQ masasında ve profil incelemesinde tüm oyuncuların ünvan ve rozetlerinin görüntülenmesi.
-  - **Seviye (Level) & XP Altyapısı**: Maç tamamlama, galibiyet ve piştilerden XP kazanımı; Seviye ilerleme çubuğu ve seviye atlama kutlaması.
-  - **Maç Geçmişi & Günlük Görevler**: Profilde "Maç Geçmişi" sekmesi (son maçların mod, skor, pişti, galibiyet detayları) ve "Günlük Görevler" (her gün 00:00'da sıfırlanan 3 görev, XP ödülleri).
-  - **Anlık Hükmen Ayrılma & Hızlı Kopma Algılama**: Disconnect algılama süresinin 25 saniyeden 8 saniyeye indirilmesi, maçtan ayrılan oyuncu için 0ms gecikmeyle anında hükmen galibiyet işlenmesi; lobide eski odada kalma hatasının tamamen giderilmesi.
+This document records completed engineering milestones, architecture evolutions, and scheduled development objectives for **Project P (Peeshtee: Overdrive)**.
 
 ---
 
-## 🚀 Geliştirme Fazları Planı
+## Release Milestones
 
-```mermaid
-flowchart TD
-    F1["FAZ 1: Yetkili Sunucu Mimarisi & Anti-Cheat"] --> F2["FAZ 2: Replay, Maç Analizi & Günlük Tohumlar"]
-    F2 --> F3["FAZ 3: Sosyal Kulüpler & Seyirci Modu"]
-    F3 --> F4["FAZ 4: Sezonluk İlerleme & Kart Koleksiyonu"]
-    F4 --> F5["FAZ 5: Mobil PWA, Sürükle-Bırak & Dokunmatik Haptikler"]
+### v1.16.1 (Current)
+- **Firebase Realtime Database Social Network**: Overhauled the friend system to synchronize directly via Firebase RTDB (`requests/`, `notices/`, `presence/`, `invites/`). Replaced lossy broker topic messaging with verified cloud event listeners.
+- **Connection Handshake Optimization**: Decoupled blocking MQTT connection attempts from lobby room resolution. Room metadata is registered and retrieved instantly via Firebase RTDB, preventing client spinner hangs.
+- **Theme Distinction Refactoring**: Redesigned `monaco_velvet` with dedicated midnight purple (`#3b0764`) and imperial gold styling, eliminating aesthetic overlap with `melbourne_red`.
+- **UI De-cluttering & Settings Consolidation**: Relocated language toggles (TR/EN) and master audio controls from the top navigation bar into a unified Settings modal. Stripped informal descriptions and legacy technical terminology across modal dialogs.
+- **Dynamic Routing & Drawer State Management**: Implemented automatic social drawer dismissal upon match initiation and added bidirectional query string synchronization (`?oda=...`, `?mode=...`) with clean URL restoration on exit.
+- **Profile Image Payload Expansion**: Elevated custom profile avatar file size ceiling from 2MB to 10MB.
+- **Repository Documentation Standards**: Formalized technical architecture documentation in `README.md` and added standard MIT `LICENSE`.
 
-    style F1 fill:#2563eb,stroke:#1d4ed8,color:#fff
-    style F2 fill:#7c3aed,stroke:#6d28d9,color:#fff
-    style F3 fill:#db2777,stroke:#be185d,color:#fff
-    style F4 fill:#d97706,stroke:#b45309,color:#fff
-    style F5 fill:#059669,stroke:#047857,color:#fff
-```
+### v1.16.0
+- **Cloud Infrastructure Integration**: Deployed Google Firebase Realtime Database backing for game room metadata, social presence tracking, and profile state.
+- **Lobby Audio & Readiness Flow**: Eliminated audio notification loops on guest connection and established immediate client readiness states.
+- **Profile Integration in Matchmaking**: Removed redundant manual name prompts when joining via URL or invite code, utilizing authenticated profile context.
+- **Estoril Blue Visual Overdrive**: Implemented responsive visual animations and neon laser layers for the Estoril Blue table theme.
+
+### v1.15.0
+- **Bidirectional Friend Sync**: Real-time cross-client friend removal and request acknowledgement pipeline.
+- **Heuristic Bot Deck-Cutting**: Deterministic AI deck splitting decision model based on round position and risk distribution.
+- **Secondary Game Mode Stabilization**: Resolved sequence locks and rotation bugs in 4-player Renq matches.
+
+### v1.14.3
+- **Deck Cut Choreography**: Eliminated duplicate rendering artifacts during card spread; aligned deck slot offsets with physical table coordinates.
+- **Match History Persistence**: Ensured persistent local career statistics recording across all single-player and multiplayer outcomes.
+- **Capture Stacking Geometry**: Refactored card capture pile layouts with staggered angular offsets.
+
+### v1.14.2
+- **Continuous Deck Transition**: Unified shuffle-to-table transition cycles using Web Animations API.
+- **Discord Deployment Webhook**: Automated embed changelog dispatch for CI/CD releases.
+- **HUD & Emote Layering**: Elevated overlay z-indexes to prevent clipping under scoreboards.
+
+### v1.14.1
+- **Slide-out Social Drawer**: Implemented independent, non-intrusive navigation drawer for social interactions and online roster views.
+
+### v1.13.0
+- **Penalty Synchronization**: Multi-card penalty queue synchronization and dynamic card lift trajectories in online matches.
+- **In-Game Badges**: Dynamic custom title rendering across in-game scoreboards and player slots.
+
+### v1.12.0
+- **Custom Avatar Pipeline**: Client-side image processing, compression, and distribution across peer nodes.
+
+### v1.11.0
+- **Network Security & Packet Validation**: Implemented strict seat index authorization against peer identities, monotonic packet sequence filtering, and state integrity guards.
+
+### v1.0.0 – v1.10.0
+- **Deterministic Core Simulation**: Baseline deterministic rule engine for Turkish Pişti and Renq card games.
+- **Procedural Audio Engine**: Web Audio API procedural synthesizer for zero-dependency sound generation.
+- **Multi-Broker Mesh**: Initial dual MQTT broker failover architecture with local `BroadcastChannel` testing bridge.
+- **Adaptive WAAPI Pipeline**: Multi-phase card motion choreography targeting 60Hz–240Hz displays.
 
 ---
 
-## 💡 Gelecek Fikirleri & İnovasyon Havuzu (Topluluk Önerileri)
+## Future Roadmap
 
-Gelecek sürümlerde değerlendirilmek üzere kaydedilen 12 stratejik iyileştirme ve inovasyon maddesi:
-
-### 1. 🛡️ Yetkili Sunucu Mimarisi (Authoritative Backend & Anti-Cheat)
-- **Açıklama:** Mevcut P2P/MQTT yapısında istemciler deste tohumunu (`seedDeck`) paylaşmaktadır. Gelecekte Cloudflare Workers, Go veya Node.js tabanlı hafif bir sunucu ile destenin ve rakiplerin ellerinin yalnızca sunucuda saklandığı ("Fog of War") mimariye geçiş.
-- **Kazanım:** Konsoldan veya ağ trafiğinden kartların okunmasını %100 engeller, resmi dereceli (ranked) lig maçlarına zemin hazırlar.
-
-### 2. 🎬 Replay & Öne Çıkanlar (Highlights Engine)
-- **Açıklama:** Oynanan her turun hamlelerinin hafif bir JSON veri yapısı olarak kaydedilmesi.
-- **Kazanım:** Maç sonunda oyuncuların oyunu baştan sona animasyonlu tekrar izleyebilmesi, "Son Çift Pişti" veya "Büyük Süpürme" gibi anların GIF veya kısa video olarak sosyal medyaya aktarılabilmesi.
-
-### 3. 🧩 Günlük Bulmaca / Daily Seed Challenge
-- **Açıklama:** Her gün gece yarısı tüm oyunculara aynı karıştırılmış deste tohumunun (daily seed) sunulması.
-- **Kazanım:** "Günün Destesinde En Çok Piştiyi Kim Yapar?" konseptiyle oyuncuların aynı kart dağılımında botlara karşı stratejilerini yarıştırıp günlük global liderlik tablosunda sıralanması.
-
-### 4. 🧠 Bot Kişilikleri ve Maç Sonu Analizörü (AI Match Insights & Coaching)
-- **Açıklama:** Botlara farklı oyun tarzları kazandırılması (Örn: *Agresif Aslan*, *Garantici Memur*, *Ters Köşe Kurnaz*) ve maç bitiminde mini yapay zeka koçu analizi.
-- **Kazanım:** *"5. turda elindeki Vale yerine 8'liyi atsaydın rakibin Pişti yapmasını engelleyebilirdin (+10 puan farkı)"* gibi öğretici maç sonu analiz raporları.
-
-### 5. 🔄 Reconnect & Bot Devralma (Drop-in AI Handover)
-- **Açıklama:** Çevrimiçi maç sırasında interneti kopan, sekmeyi kazara kapatan veya çağrı gelen bir oyuncunun yerine saniyeler içinde geçici yapay zekanın (Bot) oturması.
-- **Kazanım:** Oyuncu geri bağlandığında kesintisiz elini devralabilir; kalan oyuncuların maçı düşme/donma sebebiyle yarıda kalmaz.
-
-### 6. 👁️ Seyirci Modu (Spectator Mode & Delay Buffer)
-- **Açıklama:** Odalara oyuncu dışında "İzleyici" olarak katılma seçeneği (`spectator: true`).
-- **Kazanım:** Turnuva yayıncıları veya arkadaşlar için masayı dışarıdan canlı izleme imkanı; kopya çekmeyi (ghosting) engellemek adına opsiyonel 10-15 saniyelik yayın gecikmesi tamponu.
-
-### 7. 🗣️ Sesli Sohbet & Otantik Replikler (Audio Emotes & WebRTC Voice)
-- **Açıklama:** Masada atmosferi yükseltecek Türkçe kahvehane nida ses efektleri (*"Kelle gitti!"*, *"Ne vurdu be!"*, *"Dağılın!"*) ve arkadaşlar arası opsiyonel bas-konuş WebRTC ses kanalı.
-- **Kazanım:** Oyun içi samimiyeti ve rekabet coşkusunu üst seviyeye taşır.
-
-### 8. 🎨 Sezonluk Başarım ve Kart Koleksiyonu (Pass & Skin Laboratory)
-- **Açıklama:** Görevler tamamlandıkça veya galibiyet aldıkça açılan kozmetik vitrini.
-- **Kazanım:** Özel kart arka desenleri (Nazar Boncuğu, Göktürk Motifleri, Altın Varak, Cyber Neon), masa halıları, özel efektli kart vurma animasyonları ve profil unvanları.
-
-### 9. 📱 Mobil PWA & Dokunmatik Sürükle-Bırak (Haptic Touch & Fling)
-- **Açıklama:** Service Worker ve Web App Manifest ile ana ekrana tam ekran uygulama olarak yüklenebilme, mobilde kartları parmakla masanın ortasına fırlatma (fling) fiziği.
-- **Kazanım:** Web Vibration API ile kart masaya indiğinde hafif vuruş hissi, Pişti anında ise güçlü çift titreşimle native mobil oyun hissi.
-
-### 10. ⚡ Yeni Oyun Modları & Varyasyonlar (Blitz Pişti & Kaos RENQ)
-- **Açıklama:**
-  - *Blitz Pişti:* Tur başına sadece 5 saniye düşünme süresi olan aşırı hızlı tempolu mod.
-  - *Kaos RENQ:* Her 3 turda bir masa renginin veya oyun yönünün rastgele değiştiği sürpriz kural kartları.
-- **Kazanım:** Oyuncular için alternatif parti eğlenceleri.
-
-### 11. 👥 Kulüp / Klan Sistemi (Sosyal Masalar)
-- **Açıklama:** Oyuncuların kendi arkadaş gruplarıyla özel kulüp odaları oluşturması, kulüp içi haftalık skor tahtaları ve turnuva fikstürleri.
-- **Kazanım:** Kalıcı bir oyuncu topluluğu ve organik bağlılık.
-
-### 12. ♿ Gelişmiş Erişilebilirlik & Sesli Betimleme (Screen Reader & High Contrast)
-- **Açıklama:** Görme engelli veya az gören oyuncular için ekran okuyucu uyumluluğunun tam sesli oyun betimlemesine dönüştürülmesi (*"Masa: Karo 7, Elinizde: Sinek 7, Kupa Vale..."*).
-- **Kazanım:** Renk körü filtreleri, yüksek kontrast modu ve klavye/kumanda kısayollarıyla herkes için %100 erişilebilir kart oyunu standardı.
+- [ ] **Native WebRTC DataChannels**: Direct peer-to-peer data channel mesh for zero-latency gameplay when STUN/TURN connections are established.
+- [ ] **Ranked Matchmaking & ELO Rating**: Server-assisted matchmaking algorithm matching players by calculated skill ratings.
+- [ ] **Spectator Mode**: Read-only peer connections enabling live match observation.
+- [ ] **Custom Tournament Brackets**: Structured multi-round knockout and round-robin tournament orchestration.

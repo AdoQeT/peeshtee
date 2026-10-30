@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, TableTheme } from '../types/game';
 import { Volume2, VolumeX, Home, Settings, Flame, Shield } from 'lucide-react';
 import { AvatarBadge } from './AvatarBadge';
 import { getUserProfile, getAvatarPreset } from '../features/profile/profileManager';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 interface ScoreBoardProps {
   players: Player[];
@@ -30,6 +31,12 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
   onOpenSettings,
   onExitToMenu
 }) => {
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
+
   const user = players[0];
   const isFourPlayers = players.length === 4;
 
@@ -120,14 +127,14 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
       {/* Center Match Stats & Quick Actions */}
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-1.5 bg-slate-950/90 border border-white/15 px-3 py-0.5 rounded-full text-[11px] font-semibold shadow-lg">
-          <span className="text-amber-400 font-cyber font-black">EL {round}</span>
+          <span className="text-amber-400 font-cyber font-black">{lang === 'tr' ? 'EL' : 'ROUND'} {round}</span>
           <span className="text-slate-500">•</span>
-          <span className="text-slate-200">Deste: {remainingDeckCount}</span>
+          <span className="text-slate-200">{t.deck}: {remainingDeckCount}</span>
           {isFourPlayers && (
             <>
               <span className="text-slate-500">•</span>
               <span className="text-emerald-300 font-bold flex items-center gap-0.5 text-[10px]">
-                <Shield className="w-2.5 h-2.5" /> 4 Kişilik Eşli
+                <Shield className="w-2.5 h-2.5" /> {lang === 'tr' ? '4 Kişilik Eşli' : '4-Player Team'}
               </span>
             </>
           )}
@@ -135,7 +142,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
             <>
               <span className="text-slate-500 hidden sm:inline">•</span>
               <span className="hidden sm:flex text-amber-300 font-bold items-center gap-0.5 text-[10px]">
-                <Flame className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /> 5'e Basmalı
+                <Flame className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /> {lang === 'tr' ? '5\'e Basmalı' : 'Instant-5s'}
               </span>
             </>
           )}
@@ -144,8 +151,8 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
         <div className="flex items-center gap-1.5 mt-1">
           <button
             onClick={onToggleSound}
-            title={soundEnabled ? 'Sesi Kapat' : 'Sesi Aç'}
-            className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors border border-white/15"
+            title={soundEnabled ? t.soundOff : t.soundOn}
+            className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors border border-white/15 cursor-pointer"
           >
             {soundEnabled ? (
               <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -155,15 +162,15 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
           </button>
           <button
             onClick={onOpenSettings}
-            title="Ayarlar"
-            className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors border border-white/15"
+            title={t.settings}
+            className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors border border-white/15 cursor-pointer"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onExitToMenu}
-            title="Menüye Dön"
-            className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors border border-white/15"
+            title={t.exitToMenu}
+            className="p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 text-slate-200 hover:text-white transition-colors border border-white/15 cursor-pointer"
           >
             <Home className="w-3.5 h-3.5" />
           </button>

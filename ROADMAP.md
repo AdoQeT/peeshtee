@@ -6,7 +6,13 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.3 (Current)
+### v1.16.4 (Current)
+- **Database & Local Profile Reset**: Completely cleared stale cloud database entities on Firebase and bumped local storage key to `project_p_user_profile_v2` for a clean slate across all clients.
+- **Robust Multiplayer Handshake Engine**: Streamlined sequence packet acceptance to prevent replayed sync packets from dropping valid `GUEST_JOINED` and `HOST_LOBBY_SYNC` events, extending guest handshake window.
+- **Full TR / EN Translation Coverage**: Translated remaining untranslated elements including scoreboard indicators, round markers, and main menu card labels.
+- **Social Drawer Auto-Dismissal**: Fixed backdrop interaction so clicking outside the drawer or anywhere on the main menu automatically collapses the social panel.
+
+### v1.16.3
 - **Room Code & Invite Normalization**: Unified room code handling across direct input, invite notifications, and deep link URLs to prevent room key mismatches and join timeouts ("bağlanılamadı").
 - **Live Friend Presence Matching**: Enhanced presence sync with sanitized friend code comparison, heartbeat interval resilient to background throttling, and immediate visibility re-announcement.
 - **Firebase Realtime Database Quota & Storage Protection**: Implemented automated room cleanup on host disconnection (`onDisconnect().remove()`) and rolling packet pruning in active match event logs to prevent database bloat.

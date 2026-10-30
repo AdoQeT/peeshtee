@@ -408,7 +408,7 @@ export class MultiplayerManager {
 
       timeoutId = window.setTimeout(() => {
         finish(false);
-      }, 7000);
+      }, 10000);
     });
   }
 
@@ -449,8 +449,13 @@ export class MultiplayerManager {
     if (this.roomToken && envelope.roomToken && envelope.roomToken !== this.roomToken) return;
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
-    // Discard replayed or out-of-order packets
-    if (typeof envelope.seq === 'number' && envelope.senderId) {
+    // Discard replayed or out-of-order packets (except important lobby syncs and handshakes)
+    const isStateSync =
+      envelope.payload?.type === 'GUEST_JOINED' ||
+      envelope.payload?.type === 'HOST_LOBBY_SYNC' ||
+      envelope.payload?.type === 'MP_GAME_START';
+
+    if (!isStateSync && typeof envelope.seq === 'number' && envelope.senderId) {
       const last = this.lastSeenSeq.get(envelope.senderId) || 0;
       if (envelope.seq <= last) {
         return;

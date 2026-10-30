@@ -3165,7 +3165,7 @@ export default function App() {
       {/* Standalone Friends & Global Player Network Modal */}
       <FriendsModal
         isOpen={isFriendsOpen}
-        hideBackdrop={screen === 'menu'}
+        hideBackdrop={false}
         userProfile={userProfile}
         onUpdateProfile={updated => setUserProfile(updated)}
         onJoinFriendRoom={(code: string) => {

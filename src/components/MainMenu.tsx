@@ -67,7 +67,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onStartSinglePlayer,
   onOpenMultiplayer,
   onOpenFriends,
-  isFriendsOpen: _isFriendsOpen = false,
+  isFriendsOpen = false,
   onOpenRules,
   onOpenSettings,
   onOpenProfile,
@@ -97,6 +97,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
   const handleClick = (action: () => void) => {
     sound.playClick();
+    if (isFriendsOpen) {
+      onOpenFriends();
+    }
     action();
   };
 
@@ -119,6 +122,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
   return (
     <div
+      onClick={() => {
+        if (isFriendsOpen) {
+          onOpenFriends();
+        }
+      }}
       className={`relative min-h-screen w-full flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden select-none transition-opacity duration-200 ${
         isTransitioningLang ? 'opacity-30 scale-[0.995]' : 'opacity-100 scale-100'
       } ${bgGradient}`}
@@ -322,7 +330,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   <Swords className="w-6 h-6" />
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                  Botlara Karşı
+                  {t.againstBots}
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
@@ -336,7 +344,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               <div className="mb-4 flex items-center justify-between bg-slate-900/90 p-2 rounded-2xl border border-white/10">
                 <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                  {lang === 'tr' ? 'Hedef:' : 'Target:'}
+                  {t.target}
                 </span>
                 <div className="flex items-center gap-1">
                   {TARGET_SCORES.map(score => (
@@ -375,7 +383,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
-                <span>{lang === 'tr' ? '1v1 DÜELLO' : '1v1 DUEL'}</span>
+                <span>{t.duel1v1}</span>
               </button>
 
               <button
@@ -392,7 +400,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/40 hover:border-amber-400 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>{lang === 'tr' ? '4 KİŞİLİK' : '4 PLAYERS'}</span>
+                <span>{t.players4}</span>
               </button>
             </div>
           </div>
@@ -405,7 +413,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   <Globe className="w-6 h-6" />
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                  {lang === 'tr' ? 'Online Lobi' : 'Online Lobby'}
+                  {t.onlineLobbyTag}
                 </span>
               </div>
               <h2 className="text-lg font-black text-white font-cyber tracking-wide mb-1.5">
@@ -470,7 +478,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v1.16.3
+          v1.16.4
         </span>
       </div>
 
@@ -587,7 +595,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 onClick={() => sound.playClick()}
                 className="text-xs text-[#8ea1e1] hover:text-white flex items-center gap-1.5 transition-colors font-semibold"
               >
-                <span>💬 Discord Topluluğumuza Katıl</span>
+                <span>{t.discordCommunity}</span>
               </a>
               <button
                 onClick={() => setIsComingSoonOpen(false)}

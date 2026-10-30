@@ -237,7 +237,7 @@ export interface UserProfile {
   };
 }
 
-const STORAGE_KEY = 'project_p_user_profile';
+const STORAGE_KEY = 'project_p_user_profile_v2';
 const OWNER_SECRET_KEY = 'project_p_owner_secret_token';
 const OWNER_SALT = 'ado_pro_p_salt_2026_x9f#';
 

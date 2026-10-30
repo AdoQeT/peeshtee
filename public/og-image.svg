@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="ogBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="50%" stop-color="#091e23" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="50%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#ogBg)" />
+
+  <circle cx="600" cy="315" r="320" fill="#10b981" opacity="0.08" />
+  <circle cx="950" cy="180" r="180" fill="#06b6d4" opacity="0.06" />
+
+  <!-- Title & Subtitle -->
+  <text x="600" y="240" font-family="'Orbitron', sans-serif" font-weight="900" font-size="76" fill="#ffffff" text-anchor="middle" letter-spacing="4">
+    PİŞTİ: <tspan fill="url(#accent)">OVERDRIVE</tspan>
+  </text>
+
+  <text x="600" y="320" font-family="'Inter', sans-serif" font-weight="600" font-size="28" fill="#94a3b8" text-anchor="middle" letter-spacing="1">
+    Yeni Nesil Arcade Pişti &amp; RENQ Kart Oyunu Deneyimi
+  </text>
+
+  <!-- Feature pills -->
+  <g transform="translate(320, 390)">
+    <rect width="170" height="48" rx="24" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+    <text x="85" y="30" font-family="'Inter', sans-serif" font-weight="700" font-size="18" fill="#34d399" text-anchor="middle">⚡ Gerçek Zamanlı</text>
+  </g>
+
+  <g transform="translate(520, 390)">
+    <rect width="160" height="48" rx="24" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+    <text x="80" y="30" font-family="'Inter', sans-serif" font-weight="700" font-size="18" fill="#38bdf8" text-anchor="middle">🎮 RENQ / UNO</text>
+  </g>
+
+  <g transform="translate(710, 390)">
+    <rect width="170" height="48" rx="24" fill="#0f172a" stroke="#a855f7" stroke-width="2" />
+    <text x="85" y="30" font-family="'Inter', sans-serif" font-weight="700" font-size="18" fill="#c084fc" text-anchor="middle">🤖 Akıllı Yapay Zeka</text>
+  </g>
+
+  <!-- URL footer -->
+  <text x="600" y="550" font-family="'Inter', sans-serif" font-weight="500" font-size="20" fill="#64748b" text-anchor="middle">
+    project-pisti.web.app
+  </text>
+</svg>

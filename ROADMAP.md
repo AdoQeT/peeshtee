@@ -24,18 +24,20 @@ This document establishes the official engineering roadmap, critical architectur
 
 ---
 
-### 🧪 Phase 2: Comprehensive Test Coverage, Assets & CI/CD
-- [ ] **Pure Function Unit Testing**:
-  - Unit tests for `src/core/rules.ts`: Pişti, Double Pişti, Jack clearing, Five-Rule instant win, majority card scoring (3 pts), Diamond 10 (3 pts), Club 2 (2 pts), and Aces (1 pt).
-  - Unit tests for `src/core/ai/bot.ts`: decision heuristics, Jack preservation thresholds, risk assessment.
-  - Unit tests for `src/features/uno/unoRules.ts`: color matching, +2 / +4 draw stacking, skips, reverses.
-- [ ] **GitHub Actions CI/CD Pipeline**:
-  - Create `.github/workflows/ci.yml` running linting, type checks (`tsc -b`), and automated tests on every push and pull request.
-- [ ] **Public Assets & Progressive Web App (PWA)**:
-  - Create missing `public/` directory with proper `favicon.ico`, `manifest.json`, Web App icons, and OpenGraph social preview assets.
-  - Enhance `index.html` with explicit SEO meta tags, OpenGraph previews, and viewport accessibility.
-- [ ] **Offline Singleplayer Support**:
-  - Enable service worker caching for complete offline singleplayer playability against local bots.
+### 🧪 Phase 2: Comprehensive Test Coverage, Assets & CI/CD (Completed in v1.18.1)
+- [x] **Pure Function Unit Testing**:
+  - Unit tests for `src/core/rules.ts` (`scripts/testRules.mjs`): Pişti (10 pts), Double Pişti Jack-on-Jack (20 pts), Jack non-match sweeping (0 pts Pişti), 5-Rule instant win, card counting and score calculation (Aces: 1 pt, Jacks: 1 pt, Diamond 10: 3 pts, Club 2: 2 pts, majority cards: 3 pts).
+  - Unit tests for `src/core/ai/bot.ts` (`scripts/testBot.mjs`): Direct trick matching, Jack sweep thresholds, Jack preservation on low piles, and card counting on hard difficulty to prevent opponent Piştis.
+  - Unit tests for `src/features/uno/unoRules.ts` (`scripts/testUnoRules.mjs`): Color/rank validation, draw stacking rules (+2 countered by +2 or +4; +4 countered only by +4), AI color weighting and penalty stacking prioritization.
+  - Unified `npm test` script executing all 18 automated test cases in Node.js test runner.
+- [x] **GitHub Actions CI/CD Pipeline**:
+  - Created `.github/workflows/ci.yml` running on push & PR to `main` with Node 20 caching, dependency installation (`npm ci`), test runner (`npm test`), and production build verification (`npm run build`).
+- [x] **Public Assets & Progressive Web App (PWA)**:
+  - Created root `public/` directory with `manifest.json`, scalable SVG app icon (`icon.svg`), and rich OpenGraph social share card (`og-image.svg`).
+  - Updated `index.html` with explicit viewport, theme color, SEO meta description, OpenGraph preview tags, Twitter cards, and web manifest linkage.
+- [x] **Offline Singleplayer Support**:
+  - Implemented `/sw.js` Service Worker with caching of static shells, assets, and Google Fonts fallback, enabling offline playability for singleplayer games.
+  - Registered Service Worker in production mode via `src/main.tsx`.
 
 ---
 

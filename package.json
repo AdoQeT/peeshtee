@@ -1,7 +1,7 @@
 {
   "name": "project-pisti",
   "private": true,
-  "version": "1.18.0",
+  "version": "1.18.1",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node --test scripts/testPayloadSanitization.mjs",
+    "test": "node --test scripts/testPayloadSanitization.mjs scripts/testRules.mjs scripts/testUnoRules.mjs scripts/testBot.mjs",
     "changelog": "node scripts/sendDiscordChangelog.mjs"
   },
   "dependencies": {

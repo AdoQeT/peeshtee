@@ -1,10 +1,7 @@
 /**
- * Project Pişti - Pure Firebase Realtime Database Friend & Social Network
- * Completely 100% powered by Firebase RTDB:
- * - Real-time Friend Requests: /requests/{friendCode}
- * - Real-time Social Notices: /notices/{friendCode}
- * - Real-time Online Presence: /presence/{friendCode}
- * - Real-time Match Invites: /invites/{friendCode}
+ * Project Pişti - Pure Firebase Realtime Database Friend & Social Network (v1.17.0)
+ * Completely powered by Firebase RTDB with minimal presence footprint,
+ * serverTimeOffset synchronization, and indexed discovery.
  */
 import {
   rtdb,
@@ -17,6 +14,10 @@ import {
   onValue,
   off,
   onDisconnect,
+  serverTimestamp,
+  query,
+  orderByChild,
+  limitToLast,
   ensureFirebaseAuth,
   cleanForRtdb
 } from '../../core/firebase';
@@ -25,9 +26,7 @@ import {
   addOrUpdateFriend,
   addIncomingFriendRequest,
   removeFriend,
-  calculateLevel,
-  type UserProfile,
-  type MatchRecord
+  calculateLevel
 } from '../profile/profileManager';
 
 export interface OnlinePlayerPresence {
@@ -35,14 +34,11 @@ export interface OnlinePlayerPresence {
   friendCode: string;
   name: string;
   avatarId: string;
-  customAvatarUrl?: string;
   customTitle?: string;
   level?: number;
   status: 'menu' | 'lobby' | 'playing';
   roomCode?: string;
   gameType?: 'pisti' | 'uno';
-  stats?: UserProfile['stats'];
-  matchHistory?: MatchRecord[];
   lastSeen: number;
 }
 
@@ -52,7 +48,6 @@ export interface IncomingGameInvite {
   fromFriendCode: string;
   fromName: string;
   fromAvatarId: string;
-  fromCustomAvatarUrl?: string;
   targetFriendCode?: string;
   targetName?: string;
   roomCode: string;
@@ -66,7 +61,6 @@ export interface IncomingFriendNotice {
   fromFriendCode: string;
   fromName: string;
   fromAvatarId: string;
-  fromCustomAvatarUrl?: string;
   targetFriendCode?: string;
   targetName?: string;
   timestamp: number;
@@ -74,6 +68,8 @@ export interface IncomingFriendNotice {
 
 export class FriendNetwork {
   private onlinePlayers: Map<string, OnlinePlayerPresence> = new Map();
+  private friendsPresence: Map<string, OnlinePlayerPresence> = new Map();
+  private friendPresenceListeners: Map<string, any> = new Map();
   private listeners: Array<() => void> = [];
   private inviteListeners: Array<(invite: IncomingGameInvite) => void> = [];
   private noticeListeners: Array<(notice: IncomingFriendNotice) => void> = [];
@@ -82,12 +78,15 @@ export class FriendNetwork {
   private currentRoomCode?: string;
   private currentGameType: 'pisti' | 'uno' = 'pisti';
   private heartbeatInterval: number | null = null;
+  private serverTimeOffset = 0;
   private initialized = false;
 
   private invitesRef: any = null;
   private requestsRef: any = null;
   private noticesRef: any = null;
-  private presenceRef: any = null;
+  private exploreQueryRef: any = null;
+  private offsetRef: any = null;
+  private connectedRef: any = null;
 
   public async init() {
     if (this.initialized || typeof window === 'undefined') return;
@@ -101,13 +100,68 @@ export class FriendNetwork {
     const myProfile = getUserProfile();
     const myCode = myProfile.friendCode;
 
+    // 0. Synchronize server time offset
+    try {
+      this.offsetRef = ref(rtdb, '.info/serverTimeOffset');
+      onValue(this.offsetRef, (snap: any) => {
+        this.serverTimeOffset = typeof snap.val() === 'number' ? snap.val() : 0;
+      });
+    } catch (e) {
+      console.warn('Server time offset listener warning:', e);
+    }
+
+    // 0.1 Register onDisconnect once when connected
+    try {
+      this.connectedRef = ref(rtdb, '.info/connected');
+      onValue(this.connectedRef, (snap: any) => {
+        if (snap.val() === true) {
+          const profile = getUserProfile();
+          if (profile.friendCode) {
+            const myPresenceRef = ref(rtdb, `presence/${profile.friendCode}`);
+            try {
+              onDisconnect(myPresenceRef).remove();
+            } catch (err) {
+              console.error('onDisconnect setup error:', err);
+            }
+            this.announcePresence();
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Connected listener warning:', e);
+    }
+
     if (myCode) {
       // 1. Firebase Cloud: Listen for Incoming Game Invites
       try {
         this.invitesRef = ref(rtdb, `invites/${myCode}`);
-        onChildAdded(this.invitesRef, (snapshot: any) => {
+        onChildAdded(this.invitesRef, async (snapshot: any) => {
           const inv = snapshot.val() as IncomingGameInvite;
-          if (inv && inv.fromId !== getUserProfile().id) {
+          if (!inv) return;
+
+          // Check 1: Expiration check (older than 2 minutes)
+          const now = Date.now();
+          if (now - (inv.timestamp || 0) > 120000) {
+            try {
+              remove(snapshot.ref).catch(() => {});
+            } catch {}
+            return;
+          }
+
+          // Check 2: Active room verification before presenting to user
+          if (inv.roomCode) {
+            try {
+              const metaSnap = await get(ref(rtdb, `rooms/${inv.roomCode}/meta`));
+              if (!metaSnap.exists() || metaSnap.val()?.active === false) {
+                remove(snapshot.ref).catch(() => {});
+                return;
+              }
+            } catch {
+              // Network fallback
+            }
+          }
+
+          if (inv.fromId !== getUserProfile().id) {
             this.inviteListeners.forEach(cb => cb(inv));
             // Remove handled invite
             try {
@@ -128,19 +182,36 @@ export class FriendNetwork {
         this.requestsRef = ref(rtdb, `requests/${myCode}`);
         onChildAdded(this.requestsRef, (snapshot: any) => {
           const req = snapshot.val();
-          if (req && req.fromId !== getUserProfile().id) {
-            addIncomingFriendRequest({
-              id: req.fromId,
-              friendCode: req.fromFriendCode,
-              name: req.fromName,
-              avatarId: req.fromAvatarId,
-              customAvatarDataUrl: req.fromCustomAvatarUrl,
-              customTitle: req.fromCustomTitle,
-              lastPlayedAt: Date.now()
-            });
-            this.requestListeners.forEach(cb => cb(req));
-            this.notifyListeners();
+          if (!req || req.fromId === getUserProfile().id) return;
+
+          const curProfile = getUserProfile();
+          const cleanSenderCode = (req.fromFriendCode || '').replace(/\D/g, '');
+
+          // Ignore if already friends or duplicate pending request
+          const alreadyFriend = curProfile.friends?.some(
+            f => (f.friendCode || '').replace(/\D/g, '') === cleanSenderCode
+          );
+          const alreadyPending = curProfile.incomingFriendRequests?.some(
+            r => (r.friendCode || '').replace(/\D/g, '') === cleanSenderCode
+          );
+
+          if (alreadyFriend || alreadyPending) {
+            try {
+              remove(snapshot.ref).catch(() => {});
+            } catch {}
+            return;
           }
+
+          addIncomingFriendRequest({
+            id: req.fromId,
+            friendCode: req.fromFriendCode,
+            name: req.fromName,
+            avatarId: req.fromAvatarId,
+            customTitle: req.fromCustomTitle,
+            lastPlayedAt: Date.now()
+          });
+          this.requestListeners.forEach(cb => cb(req));
+          this.notifyListeners();
         });
       } catch (err) {
         console.warn('Firebase friend request listener error:', err);
@@ -157,13 +228,14 @@ export class FriendNetwork {
               id: notice.fromId,
               friendCode: notice.fromFriendCode,
               name: notice.fromName,
-              avatarId: notice.fromAvatarId,
-              customAvatarDataUrl: notice.fromCustomAvatarUrl
+              avatarId: notice.fromAvatarId
             });
+            this.syncFriendPresenceListeners();
             this.noticeListeners.forEach(cb => cb(notice));
             this.notifyListeners();
           } else if (notice.type === 'remove') {
             removeFriend(notice.fromId, notice.fromFriendCode, notice.fromName);
+            this.syncFriendPresenceListeners();
             this.noticeListeners.forEach(cb => cb(notice));
             this.notifyListeners();
           }
@@ -180,20 +252,24 @@ export class FriendNetwork {
         console.warn('Firebase notice listener error:', err);
       }
 
-      // 4. Firebase Cloud: Global Live Presence Listener
+      // 4. Firebase Cloud: Discover / Explore presence query (last 30 active players)
       try {
-        this.presenceRef = ref(rtdb, 'presence');
-        onValue(this.presenceRef, (snapshot: any) => {
+        this.exploreQueryRef = query(ref(rtdb, 'presence'), orderByChild('lastSeen'), limitToLast(30));
+        onValue(this.exploreQueryRef, (snapshot: any) => {
+          if (!snapshot.exists() || !snapshot.val()) {
+            this.onlinePlayers.clear();
+            this.notifyListeners();
+            return;
+          }
+
           const data = snapshot.val();
           if (data && typeof data === 'object') {
-            const now = Date.now();
             this.onlinePlayers.clear();
             const cleanMyCode = (myCode || '').replace(/\D/g, '');
             Object.values(data).forEach((p: any) => {
               const pClean = (p?.friendCode || '').replace(/\D/g, '');
               if (p && pClean && pClean !== cleanMyCode) {
-                // Online if heartbeat received within last 60 seconds
-                if (now - (p.lastSeen || 0) < 60000) {
+                if (this.isPlayerOnline(p.lastSeen)) {
                   this.onlinePlayers.set(pClean, p);
                   if (p.friendCode) {
                     this.onlinePlayers.set(p.friendCode, p);
@@ -205,8 +281,11 @@ export class FriendNetwork {
           }
         });
       } catch (err) {
-        console.warn('Firebase presence listener error:', err);
+        console.warn('Firebase explore presence query error:', err);
       }
+
+      // 5. Setup individual presence listeners for friends
+      this.syncFriendPresenceListeners();
     }
 
     // Publish initial presence immediately
@@ -222,10 +301,65 @@ export class FriendNetwork {
       this.announcePresence();
     });
 
-    // Heartbeat every 10 seconds to keep presence fresh in Firebase
+    // Heartbeat every 12 seconds
     this.heartbeatInterval = window.setInterval(() => {
       this.announcePresence();
-    }, 10000);
+    }, 12000);
+  }
+
+  public syncFriendPresenceListeners() {
+    const profile = getUserProfile();
+    const friends = profile.friends || [];
+    const currentCodes = new Set(friends.map(f => (f.friendCode || '').replace(/\D/g, '')).filter(Boolean));
+
+    // Remove obsolete listeners
+    this.friendPresenceListeners.forEach((r, code) => {
+      if (!currentCodes.has(code)) {
+        off(r);
+        this.friendPresenceListeners.delete(code);
+        this.friendsPresence.delete(code);
+      }
+    });
+
+    // Add new listeners
+    currentCodes.forEach(code => {
+      if (!this.friendPresenceListeners.has(code)) {
+        try {
+          const presenceNodeRef = ref(rtdb, `presence/${code}`);
+          onValue(presenceNodeRef, (snap: any) => {
+            const val = snap.val();
+            if (val && this.isPlayerOnline(val.lastSeen)) {
+              this.friendsPresence.set(code, val);
+            } else {
+              this.friendsPresence.delete(code);
+            }
+            this.notifyListeners();
+          });
+          this.friendPresenceListeners.set(code, presenceNodeRef);
+        } catch (err) {
+          console.warn(`Friend presence listener error for ${code}:`, err);
+        }
+      }
+    });
+  }
+
+  public isPlayerOnline(lastSeen?: number): boolean {
+    if (!lastSeen || typeof lastSeen !== 'number') return false;
+    const nowServer = Date.now() + this.serverTimeOffset;
+    return (nowServer - lastSeen) < 35000;
+  }
+
+  public isFriendOnline(friendCode?: string): boolean {
+    if (!friendCode) return false;
+    const clean = friendCode.replace(/\D/g, '');
+    const p = this.friendsPresence.get(clean) || this.onlinePlayers.get(clean);
+    return !!(p && this.isPlayerOnline(p.lastSeen));
+  }
+
+  public getFriendPresence(friendCode?: string): OnlinePlayerPresence | undefined {
+    if (!friendCode) return undefined;
+    const clean = friendCode.replace(/\D/g, '');
+    return this.friendsPresence.get(clean) || this.onlinePlayers.get(clean);
   }
 
   public setStatus(
@@ -245,35 +379,25 @@ export class FriendNetwork {
 
     const user = await ensureFirebaseAuth().catch(() => null);
     const lvlInfo = calculateLevel(profile.xp || 0);
-    const presence: OnlinePlayerPresence = {
+
+    // Minimal footprint presence node: no stats, no matchHistory, no customAvatarUrl
+    const presence: Record<string, any> = {
       id: profile.id,
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
-      customAvatarUrl: profile.customAvatarDataUrl && !profile.customAvatarDataUrl.startsWith('data:') ? profile.customAvatarDataUrl : undefined,
-      customTitle: profile.customTitle,
+      customTitle: profile.customTitle || null,
       level: lvlInfo.level,
       status: this.currentStatus,
-      roomCode: this.currentRoomCode,
-      gameType: this.currentGameType,
-      stats: profile.stats,
-      matchHistory: profile.matchHistory?.slice(0, 10),
-      lastSeen: Date.now()
+      roomCode: this.currentRoomCode || null,
+      gameType: this.currentGameType || null,
+      lastSeen: serverTimestamp(),
+      ownerUid: user?.uid || null
     };
 
     try {
       const myPresenceRef = ref(rtdb, `presence/${profile.friendCode}`);
-      set(myPresenceRef, cleanForRtdb({
-        ...presence,
-        ownerUid: user?.uid || null
-      })).catch((err) => {
-        console.error('Firebase presence set error:', err);
-      });
-      try {
-        onDisconnect(myPresenceRef).remove();
-      } catch (err) {
-        console.error('Firebase presence onDisconnect error:', err);
-      }
+      await set(myPresenceRef, cleanForRtdb(presence));
     } catch (err) {
       console.error('Firebase presence exception:', err);
     }
@@ -283,23 +407,23 @@ export class FriendNetwork {
     return Array.from(this.onlinePlayers.values());
   }
 
-  public sendGameInvite(
+  public async sendGameInvite(
     target: string | { friendCode?: string; name?: string },
     roomCode: string,
     gameType: 'pisti' | 'uno' = 'pisti'
-  ) {
+  ): Promise<boolean> {
     const profile = getUserProfile();
     const rawCode = typeof target === 'string' ? target : target.friendCode;
     const cleanTargetCode = rawCode?.replace(/[^0-9A-Za-z]/g, '');
-    if (!cleanTargetCode) return;
+    if (!cleanTargetCode) return false;
 
+    // Notice payload: avatarId only (no heavy dataURL)
     const invite: IncomingGameInvite = {
       inviteId: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
       fromFriendCode: profile.friendCode,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
-      fromCustomAvatarUrl: profile.customAvatarDataUrl,
       targetFriendCode: cleanTargetCode,
       roomCode,
       gameType,
@@ -307,18 +431,23 @@ export class FriendNetwork {
     };
 
     try {
-      push(ref(rtdb, `invites/${cleanTargetCode}`), cleanForRtdb(invite)).catch((err) => {
-        console.error('Send game invite error:', err);
-      });
+      await push(ref(rtdb, `invites/${cleanTargetCode}`), cleanForRtdb(invite));
+      return true;
     } catch (e) {
-      console.error('Send game invite exception:', e);
+      console.error('Send game invite error:', e);
+      return false;
     }
   }
 
-  public sendFriendRequest(target: { friendCode?: string; name?: string }) {
+  public async sendFriendRequest(target: { friendCode?: string; name?: string }): Promise<boolean> {
     const profile = getUserProfile();
     const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
-    if (!cleanTargetCode || cleanTargetCode === profile.friendCode) return;
+    if (!cleanTargetCode || cleanTargetCode === profile.friendCode) return false;
+
+    // Check if already friends
+    if (profile.friends?.some(f => (f.friendCode || '').replace(/\D/g, '') === cleanTargetCode)) {
+      return false;
+    }
 
     const req = {
       id: `freq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -326,25 +455,24 @@ export class FriendNetwork {
       fromFriendCode: profile.friendCode,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
-      fromCustomAvatarUrl: profile.customAvatarDataUrl,
-      fromCustomTitle: profile.customTitle,
+      fromCustomTitle: profile.customTitle || null,
       targetFriendCode: cleanTargetCode,
       timestamp: Date.now()
     };
 
     try {
-      push(ref(rtdb, `requests/${cleanTargetCode}`), cleanForRtdb(req)).catch((err) => {
-        console.error('Send friend request error:', err);
-      });
+      await push(ref(rtdb, `requests/${cleanTargetCode}`), cleanForRtdb(req));
+      return true;
     } catch (e) {
-      console.error('Send friend request exception:', e);
+      console.error('Send friend request error:', e);
+      return false;
     }
   }
 
-  public sendFriendAccept(target: { friendCode?: string; name?: string }) {
+  public async sendFriendAccept(target: { friendCode?: string; name?: string }): Promise<boolean> {
     const profile = getUserProfile();
     const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
-    if (!cleanTargetCode) return;
+    if (!cleanTargetCode) return false;
 
     const notice: IncomingFriendNotice = {
       id: `fr-acc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -352,21 +480,21 @@ export class FriendNetwork {
       fromFriendCode: profile.friendCode,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
-      fromCustomAvatarUrl: profile.customAvatarDataUrl,
       targetFriendCode: cleanTargetCode,
       targetName: target.name?.trim(),
       timestamp: Date.now()
     };
 
     try {
-      push(ref(rtdb, `notices/${cleanTargetCode}`), cleanForRtdb({
+      await push(ref(rtdb, `notices/${cleanTargetCode}`), cleanForRtdb({
         ...notice,
         type: 'accept'
-      })).catch((err) => {
-        console.error('Send friend accept error:', err);
-      });
+      }));
+      this.syncFriendPresenceListeners();
+      return true;
     } catch (e) {
-      console.error('Send friend accept exception:', e);
+      console.error('Send friend accept error:', e);
+      return false;
     }
   }
 
@@ -396,10 +524,10 @@ export class FriendNetwork {
     }
   }
 
-  public sendFriendRemovedNotice(target: { friendCode?: string; name?: string }) {
+  public async sendFriendRemovedNotice(target: { friendCode?: string; name?: string }): Promise<boolean> {
     const profile = getUserProfile();
     const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
-    if (!cleanTargetCode) return;
+    if (!cleanTargetCode) return false;
 
     const notice: IncomingFriendNotice = {
       id: `fr-rem-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -413,14 +541,15 @@ export class FriendNetwork {
     };
 
     try {
-      push(ref(rtdb, `notices/${cleanTargetCode}`), cleanForRtdb({
+      await push(ref(rtdb, `notices/${cleanTargetCode}`), cleanForRtdb({
         ...notice,
         type: 'remove'
-      })).catch((err) => {
-        console.error('Send friend removed notice error:', err);
-      });
+      }));
+      this.syncFriendPresenceListeners();
+      return true;
     } catch (e) {
-      console.error('Send friend removed notice exception:', e);
+      console.error('Send friend removed notice error:', e);
+      return false;
     }
   }
 
@@ -468,7 +597,12 @@ export class FriendNetwork {
     if (this.invitesRef) off(this.invitesRef);
     if (this.requestsRef) off(this.requestsRef);
     if (this.noticesRef) off(this.noticesRef);
-    if (this.presenceRef) off(this.presenceRef);
+    if (this.exploreQueryRef) off(this.exploreQueryRef);
+    if (this.offsetRef) off(this.offsetRef);
+    if (this.connectedRef) off(this.connectedRef);
+    this.friendPresenceListeners.forEach(r => off(r));
+    this.friendPresenceListeners.clear();
+    this.friendsPresence.clear();
     this.initialized = false;
   }
 }

@@ -19,7 +19,8 @@ import {
   removeFriend,
   FriendContact,
   acceptIncomingFriendRequest,
-  removeIncomingFriendRequest
+  removeIncomingFriendRequest,
+  fetchRemoteProfile
 } from '../features/profile/profileManager';
 import {
   friendNetwork,
@@ -60,7 +61,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedMyId, setCopiedMyId] = useState(false);
   const [inviteGameType, setInviteGameType] = useState<'pisti' | 'uno'>('pisti');
-  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [feedbackToast, setFeedbackToast] = useState<{ msg: string; isError?: boolean } | null>(null);
+  const [isSearchingCode, setIsSearchingCode] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [selectedPlayer, setSelectedPlayer] = useState<{
     friendCode?: string;
@@ -81,9 +83,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     return unsub;
   }, [isOpen, userProfile]);
 
-  const showToast = (msg: string) => {
-    setFeedbackToast(msg);
-    window.setTimeout(() => setFeedbackToast(null), 2600);
+  const showToast = (msg: string, isError: boolean = false) => {
+    setFeedbackToast({ msg, isError });
+    window.setTimeout(() => setFeedbackToast(null), 3000);
   };
 
   const handleCopyMyId = () => {
@@ -152,21 +154,50 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     });
   }, [onlinePlayers, searchQuery, activeProfile]);
 
-  const handleSendFriendRequest = (target: { friendCode: string; name?: string }) => {
+  const handleSendFriendRequest = async (target: { friendCode: string; name?: string }) => {
     sound.playClick();
     const clean = target.friendCode.replace(/[^0-9A-Za-z]/g, '');
-    friendNetwork.sendFriendRequest({ friendCode: clean, name: target.name });
-    setSentRequests(prev => new Set(prev).add(clean));
-    showToast(`📨 #${clean} kullanıcısına arkadaşlık isteği gönderildi!`);
+    if (!clean || clean === activeProfile.friendCode) return;
+
+    setIsSearchingCode(true);
+    try {
+      // Doğrula: profiles/{clean} var mı?
+      const remote = await fetchRemoteProfile(clean);
+      if (!remote) {
+        showToast(`❌ #${clean} koduna ait kullanıcı bulunamadı!`, true);
+        setIsSearchingCode(false);
+        return;
+      }
+
+      const success = await friendNetwork.sendFriendRequest({
+        friendCode: clean,
+        name: remote.name || target.name
+      });
+
+      if (success) {
+        setSentRequests(prev => new Set(prev).add(clean));
+        showToast(`📨 #${clean} (${remote.name || 'Oyuncu'}) kullanıcısına arkadaşlık isteği gönderildi!`);
+      } else {
+        showToast(`❌ İstek gönderilemedi. Zaten arkadaş olabilirsiniz veya izin verilmedi.`, true);
+      }
+    } catch {
+      showToast('❌ İstek gönderilirken bir hata oluştu.', true);
+    } finally {
+      setIsSearchingCode(false);
+    }
   };
 
-  const handleAcceptRequest = (req: FriendContact) => {
+  const handleAcceptRequest = async (req: FriendContact) => {
     sound.playClick();
     const updated = acceptIncomingFriendRequest(req);
     setProfile(updated);
     if (onUpdateProfile) onUpdateProfile(updated);
-    friendNetwork.sendFriendAccept({ friendCode: req.friendCode, name: req.name });
-    showToast(`🤝 ${req.name} ile artık arkadaşsınız!`);
+    const success = await friendNetwork.sendFriendAccept({ friendCode: req.friendCode, name: req.name });
+    if (success) {
+      showToast(`🤝 ${req.name} ile artık arkadaşsınız!`);
+    } else {
+      showToast(`❌ Kabul bildirimi iletilemedi.`, true);
+    }
   };
 
   const handleDeclineRequest = (friendCode: string) => {
@@ -178,42 +209,47 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     showToast('İstek reddedildi.');
   };
 
-  const handleRemoveFriend = (friendId: string, friendCode?: string, friendName?: string) => {
+  const handleRemoveFriend = async (friendId: string, friendCode?: string, friendName?: string) => {
     sound.playClick();
     const updated = removeFriend(friendId, friendCode, friendName);
     setProfile(updated);
     if (onUpdateProfile) onUpdateProfile(updated);
-    friendNetwork.sendFriendRemovedNotice({ friendCode, name: friendName });
+    await friendNetwork.sendFriendRemovedNotice({ friendCode, name: friendName });
     showToast(`${friendName || 'Arkadaş'} arkadaş listenden çıkarıldı.`);
   };
 
-  const handleInspectPlayer = (contact: any) => {
+  const handleInspectPlayer = async (contact: any) => {
     sound.playClick();
-    if (onInspectProfile) {
-      const pStats = contact.onlinePresence?.stats || contact.stats || {
-        matchesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        pistiCount: 0,
-        doublePistiCount: 0,
-        highestScore: 0,
-        unoMatchesPlayed: 0,
-        unoWins: 0
-      };
-      const pHistory = contact.onlinePresence?.matchHistory || contact.matchHistory || [];
-      const inspected: UserProfile = {
-        id: contact.id,
-        friendCode: contact.friendCode || '000000',
-        name: contact.name,
-        avatarId: contact.avatarId || 'wolf',
-        customAvatarDataUrl: contact.customAvatarDataUrl,
-        customTitle: contact.customTitle,
-        level: contact.level || 1,
-        stats: pStats,
-        matchHistory: pHistory
-      };
-      onInspectProfile(inspected);
+    if (!onInspectProfile) return;
+
+    let remoteData: Partial<UserProfile> | null = null;
+    if (contact.friendCode) {
+      remoteData = await fetchRemoteProfile(contact.friendCode);
     }
+
+    const pStats = remoteData?.stats || contact.stats || {
+      matchesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      pistiCount: 0,
+      doublePistiCount: 0,
+      highestScore: 0,
+      unoMatchesPlayed: 0,
+      unoWins: 0
+    };
+    const pHistory = remoteData?.matchHistory || contact.matchHistory || [];
+    const inspected: UserProfile = {
+      id: contact.id,
+      friendCode: contact.friendCode || '000000',
+      name: remoteData?.name || contact.name,
+      avatarId: remoteData?.avatarId || contact.avatarId || 'wolf',
+      customAvatarDataUrl: remoteData?.customAvatarDataUrl || contact.customAvatarDataUrl,
+      customTitle: remoteData?.customTitle || contact.customTitle,
+      level: remoteData?.level || contact.level || 1,
+      stats: pStats,
+      matchHistory: pHistory
+    };
+    onInspectProfile(inspected);
   };
 
   if (!isOpen) return null;
@@ -263,9 +299,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
         {/* Feedback Banner */}
         {feedbackToast && (
-          <div className="mx-4 mt-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-medium flex items-center gap-2 animate-in fade-in">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>{feedbackToast}</span>
+          <div className={`mx-4 mt-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 animate-in fade-in ${
+            feedbackToast.isError
+              ? 'bg-rose-500/20 border border-rose-400/40 text-rose-200'
+              : 'bg-emerald-500/20 border border-emerald-400/40 text-emerald-200'
+          }`}>
+            <Sparkles className={`w-3.5 h-3.5 shrink-0 ${feedbackToast.isError ? 'text-rose-400' : 'text-emerald-400'}`} />
+            <span>{feedbackToast.msg}</span>
           </div>
         )}
 
@@ -561,14 +601,15 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     </span>
                   </div>
                   <button
+                    disabled={isSearchingCode}
                     onClick={() => {
                       const clean = searchQuery.trim().replace(/^#/, '');
                       handleSendFriendRequest({ friendCode: clean });
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs shadow-md cursor-pointer flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 disabled:opacity-50 text-slate-950 font-black text-xs shadow-md cursor-pointer flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>İstek Gönder</span>
+                    <span>{isSearchingCode ? 'Aranıyor...' : 'İstek Gönder'}</span>
                   </button>
                 </div>
               )}
@@ -603,7 +644,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         >
                           <AvatarBadge
                             avatarId={player.avatarId}
-                            customAvatarUrl={player.customAvatarUrl}
+                            customAvatarUrl={undefined}
                             size="md"
                           />
                           <div className="min-w-0">

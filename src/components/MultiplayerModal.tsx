@@ -265,89 +265,90 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
     const unsubscribe = multiplayerManager.onEvent(event => {
       if (event.type === 'GUEST_JOINED') {
+        if (import.meta.env.DEV) {
+          console.log('[MP] GUEST_JOINED alındı:', event.guestName, event.guestPeerId);
+        }
         if (multiplayerManager.isHost) {
           let isNewPlayer = false;
-          let updatedSlots: LobbyPlayerSlot[] = [];
-
-          setSlots(prev => {
-            const next = [...prev];
-            const existingIdx = next.findIndex(s => s.peerId === event.guestPeerId);
-            if (existingIdx !== -1) {
-              next[existingIdx] = {
-                ...next[existingIdx],
+          const prev = slotsRef.current;
+          const next = [...prev];
+          const existingIdx = next.findIndex(s => s.peerId === event.guestPeerId);
+          if (existingIdx !== -1) {
+            next[existingIdx] = {
+              ...next[existingIdx],
+              name: event.guestName,
+              avatar: event.guestAvatar,
+              avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
+              customAvatarUrl: event.guestCustomAvatarUrl || next[existingIdx].customAvatarUrl,
+              customTitle: event.guestCustomTitle || next[existingIdx].customTitle,
+              level: event.guestLevel || next[existingIdx].level || 1
+            };
+          } else {
+            isNewPlayer = true;
+            const emptyIdx = next.findIndex(
+              s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
+            );
+            if (emptyIdx !== -1) {
+              next[emptyIdx] = {
+                ...next[emptyIdx],
+                peerId: event.guestPeerId,
                 name: event.guestName,
                 avatar: event.guestAvatar,
-                avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
-                customAvatarUrl: event.guestCustomAvatarUrl || next[existingIdx].customAvatarUrl,
-                customTitle: event.guestCustomTitle || next[existingIdx].customTitle,
-                level: event.guestLevel || next[existingIdx].level || 1
+                avatarId: event.guestAvatarId || 'wolf',
+                customAvatarUrl: event.guestCustomAvatarUrl,
+                customTitle: event.guestCustomTitle,
+                level: event.guestLevel || 1,
+                isHost: false
               };
-            } else {
-              isNewPlayer = true;
-              const emptyIdx = next.findIndex(
-                s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
-              );
-              if (emptyIdx !== -1) {
-                next[emptyIdx] = {
-                  ...next[emptyIdx],
-                  peerId: event.guestPeerId,
-                  name: event.guestName,
-                  avatar: event.guestAvatar,
-                  avatarId: event.guestAvatarId || 'wolf',
-                  customAvatarUrl: event.guestCustomAvatarUrl,
-                  customTitle: event.guestCustomTitle,
-                  level: event.guestLevel || 1,
-                  isHost: false
-                };
-              }
             }
-            updatedSlots = next;
-            return next;
-          });
+          }
+
+          slotsRef.current = next;
+          setSlots(next);
 
           // Perform side effects outside of the setState updater
           if (isNewPlayer) {
             sound.playMatchSweep();
           }
 
-          if (updatedSlots.length > 0) {
-            multiplayerManager.send({
-              type: 'HOST_LOBBY_SYNC',
-              hostName: localNameRef.current || 'Oda Kurucu',
-              hostAvatar: localAvatarRef.current,
-              hostAvatarId: localAvatarIdRef.current,
-              hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
-              gameType: gameTypeRef.current,
-              settings: {
-                ...settingsRef.current,
-                playerCount: playerCountRef.current
-              },
-              slots: updatedSlots
-            });
+          if (import.meta.env.DEV) {
+            console.log('[MP] HOST_LOBBY_SYNC gönderildi:', next);
           }
+          multiplayerManager.send({
+            type: 'HOST_LOBBY_SYNC',
+            hostName: localNameRef.current || 'Oda Kurucu',
+            hostAvatar: localAvatarRef.current,
+            hostAvatarId: localAvatarIdRef.current,
+            hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
+            gameType: gameTypeRef.current,
+            settings: {
+              ...settingsRef.current,
+              playerCount: playerCountRef.current
+            },
+            slots: next
+          });
         }
       } else if (event.type === 'REQUEST_SEAT_CHANGE') {
         if (multiplayerManager.isHost) {
           sound.playClick();
-          let updatedSlots: LobbyPlayerSlot[] = [];
-
-          setSlots(prev => {
-            const next = [...prev];
-            const senderIdx = next.findIndex(s => s.peerId === event.senderPeerId);
-            const targetIdx = next.findIndex(s => s.seatIndex === event.targetSeatIndex);
-            if (senderIdx === -1 || targetIdx === -1) return prev;
-
+          const prev = slotsRef.current;
+          const next = [...prev];
+          const senderIdx = next.findIndex(s => s.peerId === event.senderPeerId);
+          const targetIdx = next.findIndex(s => s.seatIndex === event.targetSeatIndex);
+          if (senderIdx !== -1 && targetIdx !== -1) {
             const senderSlot = { ...next[senderIdx], seatIndex: event.targetSeatIndex };
             const targetSlot = { ...next[targetIdx], seatIndex: next[senderIdx].seatIndex };
 
             next[senderIdx] = targetSlot;
             next[targetIdx] = senderSlot;
             next.sort((a, b) => a.seatIndex - b.seatIndex);
-            updatedSlots = next;
-            return next;
-          });
 
-          if (updatedSlots.length > 0) {
+            slotsRef.current = next;
+            setSlots(next);
+
+            if (import.meta.env.DEV) {
+              console.log('[MP] HOST_LOBBY_SYNC gönderildi (seat change):', next);
+            }
             multiplayerManager.send({
               type: 'HOST_LOBBY_SYNC',
               hostName: localNameRef.current || 'Oda Kurucu',
@@ -359,12 +360,16 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 ...settingsRef.current,
                 playerCount: playerCountRef.current
               },
-              slots: updatedSlots
+              slots: next
             });
           }
         }
       } else if (event.type === 'HOST_LOBBY_SYNC') {
+        if (import.meta.env.DEV) {
+          console.log('[MP] HOST_LOBBY_SYNC alındı:', event.slots);
+        }
         sound.playMatchSweep();
+        slotsRef.current = event.slots;
         setSlots(event.slots);
         if (event.gameType) {
           setGameType(event.gameType);
@@ -386,43 +391,43 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         }
       } else if (event.type === 'PEER_DISCONNECTED') {
         if (multiplayerManager.isHost && event.peerId) {
-          let updatedSlots: LobbyPlayerSlot[] = [];
-          setSlots(prev => {
-            const next = prev.map(s => {
-              if (s.peerId === event.peerId) {
-                return {
-                  ...s,
-                  peerId: '',
-                  name:
-                    s.seatIndex === 2 && playerCountRef.current === 4
-                      ? 'Ortağın Bekleniyor'
-                      : 'Oyuncu Bekleniyor',
-                  avatar: '⏳',
-                  avatarId: 'wolf',
-                  customAvatarUrl: undefined
-                };
-              }
-              return s;
-            });
-            updatedSlots = next;
-            return next;
+          const prev = slotsRef.current;
+          const next = prev.map(s => {
+            if (s.peerId === event.peerId) {
+              return {
+                ...s,
+                peerId: '',
+                name:
+                  s.seatIndex === 2 && playerCountRef.current === 4
+                    ? 'Ortağın Bekleniyor'
+                    : 'Oyuncu Bekleniyor',
+                avatar: '⏳',
+                avatarId: 'wolf',
+                customAvatarUrl: undefined
+              };
+            }
+            return s;
           });
 
-          if (updatedSlots.length > 0) {
-            multiplayerManager.send({
-              type: 'HOST_LOBBY_SYNC',
-              hostName: localNameRef.current || 'Oda Kurucu',
-              hostAvatar: localAvatarRef.current,
-              hostAvatarId: localAvatarIdRef.current,
-              hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
-              gameType: gameTypeRef.current,
-              settings: {
-                ...settingsRef.current,
-                playerCount: playerCountRef.current
-              },
-              slots: updatedSlots
-            });
+          slotsRef.current = next;
+          setSlots(next);
+
+          if (import.meta.env.DEV) {
+            console.log('[MP] HOST_LOBBY_SYNC gönderildi (peer disconnected):', next);
           }
+          multiplayerManager.send({
+            type: 'HOST_LOBBY_SYNC',
+            hostName: localNameRef.current || 'Oda Kurucu',
+            hostAvatar: localAvatarRef.current,
+            hostAvatarId: localAvatarIdRef.current,
+            hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
+            gameType: gameTypeRef.current,
+            settings: {
+              ...settingsRef.current,
+              playerCount: playerCountRef.current
+            },
+            slots: next
+          });
         } else if (!multiplayerManager.isHost) {
           setErrorMsg('Oda kurucusu ile bağlantı kesildi.');
           setLobbyRole('none');

@@ -145,3 +145,26 @@ test('cleanForRtdb strips undefined from real friendNetwork presence and invite 
   assert.equal('fromCustomAvatarUrl' in cleanedInvite, false);
   assert.equal(cleanedInvite.roomCode, '648291');
 });
+
+test('v1.17.0: friendNetwork minimal presence node has no stats/history/avatar dataURL', () => {
+  const minimalPresence = {
+    id: 'p-123',
+    friendCode: '849201',
+    name: 'Kullanıcı',
+    avatarId: 'wolf',
+    customTitle: null,
+    level: 5,
+    status: 'menu',
+    roomCode: null,
+    gameType: null,
+    lastSeen: Date.now(),
+    ownerUid: 'uid_123'
+  };
+
+  const cleaned = cleanForRtdb(minimalPresence);
+  assertNoUndefinedDeep(cleaned);
+  assert.equal('stats' in cleaned, false);
+  assert.equal('matchHistory' in cleaned, false);
+  assert.equal('customAvatarUrl' in cleaned, false);
+  assert.equal(cleaned.status, 'menu');
+});

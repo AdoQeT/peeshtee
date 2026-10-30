@@ -33,8 +33,10 @@ import {
   UserProfile,
   recordMatchStats,
   isDefaultPlayerName,
-  getAvatarPreset
+  getAvatarPreset,
+  claimUniqueFriendCode
 } from './features/profile/profileManager';
+import { MatchIntroOverlay, MatchIntroPlayer } from './components/MatchIntroOverlay';
 import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
@@ -209,6 +211,28 @@ export default function App() {
   // Turn Timer (Used strictly in multiplayer mode)
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(15);
 
+  // Match Intro Animation Overlay State (v1.17.0)
+  const [matchIntro, setMatchIntro] = useState<{
+    players: MatchIntroPlayer[];
+    label: string;
+    gameType?: 'pisti' | 'uno';
+  } | null>(null);
+  const matchIntroRef = useRef(matchIntro);
+  matchIntroRef.current = matchIntro;
+  const introStartRef = useRef<(() => void) | null>(null);
+  const queuedMpEventsRef = useRef<MultiplayerEvent[]>([]);
+
+  const runWithIntro = useCallback(
+    (
+      info: { players: MatchIntroPlayer[]; label: string; gameType?: 'pisti' | 'uno' },
+      start: () => void
+    ) => {
+      setMatchIntro(info);
+      introStartRef.current = start;
+    },
+    []
+  );
+
   // Social & Deep Linking States
   const [initialJoinCode, setInitialJoinCode] = useState<string>('');
   const [activeEmotes, setActiveEmotes] = useState<ActiveEmote[]>([]);
@@ -349,7 +373,7 @@ export default function App() {
     sound.setAmbienceVolume(settings.ambienceVolume);
   }, [settings.soundEnabled, settings.sfxVolume, settings.ambience, settings.ambienceVolume]);
 
-  // First-time visitor onboarding check
+  // First-time visitor onboarding check & unique friend code claim
   useEffect(() => {
     try {
       const completed = localStorage.getItem('project_p_onboarding_completed');
@@ -357,6 +381,13 @@ export default function App() {
         setIsWelcomeOpen(true);
       }
     } catch {}
+
+    // Asynchronously claim unique friend code via RTDB transaction
+    claimUniqueFriendCode(userProfile).then((claimed) => {
+      if (claimed && claimed !== userProfile.friendCode) {
+        setUserProfile(prev => ({ ...prev, friendCode: claimed }));
+      }
+    }).catch(() => {});
   }, []);
 
   // Active match disconnect/crash recovery check
@@ -1311,9 +1342,33 @@ export default function App() {
     (configuredSettings: GameSettings) => {
       const randomStyle = SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
       const freshDeck = shuffleDeck(createDeck());
-      startMatchWithDeck(configuredSettings, freshDeck, randomStyle);
+
+      const p1: MatchIntroPlayer = {
+        name: userProfile.name,
+        avatar: userProfile.avatarId || '🦁',
+        avatarId: userProfile.avatarId,
+        customAvatarUrl: userProfile.customAvatarDataUrl,
+        isMe: true
+      };
+      const p2: MatchIntroPlayer = {
+        name: configuredSettings.playerCount === 4 ? 'Takım Karşıtı' : 'Yapay Zeka',
+        avatar: '🤖',
+        avatarId: 'wolf',
+        isMe: false
+      };
+
+      runWithIntro(
+        {
+          players: [p1, p2],
+          label: 'Tek Kişilik Maç',
+          gameType: 'pisti'
+        },
+        () => {
+          startMatchWithDeck(configuredSettings, freshDeck, randomStyle);
+        }
+      );
     },
-    [startMatchWithDeck]
+    [startMatchWithDeck, userProfile, runWithIntro]
   );
 
   // Quick Start from MainMenu Cards
@@ -1937,6 +1992,26 @@ export default function App() {
           setInitialJoinCode('');
           setChatMessages([]);
 
+          const hostSlot = msg.slots.find(s => s.isHost) || msg.slots[0] || { name: 'Oda Kurucu', avatar: '🦁', avatarId: 'lion', customAvatarUrl: undefined };
+          const guestSlot = mySlot || { name: userProfile.name, avatar: '🐺', avatarId: 'wolf', customAvatarUrl: userProfile.customAvatarDataUrl };
+
+          const introPlayers: MatchIntroPlayer[] = [
+            {
+              name: guestSlot.name,
+              avatar: guestSlot.avatar,
+              avatarId: guestSlot.avatarId,
+              customAvatarUrl: guestSlot.customAvatarUrl,
+              isMe: true
+            },
+            {
+              name: hostSlot.name,
+              avatar: hostSlot.avatar,
+              avatarId: hostSlot.avatarId,
+              customAvatarUrl: hostSlot.customAvatarUrl,
+              isMe: false
+            }
+          ];
+
           if (msg.gameType === 'uno') {
             setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
             setIsMultiplayerGame(true);
@@ -1944,18 +2019,43 @@ export default function App() {
             setMyMultiplayerSeat(mySeatIdx);
             setActiveMultiplayerSlots(msg.slots);
             setIsMultiplayerOpen(false);
-            setScreen('uno');
+
+            runWithIntro(
+              {
+                players: introPlayers,
+                label: 'Canlı Çok Oyunculu',
+                gameType: 'uno'
+              },
+              () => {
+                setScreen('uno');
+              }
+            );
           } else {
-            startMatchWithDeck(msg.settings, msg.seedDeck, msg.shuffleStyle, {
-              isMultiplayer: true,
-              isHost: false,
-              mySeatIndex: mySeatIdx,
-              slots: msg.slots
-            });
+            runWithIntro(
+              {
+                players: introPlayers,
+                label: 'Canlı Çok Oyunculu',
+                gameType: 'pisti'
+              },
+              () => {
+                startMatchWithDeck(msg.settings, msg.seedDeck, msg.shuffleStyle, {
+                  isMultiplayer: true,
+                  isHost: false,
+                  mySeatIndex: mySeatIdx,
+                  slots: msg.slots
+                });
+              }
+            );
           }
         }
       } else if (msg.type === 'MP_CARD_PLAYED') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
+
+        // If match intro is still active, queue the card event so it's not dropped or processed prematurely
+        if (matchIntroRef.current) {
+          queuedMpEventsRef.current.push(msg);
+          return;
+        }
 
         // 1. Validate that msg.senderPeerId matches the assigned seat
         const senderSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === msg.seatIndex);
@@ -2069,7 +2169,7 @@ export default function App() {
     });
 
     return unsubscribe;
-  }, [startMatchWithDeck, handlePlayCardWithAnimation, startNextRoundWithDeck, triggerEmote, handleCutDeckAndProceed]);
+  }, [startMatchWithDeck, handlePlayCardWithAnimation, startNextRoundWithDeck, triggerEmote, handleCutDeckAndProceed, runWithIntro, userProfile]);
 
   // Turn Countdown Timer: ONLY active in Multiplayer mode!
   useEffect(() => {
@@ -3132,9 +3232,31 @@ export default function App() {
         ) => {
           cleanUrlDeepLink();
           setInitialJoinCode('');
+
+          const p1Slot = finalSlots[0] || { name: 'Oda Kurucu', avatar: '🦁', avatarId: 'lion' };
+          const p2Slot = finalSlots[1] || { name: 'Konuk', avatar: '🐺', avatarId: 'wolf' };
+
+          const introPlayers: MatchIntroPlayer[] = [
+            {
+              name: p1Slot.name,
+              avatar: p1Slot.avatar,
+              avatarId: p1Slot.avatarId,
+              customAvatarUrl: p1Slot.customAvatarUrl,
+              isMe: true
+            },
+            {
+              name: p2Slot.name,
+              avatar: p2Slot.avatar,
+              avatarId: p2Slot.avatarId,
+              customAvatarUrl: p2Slot.customAvatarUrl,
+              isMe: false
+            }
+          ];
+
           if (chosenGameType === 'uno') {
             const seedUno = shuffleUnoDeck(createUnoDeck());
             setMultiplayerSeedUnoDeck(seedUno);
+            // Host sends MP_GAME_START immediately!
             multiplayerManager.send({
               type: 'MP_GAME_START',
               gameType: 'uno',
@@ -3153,7 +3275,17 @@ export default function App() {
             setActiveMultiplayerSlots(finalSlots);
             setIsMultiplayerOpen(false);
             setChatMessages([]);
-            setScreen('uno');
+
+            runWithIntro(
+              {
+                players: introPlayers,
+                label: 'Canlı Çok Oyunculu',
+                gameType: 'uno'
+              },
+              () => {
+                setScreen('uno');
+              }
+            );
             return;
           }
 
@@ -3161,7 +3293,7 @@ export default function App() {
             SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
           const sharedSeedDeck = shuffleDeck(createDeck());
 
-          // Broadcast MP_GAME_START with deterministic seedDeck to all Guests
+          // Broadcast MP_GAME_START immediately to all Guests
           multiplayerManager.send({
             type: 'MP_GAME_START',
             gameType: 'pisti',
@@ -3173,12 +3305,23 @@ export default function App() {
             slots: finalSlots
           });
 
-          startMatchWithDeck(lobbySettings, sharedSeedDeck, randomStyle, {
-            isMultiplayer: true,
-            isHost: true,
-            mySeatIndex: 0,
-            slots: finalSlots
-          });
+          setIsMultiplayerOpen(false);
+
+          runWithIntro(
+            {
+              players: introPlayers,
+              label: 'Canlı Çok Oyunculu',
+              gameType: 'pisti'
+            },
+            () => {
+              startMatchWithDeck(lobbySettings, sharedSeedDeck, randomStyle, {
+                isMultiplayer: true,
+                isHost: true,
+                mySeatIndex: 0,
+                slots: finalSlots
+              });
+            }
+          );
         }}
       />
 
@@ -3401,6 +3544,41 @@ export default function App() {
             </button>
           </div>
         </div>
+      )}
+      {/* Match Preparation & Card Fan Intro Overlay (v1.17.0) */}
+      {matchIntro && (
+        <MatchIntroOverlay
+          label={matchIntro.label}
+          gameType={matchIntro.gameType}
+          players={matchIntro.players}
+          theme={settings.theme}
+          cardBack={settings.cardBack}
+          reducedMotion={!settings.screenShake}
+          onReveal={() => {
+            introStartRef.current?.();
+            introStartRef.current = null;
+            if (queuedMpEventsRef.current.length > 0) {
+              const pending = [...queuedMpEventsRef.current];
+              queuedMpEventsRef.current = [];
+              pending.forEach(p => {
+                if (p.type === 'MP_CARD_PLAYED') {
+                  const N = settingsRef.current.playerCount;
+                  const targetLocalIdx = (p.seatIndex - myMultiplayerSeatRef.current + N) % N;
+                  const targetPlayer = playersRef.current[targetLocalIdx];
+                  if (targetPlayer) {
+                    const foundCard = targetPlayer.hand.find(c => c.id === p.cardId);
+                    if (foundCard) {
+                      handlePlayCardWithAnimation(targetLocalIdx, foundCard, undefined, 0, true);
+                    }
+                  }
+                }
+              });
+            }
+          }}
+          onDone={() => {
+            setMatchIntro(null);
+          }}
+        />
       )}
     </div>
   );

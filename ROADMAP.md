@@ -6,7 +6,15 @@ This document records completed engineering milestones, architecture evolutions,
 
 ## Release Milestones
 
-### v1.16.7 (Current)
+### v1.17.0 (Current)
+- **Resolved React 18 Lobby Sync Updater Bug**: Migrated `MultiplayerModal` slot computation outside the batched React setState updater onto `slotsRef.current` as the single source of truth, guaranteeing `HOST_LOBBY_SYNC` fires synchronously upon `GUEST_JOINED`, `REQUEST_SEAT_CHANGE`, and `PEER_DISCONNECTED`.
+- **Match Preparation & 5-Card Fan Intro Overlay**: Added `MatchIntroOverlay` featuring staggered card fan-out animations, VS player roster, dynamic table theme adaptation, progress indicator, and gameplay tips smoothly transitioning matches in singleplayer and multiplayer.
+- **Micro-Footprint Online Presence Engine**: Stripped stats, match history, and custom avatar dataURLs from RTDB presence nodes. Presence is indexed by `lastSeen` with `.indexOn` for 30-player explore queries and dedicated friend listeners.
+- **Server Time Offset & Connection-Bound onDisconnect**: Integrated Firebase `.info/serverTimeOffset` and `.info/connected` synchronization to determine online status accurately within 35s windows.
+- **Guaranteed Unique Friend Code Claiming**: Enforced transactional reservation via `claimUniqueFriendCode()` using `runTransaction` on `profiles/{code}/ownerUid`.
+- **Friend Code Verification & Direct Offline Invites**: Added `fetchRemoteProfile` verification in `FriendsModal` to surface instant user validation feedback and permit offline invitations.
+
+### v1.16.7
 - **Firebase RTDB Payload Sanitization**: Implemented `cleanForRtdb` across all database write methods (`peerManager`, `friendNetwork`, `profileManager`) to strip `undefined` values and prevent synchronous Firebase property exceptions.
 - **Root Cause Resolution for Lobby Desync**: Fixed missing `GUEST_JOINED` and `HOST_LOBBY_SYNC` packets caused by undefined avatar fields when players use preset avatars without custom images.
 - **Conditional Envelope Token**: Safely omitted empty `roomToken` attributes from packet envelopes to eliminate undefined property propagation.

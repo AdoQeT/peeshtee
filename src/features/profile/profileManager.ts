@@ -1,4 +1,4 @@
-import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb } from '../../core/firebase';
+import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb, runTransaction } from '../../core/firebase';
 
 export interface AvatarPreset {
   id: string;
@@ -495,6 +495,41 @@ export function cropAndResizeTo96(dataUrl: string): Promise<string> {
   });
 }
 
+export async function claimUniqueFriendCode(profile: UserProfile): Promise<string> {
+  if (!profile.friendCode) {
+    profile.friendCode = generateFriendCode();
+  }
+  const user = await ensureFirebaseAuth().catch(() => null);
+  if (!user) return profile.friendCode;
+
+  let code = profile.friendCode;
+  let attempts = 0;
+  while (attempts < 10) {
+    attempts++;
+    const codeOwnerRef = ref(rtdb, `profiles/${code}/ownerUid`);
+    try {
+      const result = await runTransaction(codeOwnerRef, (currentOwner) => {
+        if (currentOwner === null || currentOwner === undefined || currentOwner === user.uid) {
+          return user.uid;
+        }
+        return undefined; // Abort transaction if occupied by another user
+      });
+
+      if (result.committed) {
+        if (profile.friendCode !== code) {
+          profile.friendCode = code;
+          saveUserProfile(profile);
+        }
+        return code;
+      }
+    } catch (e) {
+      console.warn('Friend code claim transaction warning:', e);
+    }
+    code = generateFriendCode();
+  }
+  return profile.friendCode;
+}
+
 export async function syncProfileToFirebase(profile: UserProfile): Promise<void> {
   if (!profile.friendCode) return;
   try {
@@ -506,7 +541,6 @@ export async function syncProfileToFirebase(profile: UserProfile): Promise<void>
       friendCode: profile.friendCode,
       name: profile.name,
       avatarId: profile.avatarId,
-      customAvatarDataUrl: profile.customAvatarDataUrl || null,
       avatarThumb: profile.customAvatarDataUrl || null,
       customTitle: profile.customTitle || null,
       isOwner: profile.isOwner || false,
@@ -532,7 +566,11 @@ export async function fetchRemoteProfile(friendCode: string): Promise<Partial<Us
   try {
     const snap = await get(ref(rtdb, `profiles/${clean}`));
     if (snap.exists()) {
-      const data = snap.val() as Partial<UserProfile>;
+      const raw = snap.val() as any;
+      const data: Partial<UserProfile> = {
+        ...raw,
+        customAvatarDataUrl: raw.avatarThumb || raw.customAvatarDataUrl || undefined
+      };
       remoteProfilesCache.set(clean, data);
       return data;
     }

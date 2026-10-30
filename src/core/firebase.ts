@@ -13,7 +13,11 @@ import {
   update,
   off,
   onDisconnect,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  orderByChild,
+  limitToLast,
+  runTransaction
 } from 'firebase/database';
 
 export const firebaseConfig = {
@@ -85,5 +89,9 @@ export {
   update,
   off,
   onDisconnect,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  orderByChild,
+  limitToLast,
+  runTransaction
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   Card,
   GameSettings,
@@ -27,7 +27,9 @@ import { ProfileModal } from './components/ProfileModal';
 import { FriendsModal } from './components/FriendsModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { InGameChat, ChatMessage } from './components/InGameChat';
-import { UnoGameView } from './components/UnoGameView';
+const UnoGameView = lazy(() =>
+  import('./components/UnoGameView').then(m => ({ default: m.UnoGameView }))
+);
 import {
   getUserProfile,
   UserProfile,
@@ -3121,30 +3123,38 @@ export default function App() {
           onStartUnoGame={() => setScreen('uno')}
         />
       ) : screen === 'uno' ? (
-        <UnoGameView
-          onExitToMenu={() => {
-            try {
-              multiplayerManager.leaveRoom();
-            } catch {}
-            friendNetwork.setStatus('menu', undefined);
-            setIsMultiplayerGame(false);
-            setMyMultiplayerSeat(0);
-            myMultiplayerSeatRef.current = 0;
-            setMultiplayerSeedUnoDeck(null);
-            setInitialJoinCode('');
-            setActiveMultiplayerSlots([]);
-            setUserProfile(getUserProfile());
-            friendNetwork.announcePresence();
-            setScreen('menu');
-          }}
-          playerCount={isMultiplayerGame ? (activeMultiplayerSlots?.length || settings.playerCount || 4) : 4}
-          targetScore={250}
-          isMultiplayer={isMultiplayerGame}
-          isHost={isMultiplayerHost}
-          mySeatIndex={myMultiplayerSeat}
-          mpSlots={activeMultiplayerSlots}
-          seedCards={multiplayerSeedUnoDeck || undefined}
-        />
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center text-amber-400 font-cyber">
+              RENQ Yükleniyor...
+            </div>
+          }
+        >
+          <UnoGameView
+            onExitToMenu={() => {
+              try {
+                multiplayerManager.leaveRoom();
+              } catch {}
+              friendNetwork.setStatus('menu', undefined);
+              setIsMultiplayerGame(false);
+              setMyMultiplayerSeat(0);
+              myMultiplayerSeatRef.current = 0;
+              setMultiplayerSeedUnoDeck(null);
+              setInitialJoinCode('');
+              setActiveMultiplayerSlots([]);
+              setUserProfile(getUserProfile());
+              friendNetwork.announcePresence();
+              setScreen('menu');
+            }}
+            playerCount={isMultiplayerGame ? (activeMultiplayerSlots?.length || settings.playerCount || 4) : 4}
+            targetScore={250}
+            isMultiplayer={isMultiplayerGame}
+            isHost={isMultiplayerHost}
+            mySeatIndex={myMultiplayerSeat}
+            mpSlots={activeMultiplayerSlots}
+            seedCards={multiplayerSeedUnoDeck || undefined}
+          />
+        </Suspense>
       ) : (
         <main className="relative z-10 flex-1 flex flex-col justify-between p-2 sm:p-4 max-w-7xl mx-auto w-full h-screen max-h-screen overflow-hidden">
           {/* Header Score HUD */}

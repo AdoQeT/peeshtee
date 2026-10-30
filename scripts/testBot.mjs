@@ -81,10 +81,11 @@ function chooseAICard(hand, tableCards, seenCards, difficulty) {
 
     const jack = hand.find(c => c.value === 11);
     if (jack) {
-      const hasValuableCard = tableCards.some(c => c.basePoints > 0);
+      const potBasePoints = tableCards.reduce((sum, c) => sum + (c.basePoints || 0), 0);
+      const hasValuableCard = potBasePoints > 0;
       const shouldJack =
         difficulty === 'hard'
-          ? hasValuableCard || tableCards.length >= 4
+          ? potBasePoints >= 2 || tableCards.length >= 4 || (hasValuableCard && tableCards.length >= 2)
           : tableCards.length >= 3 || hasValuableCard;
 
       if (shouldJack) {

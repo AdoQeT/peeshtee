@@ -481,7 +481,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.19.0'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.20.0'}
         </span>
       </div>
 

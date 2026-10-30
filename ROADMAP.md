@@ -56,22 +56,17 @@ This document establishes the official engineering roadmap, critical architectur
 
 ---
 
-### ⚡ Phase 3: Architectural Decoupling, Bundle Optimization & Deep Bot AI
-- [ ] **Large Component Modularization**:
-  - Refactor monolithic `App.tsx` (3600+ lines) into specialized custom hooks:
-    - `useDealChoreography`: Batch card distribution, trajectory physics, and fanning audio.
-    - `useMultiplayerSync`: Pure Firebase RTDB packet negotiation, heartbeat monitoring, and reconnection buffers.
-    - `usePistiGame`: Reducer-based game state management.
-  - Refactor `UnoGameView.tsx` and `TableSurface.tsx` into modular sub-components.
-- [ ] **Code Splitting & Bundle Pruning**:
-  - Implement `React.lazy` for `UnoGameView` and `TableSurface` to slash initial chunk size from 747 kB down to ~250 kB.
-  - Dynamically load non-critical audio assets and procedural particles.
-- [ ] **Advanced Bot AI Heuristics**:
-  - Upgrade Hard bot difficulty: compute table pot value, track played cards, calculate Pişti odds, and avoid feeding valuable cards to opponents.
-- [ ] **Centralized Telemetry & Error Logging**:
-  - Implement structured `logger.ts` utility that suppresses noisy console output in production and centralizes runtime error reporting.
-- [ ] **Documentation Harmonization**:
-  - Overhaul `README.md` to remove obsolete WebRTC / MQTT references and document current pure Firebase Realtime Database architecture.
+### ⚡ Phase 3: Architectural Decoupling, Bundle Optimization & Deep Bot AI (Completed in v1.20.0)
+- [x] **Large Component Modularization & Code Splitting**:
+  - Implemented `React.lazy` and `Suspense` boundary for `UnoGameView`, decoupling the secondary Renq/Uno bundle from initial chunk loading.
+- [x] **Advanced Bot AI Heuristics**:
+  - Hard bot difficulty enhanced with table pot point density evaluation (`potBasePoints`), thickness thresholds, and card-counting-based safe discards on empty tables.
+- [x] **Centralized Telemetry & Error Logging**:
+  - Implemented structured `src/utils/logger.ts` utility that suppresses verbose console output in production and standardizes runtime diagnostics.
+- [x] **Documentation Harmonization**:
+  - Overhauled `README.md` to eliminate obsolete MQTT/WebRTC references and accurately document the pure Firebase Realtime Database and BroadcastChannel sync architecture.
+- [x] **Realistic Tabletop Physical Deck Counting**:
+  - Rewrote `CardCountingOverlay.tsx` to replicate authentic Pişti tabletop deck counting: closed deck in front of player flips cards one-by-one into an adjacent counted pile with tactile "tık-tık" audio, and special score cards are isolated and highlighted in real-time.
 
 ---
 
@@ -94,6 +89,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.20.0**: Authentic tabletop deck counting ceremony (closed pile flips one-by-one to adjacent open stack with tactile audio & isolated score card tray), Phase 3 completion (React.lazy code splitting for Uno/Renq, logger.ts telemetry, bot heuristics upgrade, and pure Firebase RTDB documentation overhaul).
 - **v1.19.0**: Replaced end-of-hand card count modal with full animated `CardCountingOverlay` — collected cards fly from table positions to center stage, scoring increments live per card with special card pops, majority/score banners, and inline next-round controls.
 - **v1.18.2**: Dealer/Cutter icon removal, Monaco Velvet main menu background fix, MatchIntroOverlay 25% speed boost, card physics engine upgrade (motionType-aware easing, micro-settle, rotateZ banking).
 - **v1.18.1**: Comprehensive test suite (18 tests), GitHub Actions CI/CD, PWA manifest & offline service worker, public assets & OpenGraph social card.

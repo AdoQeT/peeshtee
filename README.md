@@ -30,10 +30,9 @@ graph TD
     end
 
     subgraph Network["Distributed Networking Layer"]
-        Firebase["Firebase Realtime Database (Meta / Presence / Social)"]
-        MQTT["Dual MQTT WebSocket Mesh (HiveMQ / EMQX)"]
+        Firebase["Firebase Realtime Database (Rooms / Events / Presence / Social)"]
         LocalMesh["BroadcastChannel Cross-Tab Synchronization"]
-        Validator["Monotonic Sequence & Peer ID Validator"]
+        Validator["Monotonic Sequence & Verified Host / Peer ID Validator"]
     end
 
     UI --> State
@@ -64,11 +63,11 @@ graph TD
 
 ### 4. Distributed Networking & Cloud Synchronization
 - **Cloud State & Persistence**: Google Firebase Realtime Database for instantaneous room discovery, persistent presence indicators, real-time friend graph synchronization, and direct match invites.
-- **P2P/WebSocket Transport**: Dual MQTT WebSocket broker fallback (HiveMQ + EMQX) with sub-second handshake resolution.
+- **Pure Firebase RTDB Mesh**: Robust event and message synchronization using real-time database nodes (`rooms/{code}/events`) with monotonic sequence validation and zero reliance on deprecated external MQTT brokers.
 - **Security & Integrity**:
-  - Peer ID slot validation (`senderSlot.peerId === msg.senderPeerId`).
+  - Peer ID slot validation (`senderSlot.peerId === envelope.senderId`).
   - Monotonic packet sequence counter (`seq`) to reject duplicates and out-of-order replay attacks.
-  - Sanitized in-game payload filtering.
+  - Sanitized in-game payload filtering (`cleanForRtdb`).
 
 ---
 
@@ -88,7 +87,7 @@ graph TD
 │   │   └── rules/          # Deterministic game rules & score breakdowns
 │   ├── features/
 │   │   ├── friends/        # Firebase friend graph & presence network
-│   │   ├── multiplayer/    # WebRTC/MQTT/Firebase room connection manager
+│   │   ├── multiplayer/    # Firebase RTDB room connection and event manager
 │   │   ├── profile/        # Local & cloud profile data management
 │   │   └── uno/            # Secondary card game engine (Renq)
 │   ├── types/              # TypeScript definitions & data contracts

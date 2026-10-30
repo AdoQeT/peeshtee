@@ -39,12 +39,14 @@ export function chooseAICard(
     // Case B: Can we play a Jack to sweep the pile?
     const jack = hand.find(c => c.value === 11);
     if (jack) {
-      // If pile has 3+ cards, or any special point card (Karo 10, Sinek 2, As), sweep it!
-      const hasValuableCard = tableCards.some(c => c.basePoints > 0);
+      // Calculate total point value of the pot on table
+      const potBasePoints = tableCards.reduce((sum, c) => sum + (c.basePoints || 0), 0);
+      const hasValuableCard = potBasePoints > 0;
 
+      // Hard bot evaluates the exact point density and pile thickness
       const shouldJack =
         difficulty === 'hard'
-          ? hasValuableCard || tableCards.length >= 4
+          ? potBasePoints >= 2 || tableCards.length >= 4 || (hasValuableCard && tableCards.length >= 2)
           : tableCards.length >= 3 || hasValuableCard;
 
       if (shouldJack) {

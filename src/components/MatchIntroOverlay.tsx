@@ -121,7 +121,6 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
       window.clearTimeout(doneTimer);
     };
     // Süreler yalnızca mount anında okunur; callback'ler ref üzerinden güncel tutulur.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pal = PALETTES[theme as string] || PALETTES.traditional;

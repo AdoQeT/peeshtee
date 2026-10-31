@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import {
   GameSettings,
+  Player,
   ShuffleStyle
 } from './types/game';
 import { createDeck, shuffleDeck } from './core/deck';
@@ -146,6 +147,7 @@ export default function App() {
 
   const settingsRef = useRef<GameSettings>(settings);
   settingsRef.current = settings;
+  const playersRef = useRef<Player[]>([]);
 
   // Multiplayer Room & Session Hook (v1.22.0)
   const {
@@ -181,7 +183,7 @@ export default function App() {
     cleanUrlDeepLink,
     handleSendChatMessage,
     resetMultiplayerState
-  } = useMultiplayerRoom({ userProfile, screen });
+  } = useMultiplayerRoom({ userProfile, screen, playersRef });
 
   // Pişti Core Game Hook (v1.22.0)
   const {
@@ -192,7 +194,6 @@ export default function App() {
     tableCards,
     players,
     setPlayers,
-    playersRef,
     currentTurn,
     currentTurnRef,
     round,
@@ -247,6 +248,7 @@ export default function App() {
     setUserProfile,
     screen,
     setScreen,
+    playersRef,
     isMultiplayerGame,
     isMultiplayerGameRef,
     isMultiplayerHost,

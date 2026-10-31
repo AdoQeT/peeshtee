@@ -82,6 +82,7 @@ export interface UsePistiGameProps {
   setUserProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
   screen: 'menu' | 'game' | 'uno';
   setScreen: (screen: 'menu' | 'game' | 'uno') => void;
+  playersRef: React.MutableRefObject<Player[]>;
   // Multiplayer session link
   isMultiplayerGame: boolean;
   isMultiplayerGameRef: React.MutableRefObject<boolean>;
@@ -117,6 +118,7 @@ export function usePistiGame({
   setUserProfile,
   screen,
   setScreen,
+  playersRef,
   isMultiplayerGame,
   isMultiplayerGameRef,
   isMultiplayerHost,
@@ -356,7 +358,6 @@ export function usePistiGame({
   // Live state refs
   const tableCardsRef = useRef<Card[]>(tableCards);
   tableCardsRef.current = tableCards;
-  const playersRef = useRef<Player[]>(players);
   playersRef.current = players;
   const dealTimersRef = useRef<number[]>([]);
 

@@ -17,7 +17,7 @@ export interface RoundScoresState {
 export interface UseMultiplayerRoomStateProps {
   userProfile: UserProfile;
   screen: 'menu' | 'game' | 'uno';
-  playersRef?: React.MutableRefObject<Player[]>;
+  playersRef: React.MutableRefObject<Player[]>;
 }
 
 export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMultiplayerRoomStateProps) {
@@ -175,7 +175,7 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
             'Kıraathane reisi affetmez!'
           ];
           const randomReply = botReplies[Math.floor(Math.random() * botReplies.length)];
-          const botName = playersRef?.current?.[1]?.name || 'Kurnaz Bot';
+          const botName = playersRef.current[1]?.name || 'Kurnaz Bot';
           if (botChatTimerRef.current !== null) {
             window.clearTimeout(botChatTimerRef.current);
           }

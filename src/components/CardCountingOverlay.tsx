@@ -716,6 +716,24 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const ourRoundScore = roundScores?.user.totalRoundPoints ?? userTotalPts;
   const oppRoundScore = roundScores?.opp.totalRoundPoints ?? oppTotalPts;
 
+  const userRoundPistiPts = (roundScores?.user.pistiPoints ?? 0) + (roundScores?.user.doublePistiPoints ?? 0);
+  const totalUserPistiPts = userRoundPistiPts > 0 ? userRoundPistiPts : userPistiPoints;
+  const userPistiCount = isFourPlayers
+    ? (players[0]?.pistiCount || 0) + (players[2]?.pistiCount || 0) + (players[0]?.doublePistiCount || 0) + (players[2]?.doublePistiCount || 0)
+    : (user?.pistiCount || 0) + (user?.doublePistiCount || 0);
+  const effectiveUserPistiCount = userPistiCount > 0
+    ? userPistiCount
+    : (totalUserPistiPts > 0 ? Math.max(1, Math.round(totalUserPistiPts / 10)) : 0);
+
+  const oppRoundPistiPts = (roundScores?.opp.pistiPoints ?? 0) + (roundScores?.opp.doublePistiPoints ?? 0);
+  const totalOppPistiPts = oppRoundPistiPts > 0 ? oppRoundPistiPts : oppPistiPoints;
+  const oppPistiCount = isFourPlayers
+    ? (players[1]?.pistiCount || 0) + (players[3]?.pistiCount || 0) + (players[1]?.doublePistiCount || 0) + (players[3]?.doublePistiCount || 0)
+    : (opp?.pistiCount || 0) + (opp?.doublePistiCount || 0);
+  const effectiveOppPistiCount = oppPistiCount > 0
+    ? oppPistiCount
+    : (totalOppPistiPts > 0 ? Math.max(1, Math.round(totalOppPistiPts / 10)) : 0);
+
   return (
     <div className="fixed inset-0 z-40 pointer-events-none select-none overflow-hidden">
       {/* ── TOP RIGHT: Minik Sayım Kontrol Butonları ── */}
@@ -826,14 +844,23 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Rakip Skor Özeti Rozeti (DÜZ 0°!) */}
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-rose-400/60 shadow-xl">
-            <span className="text-[11px] text-rose-300 font-bold">
+          {/* Rakip Skor Özeti Rozeti (Deste Puanı, Çoğunluk, Pişti) */}
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-rose-400/60 shadow-xl min-w-[90px]">
+            <span className="text-[11px] text-rose-300 font-bold truncate max-w-[120px]">
               {isFourPlayers ? t.rivalTeam : (opp?.name || t.opponent)}
             </span>
-            <span className="text-xl sm:text-2xl font-black font-cyber text-rose-300">+{oppTotalPts}P</span>
+            <span className="text-xl sm:text-2xl font-black font-cyber text-rose-300">
+              +{oppCardScore}P
+            </span>
             {isDone && countState.oppMajority && (
-              <span className="text-[9px] font-black text-amber-300">{t.majorityBadge}</span>
+              <span className="text-[10px] font-bold text-amber-300 mt-0.5">
+                +3P {lang === 'tr' ? 'Çoğunluk' : 'Majority'}
+              </span>
+            )}
+            {totalOppPistiPts > 0 && (
+              <span className="text-[10px] font-bold text-rose-300 mt-0.5">
+                +{totalOppPistiPts}P {effectiveOppPistiCount > 0 ? `${effectiveOppPistiCount}x ` : ''}Pişti
+              </span>
             )}
           </div>
         </div>
@@ -1057,14 +1084,23 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Kullanıcı Skor Özeti Rozeti */}
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-emerald-400/60 shadow-xl">
-            <span className="text-[11px] text-emerald-300 font-bold">
+          {/* Kullanıcı Skor Özeti Rozeti (Deste Puanı, Çoğunluk, Pişti) */}
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-emerald-400/60 shadow-xl min-w-[90px]">
+            <span className="text-[11px] text-emerald-300 font-bold truncate max-w-[120px]">
               {isFourPlayers ? t.ourTeam : (user?.name || t.youLabel)}
             </span>
-            <span className="text-xl sm:text-2xl font-black font-cyber text-amber-300">+{userTotalPts}P</span>
+            <span className="text-xl sm:text-2xl font-black font-cyber text-amber-300">
+              +{userCardScore}P
+            </span>
             {isDone && countState.userMajority && (
-              <span className="text-[9px] font-black text-emerald-300">{t.majorityBadge}</span>
+              <span className="text-[10px] font-bold text-emerald-300 mt-0.5">
+                +3P {lang === 'tr' ? 'Çoğunluk' : 'Majority'}
+              </span>
+            )}
+            {totalUserPistiPts > 0 && (
+              <span className="text-[10px] font-bold text-amber-300 mt-0.5">
+                +{totalUserPistiPts}P {effectiveUserPistiCount > 0 ? `${effectiveUserPistiCount}x ` : ''}Pişti
+              </span>
             )}
           </div>
         </div>

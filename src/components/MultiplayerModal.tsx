@@ -386,9 +386,52 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         onClose();
       } else if (event.type === 'MP_MATCH_ABORTED') {
         if (lobbyRoleRef.current === 'guest') {
-          setErrorMsg(event.reason || 'Oda kurucusu lobiden ayrıldı.');
-          setLobbyRole('none');
-          setIsConnecting(false);
+          const hostSlot = slotsRef.current.find(s => s.seatIndex === 0);
+          const isFromHost = !event.senderPeerId || (hostSlot && hostSlot.peerId === event.senderPeerId);
+          if (isFromHost) {
+            setErrorMsg(event.reason || 'Oda kurucusu lobiden ayrıldı.');
+            setLobbyRole('none');
+            setIsConnecting(false);
+          }
+        }
+      } else if (event.type === 'GUEST_LEFT') {
+        if (multiplayerManager.isHost && event.guestPeerId) {
+          const prev = slotsRef.current;
+          const next = prev.map(s => {
+            if (s.peerId === event.guestPeerId) {
+              return {
+                ...s,
+                peerId: '',
+                name:
+                  s.seatIndex === 2 && playerCountRef.current === 4
+                    ? 'Ortağın Bekleniyor'
+                    : 'Oyuncu Bekleniyor',
+                avatar: '⏳',
+                avatarId: 'wolf',
+                customAvatarUrl: undefined,
+                customTitle: undefined,
+                level: undefined
+              };
+            }
+            return s;
+          });
+
+          slotsRef.current = next;
+          setSlots(next);
+
+          multiplayerManager.send({
+            type: 'HOST_LOBBY_SYNC',
+            hostName: localNameRef.current || 'Oda Kurucu',
+            hostAvatar: localAvatarRef.current,
+            hostAvatarId: localAvatarIdRef.current,
+            hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
+            gameType: gameTypeRef.current,
+            settings: {
+              ...settingsRef.current,
+              playerCount: playerCountRef.current
+            },
+            slots: next
+          });
         }
       } else if (event.type === 'PEER_DISCONNECTED') {
         if (multiplayerManager.isHost && event.peerId) {
@@ -404,7 +447,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     : 'Oyuncu Bekleniyor',
                 avatar: '⏳',
                 avatarId: 'wolf',
-                customAvatarUrl: undefined
+                customAvatarUrl: undefined,
+                customTitle: undefined,
+                level: undefined
               };
             }
             return s;
@@ -430,8 +475,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             slots: next
           });
         } else if (!multiplayerManager.isHost) {
-          setErrorMsg('Oda kurucusu ile bağlantı kesildi.');
-          setLobbyRole('none');
+          // Only abort if host was the disconnected peer
+          const hostSlot = slotsRef.current.find(s => s.seatIndex === 0);
+          if (hostSlot && hostSlot.peerId && event.peerId === hostSlot.peerId) {
+            setErrorMsg('Oda kurucusu ile bağlantı kesildi.');
+            setLobbyRole('none');
+          }
         }
       }
     });
@@ -447,7 +496,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
   const handleResetLobby = () => {
     sound.playClick();
-    multiplayerManager.leaveRoom();
+    multiplayerManager.leaveRoom(false);
     friendNetwork.setStatus('menu');
     setLobbyRole('none');
     setCreatedRoomCode(null);

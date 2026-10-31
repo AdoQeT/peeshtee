@@ -518,6 +518,7 @@ export function useMultiplayerEvents({
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
         onCutDeckAndProceed(msg.cutIndex);
       } else if (msg.type === 'MP_MATCH_ABORTED') {
+        if (!isMultiplayerGameRef.current) return;
         if (msg.gameType && msg.gameType !== 'pisti') return;
         setPeerReconnectingSeconds(null);
         const reason: 'surrender' | 'disconnect' = msg.reason === 'disconnect' ? 'disconnect' : 'surrender';

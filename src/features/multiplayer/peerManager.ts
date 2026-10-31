@@ -47,6 +47,11 @@ export type MultiplayerEvent =
       guestPeerId: string;
     }
   | {
+      type: 'GUEST_LEFT';
+      guestPeerId: string;
+      reason?: string;
+    }
+  | {
       type: 'HOST_LOBBY_SYNC';
       hostName: string;
       hostAvatar: string;
@@ -241,6 +246,7 @@ export class MultiplayerManager {
   public roomCode: string = '';
   public isHost: boolean = false;
   public isConnected: boolean = false;
+  public isMatchStarted: boolean = false;
   private roomToken: string = '';
   private seq: number = 0;
   private lastSeenSeq: Map<string, number> = new Map();
@@ -338,16 +344,33 @@ export class MultiplayerManager {
 
       // Listen to room presences to monitor peer health directly
       this.roomPresenceRef = ref(rtdb, `rooms/${code}/presence`);
+      let previousPeerIds = new Set<string>();
       onValue(this.roomPresenceRef, (snapshot: any) => {
         const val = snapshot.val();
+        const currentPeerIds = new Set<string>();
         if (val && typeof val === 'object') {
-          const peers = Object.values(val).filter((p: any) => p && p.instanceId !== this.instanceId);
-          if (peers.length > 0) {
-            this.lastRemoteMessageTime = Date.now();
-            if (this.isPeerReconnecting) {
-              this.isPeerReconnecting = false;
-              this.dispatch({ type: 'PEER_RECONNECTED' });
+          Object.values(val).forEach((p: any) => {
+            if (p && p.instanceId && p.instanceId !== this.instanceId) {
+              currentPeerIds.add(p.instanceId);
             }
+          });
+        }
+
+        // Notify if a peer disconnected or closed tab while in room
+        if (previousPeerIds.size > 0) {
+          previousPeerIds.forEach(id => {
+            if (!currentPeerIds.has(id)) {
+              this.dispatch({ type: 'PEER_DISCONNECTED', peerId: id });
+            }
+          });
+        }
+        previousPeerIds = currentPeerIds;
+
+        if (currentPeerIds.size > 0) {
+          this.lastRemoteMessageTime = Date.now();
+          if (this.isPeerReconnecting) {
+            this.isPeerReconnecting = false;
+            this.dispatch({ type: 'PEER_RECONNECTED' });
           }
         }
       });
@@ -645,6 +668,10 @@ export class MultiplayerManager {
     this.lastRemoteMessageTime = Date.now();
     this.isConnected = true;
 
+    if (envelope.payload && envelope.payload.type === 'MP_GAME_START') {
+      this.isMatchStarted = true;
+    }
+
     if (this.isPeerReconnecting) {
       this.isPeerReconnecting = false;
       this.dispatch({ type: 'PEER_RECONNECTED' });
@@ -661,6 +688,10 @@ export class MultiplayerManager {
 
   public send(payload: MultiplayerEvent) {
     if (!this.roomCode) return;
+
+    if (payload.type === 'MP_GAME_START') {
+      this.isMatchStarted = true;
+    }
 
     this.seq = Math.max(this.seq + 1, Date.now());
     const envelope: PacketEnvelope = {
@@ -731,18 +762,37 @@ export class MultiplayerManager {
     }
   }
 
-  public leaveRoom() {
+  public leaveRoom(isMatchActive?: boolean) {
+    const active = isMatchActive ?? this.isMatchStarted;
     if (this.roomCode && this.isConnected) {
-      this.send({
-        type: 'MP_MATCH_ABORTED',
-        senderPeerId: this.instanceId,
-        reason: 'Oyuncu odadan ayrıldı.'
-      });
+      if (this.isHost) {
+        this.send({
+          type: 'MP_MATCH_ABORTED',
+          senderPeerId: this.instanceId,
+          reason: 'Oda kurucusu lobiden ayrıldı.'
+        });
+      } else {
+        if (active) {
+          this.send({
+            type: 'MP_MATCH_ABORTED',
+            senderPeerId: this.instanceId,
+            reason: 'Oyuncu maçtan ayrıldı.'
+          });
+        } else {
+          this.send({
+            type: 'GUEST_LEFT',
+            guestPeerId: this.instanceId,
+            reason: 'Misafir lobiden ayrıldı.'
+          });
+        }
+      }
     }
+    this.isMatchStarted = false;
     this.disconnect();
   }
 
   public disconnect() {
+    this.isMatchStarted = false;
     this.cleanupFirebaseRoom();
 
     if (this.broadcastChannel) {

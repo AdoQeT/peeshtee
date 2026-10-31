@@ -55,6 +55,30 @@ test('cleanForRtdb strips undefined from real GUEST_JOINED payload (without cust
   assert.equal('guestCustomTitle' in cleaned.payload, false);
 });
 
+test('cleanForRtdb handles GUEST_LEFT payload with optional fields correctly', () => {
+  const guestLeftPayload = {
+    type: 'GUEST_LEFT',
+    guestPeerId: 'inst_abc123',
+    reason: undefined
+  };
+
+  const envelope = {
+    __pistiEnvelope: true,
+    msgId: 'inst_abc123-1730000000000-xyz123',
+    roomCode: '648291',
+    seq: 2,
+    senderId: 'inst_abc123',
+    timestamp: Date.now(),
+    payload: guestLeftPayload
+  };
+
+  const cleaned = cleanForRtdb(envelope);
+  assertNoUndefinedDeep(cleaned);
+  assert.equal(cleaned.payload.type, 'GUEST_LEFT');
+  assert.equal(cleaned.payload.guestPeerId, 'inst_abc123');
+  assert.equal('reason' in cleaned.payload, false);
+});
+
 test('cleanForRtdb strips undefined from real HOST_LOBBY_SYNC slots payload', () => {
   // Real MultiplayerManager host sync payload
   const realHostLobbySyncPayload = {

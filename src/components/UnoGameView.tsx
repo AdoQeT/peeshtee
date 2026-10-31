@@ -346,6 +346,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   const penaltyPoolRef = useRef<HTMLDivElement | null>(null);
   const userHandContainerRef = useRef<HTMLDivElement | null>(null);
   const playerHandRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
+  const opponentCardRackRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
   const botTurnTimerRef = useRef<number | null>(null);
   const dealtCacheRef = useRef<ReturnType<typeof dealUnoGame> | null>(null);
   const actionLogRef = useRef<string[]>([]);
@@ -377,6 +378,18 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     return { x: window.innerWidth / 2 - 70, y: window.innerHeight / 2 };
   }, []);
 
+  const getSeatAngle = useCallback(
+    (playerIdx: number): number => {
+      if (playerIdx === 0) return 0;
+      if (players.length === 2) return 180;
+      if (playerIdx === 1) return 75; // Left bot
+      if (playerIdx === 2) return 180; // Top bot
+      if (playerIdx === 3) return -75; // Right bot
+      return 180;
+    },
+    [players.length]
+  );
+
   const getSafeSeatRect = useCallback(
     (playerIdx: number): { x: number; y: number; width: number; height: number } => {
       if (playerIdx === 0) {
@@ -386,6 +399,13 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           if (r.width > 20 && r.height > 20) return r;
         }
         return { x: window.innerWidth / 2 - 40, y: window.innerHeight - 130, width: 80, height: 116 };
+      }
+
+      // Check opponent card rack first for high-precision physical takeoff and landing
+      const rackEl = opponentCardRackRefs.current[playerIdx];
+      if (rackEl) {
+        const r = rackEl.getBoundingClientRect();
+        if (r.width > 20 && r.height > 20) return r;
       }
 
       const el = playerHandRefs.current[playerIdx];
@@ -423,6 +443,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         startRotation?: number;
         targetRotation?: number;
         duration?: number;
+        arcHeight?: number;
+        motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
         onFinish?: () => void;
       } = {}
     ) => {
@@ -467,8 +489,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         targetRotation: options.targetRotation ?? (Math.random() * 14 - 7),
         startFaceUp: options.startFaceUp ?? false,
         endFaceUp: options.endFaceUp ?? true,
-        duration: options.duration ?? 480,
-        arcHeight: 95,
+        duration: options.duration ?? (options.motionType === 'play' ? 490 : 440),
+        arcHeight: options.arcHeight ?? (options.motionType === 'play' ? 125 : 85),
+        motionType: options.motionType ?? 'deal',
         size: 'md',
         onComplete: () => {
           setFlyingCards(prev => prev.filter(c => c.id !== animId));
@@ -593,12 +616,18 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           width: 80,
           height: 116
         };
-        const handRect = getSafeSeatRect(step.playerIdx);
+        const targetEl = step.playerIdx === 0 ? document.getElementById(`uno-user-card-${step.card.id}`) : null;
+        const handRect = targetEl ? targetEl.getBoundingClientRect() : getSafeSeatRect(step.playerIdx);
+        const targetRot = step.playerIdx === 0 ? 0 : getSeatAngle(step.playerIdx);
 
         spawnFlyingUnoCard(step.card, deckRect, handRect, {
           startFaceUp: false,
           endFaceUp: step.playerIdx === 0,
-          duration: 460,
+          startRotation: -8,
+          targetRotation: targetRot,
+          duration: 450,
+          motionType: 'deal',
+          arcHeight: 90,
           onFinish: () => {
             setHiddenCardIds(prev => {
               const next = new Set(prev);
@@ -630,7 +659,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       spawnFlyingUnoCard(initialCard, deckRect, discardRect, {
         startFaceUp: false,
         endFaceUp: true,
-        duration: 480,
+        duration: 490,
+        motionType: 'play',
+        arcHeight: 115,
+        startRotation: -12,
         targetRotation: 3,
         onFinish: () => {
           setHiddenCardIds(new Set());
@@ -772,27 +804,43 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         ? deckEl.getBoundingClientRect()
         : { x: window.innerWidth / 2 - 80, y: window.innerHeight / 2 - 50, width: 80, height: 116 };
 
-      const hRect = getSafeSeatRect(playerIdx);
-
       if (drawnCards.length > 0) {
         let completedCount = 0;
         drawnCards.forEach((c, i) => {
           window.setTimeout(() => {
+            const targetEl = playerIdx === 0 ? document.getElementById(`uno-user-card-${c.id}`) : null;
+            const targetRect = targetEl ? targetEl.getBoundingClientRect() : getSafeSeatRect(playerIdx);
+
+            let targetRot = getSeatAngle(playerIdx);
+            if (playerIdx === 0) {
+              const cardIdx = nextPlayers[0].hand.findIndex(x => x.id === c.id);
+              const totalCards = nextPlayers[0].hand.length;
+              const angleStep = Math.min(4.5, 36 / Math.max(1, totalCards - 1));
+              targetRot = cardIdx >= 0 ? (cardIdx - (totalCards - 1) / 2) * angleStep : 0;
+            }
+
             sound.playCardDeal();
-            spawnFlyingUnoCard(c, dRect, hRect, {
+            spawnFlyingUnoCard(c, dRect, targetRect, {
               startFaceUp: false,
               endFaceUp: playerIdx === 0,
               startRotation: -12,
-              targetRotation: 0,
-              duration: 430,
+              targetRotation: targetRot,
+              duration: 440,
+              motionType: 'deal',
+              arcHeight: 85,
               onFinish: () => {
+                setHiddenCardIds(prev => {
+                  const next = new Set(prev);
+                  next.delete(c.id);
+                  return next;
+                });
                 completedCount++;
                 if (completedCount === drawnCards.length) {
                   onAllLanded?.(drawnCards);
                 }
               }
             });
-          }, i * 130);
+          }, i * 120);
         });
       } else {
         onAllLanded?.([]);
@@ -800,7 +848,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
       return drawnCards;
     },
-    [getSafeSeatRect, spawnFlyingUnoCard]
+    [getSafeSeatRect, getSeatAngle, spawnFlyingUnoCard]
   );
 
   // Deliver Penalty Stack Cards directly from the Center Waiting Pool to Player's hand
@@ -882,13 +930,25 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
       drawnCards.forEach((c, idx) => {
         window.setTimeout(() => {
+          const targetEl = playerIdx === 0 ? document.getElementById(`uno-user-card-${c.id}`) : null;
+          const targetRectFinal = targetEl ? targetEl.getBoundingClientRect() : targetRect;
+          let targetRot = getSeatAngle(playerIdx);
+          if (playerIdx === 0) {
+            const cardIdx = updatedHand.findIndex(x => x.id === c.id);
+            const totalCards = updatedHand.length;
+            const angleStep = Math.min(4.5, 36 / Math.max(1, totalCards - 1));
+            targetRot = cardIdx >= 0 ? (cardIdx - (totalCards - 1) / 2) * angleStep : 0;
+          }
+
           sound.playCardDeal();
-          spawnFlyingUnoCard(c, startRect, targetRect, {
+          spawnFlyingUnoCard(c, startRect, targetRectFinal, {
             startFaceUp: false,
             endFaceUp: playerIdx === 0,
             startRotation: -6,
-            targetRotation: 0,
+            targetRotation: targetRot,
             duration: 380,
+            motionType: 'deal',
+            arcHeight: 90,
             onFinish: () => {
               setHiddenCardIds(prev => {
                 const next = new Set(prev);
@@ -911,10 +971,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               }
             }
           });
-        }, idx * 130);
+        }, idx * 105);
       });
     },
-    [getSafeSeatRect, spawnFlyingUnoCard, advanceTurn, isMultiplayer, mySeatIndex]
+    [getSafeSeatRect, getSeatAngle, spawnFlyingUnoCard, advanceTurn, isMultiplayer, mySeatIndex]
   );
 
   // Handle Play Card with flying 3D arc animation & fanned discard stack physics!
@@ -935,6 +995,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         : { x: window.innerWidth / 2 + 40, y: window.innerHeight / 2, width: 88, height: 128 };
 
       const finalRotation = Math.random() * 14 - 7;
+      const seatAngle = getSeatAngle(playerIdx);
+      const startRot = playerIdx === 0
+        ? (sourceRect ? (Math.random() * 6 - 3) : 0)
+        : seatAngle + (Math.random() * 12 - 6);
 
       sound.playCardPlay();
 
@@ -966,9 +1030,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       );
 
       spawnFlyingUnoCard(card, startRect, targetRect, {
-        startFaceUp: true,
+        startFaceUp: playerIdx === 0,
         endFaceUp: true,
+        startRotation: startRot,
         targetRotation: finalRotation,
+        motionType: 'play',
+        arcHeight: 125,
         duration: 490,
         onFinish: () => {
           sound.playClick();
@@ -1175,6 +1242,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       targetScore,
       drawCardsForPlayer,
       advanceTurn,
+      getSafeSeatRect,
+      getSeatAngle,
       spawnFlyingUnoCard,
       triggerBanner,
       pushActionLog,
@@ -1754,6 +1823,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
         {/* Opponent's Fanned Card Backs */}
         <div
+          ref={el => {
+            opponentCardRackRefs.current[playerIdx] = el;
+          }}
           className={`flex items-center justify-center ${
             position === 'top' ? '-space-x-8 mt-1.5 min-h-[74px]' : '-space-x-9 mt-1 min-h-[68px]'
           }`}
@@ -2539,6 +2611,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                 return (
                   <div
                     key={card.id}
+                    id={`uno-user-card-${card.id}`}
                     onMouseEnter={() => setHoveredCardId(card.id)}
                     onMouseLeave={() => setHoveredCardId(null)}
                     style={{

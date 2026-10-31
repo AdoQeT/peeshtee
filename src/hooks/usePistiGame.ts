@@ -201,6 +201,7 @@ export function usePistiGame({
             pistiPairs: [],
             pistiCount: 0,
             doublePistiCount: 0,
+            bonusPoints: 0,
             score: 0,
             roundScore: 0,
             level: 1
@@ -278,6 +279,7 @@ export function usePistiGame({
             pistiPairs: [],
             pistiCount: 0,
             doublePistiCount: 0,
+            bonusPoints: 0,
             score: 0,
             roundScore: 0,
             level: 1
@@ -295,6 +297,7 @@ export function usePistiGame({
             pistiPairs: [],
             pistiCount: 0,
             doublePistiCount: 0,
+            bonusPoints: 0,
             score: 0,
             roundScore: 0,
             level: 1
@@ -1212,6 +1215,7 @@ export function usePistiGame({
           pistiPairs: [],
           pistiCount: 0,
           doublePistiCount: 0,
+          bonusPoints: 0,
           collectedCards: []
         }))
       );
@@ -1651,8 +1655,7 @@ export function usePistiGame({
                       pistiPairs: pistiPair ? [...p.pistiPairs, pistiPair] : p.pistiPairs,
                       pistiCount: isPisti ? p.pistiCount + 1 : p.pistiCount,
                       doublePistiCount: isDouble ? p.doublePistiCount + 1 : p.doublePistiCount,
-                      bonusPoints:
-                        (p.bonusPoints || 0) + (evaluation.pointsAwarded || 0),
+                      bonusPoints: p.bonusPoints || 0,
                       collectedCards:
                         isPisti || isDouble
                           ? [...p.collectedCards, updatedPile[0]]
@@ -1687,6 +1690,8 @@ export function usePistiGame({
             pistiCount: finalPlayersState[0].pistiCount + finalPlayersState[2].pistiCount,
             doublePistiCount:
               finalPlayersState[0].doublePistiCount + finalPlayersState[2].doublePistiCount,
+            bonusPoints:
+              (finalPlayersState[0].bonusPoints || 0) + (finalPlayersState[2].bonusPoints || 0),
             pistiPairs: [
               ...finalPlayersState[0].pistiPairs,
               ...finalPlayersState[2].pistiPairs
@@ -1705,6 +1710,8 @@ export function usePistiGame({
             pistiCount: finalPlayersState[1].pistiCount + finalPlayersState[3].pistiCount,
             doublePistiCount:
               finalPlayersState[1].doublePistiCount + finalPlayersState[3].doublePistiCount,
+            bonusPoints:
+              (finalPlayersState[1].bonusPoints || 0) + (finalPlayersState[3].bonusPoints || 0),
             pistiPairs: [
               ...finalPlayersState[1].pistiPairs,
               ...finalPlayersState[3].pistiPairs

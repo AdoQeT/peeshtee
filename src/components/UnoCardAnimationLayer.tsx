@@ -21,6 +21,7 @@ export interface FlyingUnoCardData {
   arcHeight?: number;
   size?: 'sm' | 'md' | 'lg';
   zIndex?: number;
+  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
   onComplete?: () => void;
 }
 
@@ -30,10 +31,10 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
   const onCompleteRef = useRef(fc.onComplete);
   onCompleteRef.current = fc.onComplete;
 
-  const duration = fc.duration ?? 440;
+  const duration = fc.duration ?? (fc.motionType === 'play' ? 480 : 440);
   const startScale = fc.startScale ?? 1;
   const targetScale = fc.targetScale ?? 1;
-  const arcHeight = fc.arcHeight ?? 58;
+  const arcHeight = fc.arcHeight ?? (fc.motionType === 'play' ? 120 : 85);
 
   useLayoutEffect(() => {
     const el = outerRef.current;
@@ -52,7 +53,8 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
         endFaceUp: fc.endFaceUp,
         startScale,
         targetScale,
-        arcHeight: fc.arcHeight ?? 60
+        arcHeight,
+        motionType: fc.motionType ?? 'deal'
       },
       duration
     );
@@ -104,7 +106,8 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
     duration,
     startScale,
     targetScale,
-    arcHeight
+    arcHeight,
+    fc.motionType
   ]);
 
   const initialRotY = fc.startFaceUp ? 0 : 180;

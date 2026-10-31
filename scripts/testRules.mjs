@@ -86,3 +86,57 @@ test('rules.ts: calculateRoundBreakdown computes all special card values and maj
   assert.equal(breakdown.totalRoundPoints, 56);
   assert.equal(breakdown.cardCount, 6);
 });
+
+test('rules.ts: 4-player team score aggregation calculates combined Piştis and bonusPoints without duplicate penalty', () => {
+  // Teammate 1 (Player 0)
+  const p0 = {
+    id: 'p0',
+    name: 'You',
+    pistiCount: 1, // 10 pts
+    doublePistiCount: 0,
+    bonusPoints: 0,
+    collectedCards: [
+      { id: 'c1', suit: 'diamonds', value: 10, isSpecial: true, basePoints: 3 }
+    ],
+    pistiPairs: []
+  };
+
+  // Teammate 2 (Player 2 - Partner)
+  const p2 = {
+    id: 'p2',
+    name: 'Partner',
+    pistiCount: 1, // 10 pts
+    doublePistiCount: 1, // 20 pts
+    bonusPoints: 5, // Deck cut bonus
+    collectedCards: [
+      { id: 'c2', suit: 'clubs', value: 2, isSpecial: true, basePoints: 2 },
+      { id: 'c3', suit: 'hearts', value: 1, isSpecial: true, basePoints: 1 }
+    ],
+    pistiPairs: []
+  };
+
+  const userSideAggregate = {
+    ...p0,
+    name: 'Bizim Takım',
+    pistiCount: p0.pistiCount + p2.pistiCount, // 1 + 1 = 2 (20 pts)
+    doublePistiCount: p0.doublePistiCount + p2.doublePistiCount, // 0 + 1 = 1 (20 pts)
+    bonusPoints: (p0.bonusPoints || 0) + (p2.bonusPoints || 0), // 0 + 5 = 5 pts
+    collectedCards: [...p0.collectedCards, ...p2.collectedCards],
+    pistiPairs: [...p0.pistiPairs, ...p2.p2pistiPairs || []]
+  };
+
+  const teamBreakdown = calculateRoundBreakdown(userSideAggregate, true);
+  // Expected:
+  // pistiPoints: 2 * 10 = 20
+  // doublePistiPoints: 1 * 20 = 20
+  // majorityPoints: 3
+  // specialCardPoints: 3 (Diamond 10) + 2 (Club 2) + 1 (Ace) = 6
+  // bonusPoints: 5
+  // total: 20 + 20 + 3 + 6 + 5 = 54
+  assert.equal(teamBreakdown.pistiPoints, 20);
+  assert.equal(teamBreakdown.doublePistiPoints, 20);
+  assert.equal(teamBreakdown.majorityPoints, 3);
+  assert.equal(teamBreakdown.specialCardPoints, 6);
+  assert.equal(teamBreakdown.bonusPoints, 5);
+  assert.equal(teamBreakdown.totalRoundPoints, 54);
+});

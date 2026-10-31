@@ -83,3 +83,41 @@ test('tactile deck cut: riffle displacement formula lifts hovered cards smoothly
   const factor6 = dist6 <= 4 ? 1 - dist6 / 5 : 0;
   assert.equal(factor6, 0);
 });
+
+test('cardPhysicsEngine: motionType=play produces spring easing, 3D loft, and banking', async () => {
+  const { cardPhysics } = await import('../src/core/physics/cardPhysicsEngine.ts');
+  const plan = cardPhysics.generateFlightPlan({
+    startX: 100,
+    startY: 600,
+    targetX: 500,
+    targetY: 300,
+    startRotation: 0,
+    targetRotation: 5,
+    startFaceUp: true,
+    endFaceUp: true,
+    motionType: 'play',
+    arcHeight: 125
+  });
+
+  assert.equal(plan.easing, 'cubic-bezier(0.20, 1.10, 0.30, 1.02)'); // Spring overshoot
+  assert.ok(plan.keyframes.length >= 20);
+  assert.ok(plan.durationMs > 300);
+});
+
+test('seatOrientation: seat angles for 2P and 4P layout are mathematically sound', () => {
+  const getSeatAngle = (playerIdx, totalPlayers) => {
+    if (playerIdx === 0) return 0;
+    if (totalPlayers === 2) return 180;
+    if (playerIdx === 1) return 75; // Left bot
+    if (playerIdx === 2) return 180; // Top bot
+    if (playerIdx === 3) return -75; // Right bot
+    return 180;
+  };
+
+  assert.equal(getSeatAngle(0, 2), 0);
+  assert.equal(getSeatAngle(1, 2), 180);
+  assert.equal(getSeatAngle(0, 4), 0);
+  assert.equal(getSeatAngle(1, 4), 75);
+  assert.equal(getSeatAngle(2, 4), 180);
+  assert.equal(getSeatAngle(3, 4), -75);
+});

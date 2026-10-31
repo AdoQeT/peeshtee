@@ -33,16 +33,14 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-tactile deck cut riffle hover preview with friction ticks and card lift dynamics',
-  '-perimeter horizontal player profile banners facing user across RENQ stadium',
-  '-radial 8-slot emote wheel with floating reaction pops and multiplayer sync',
-  '-2 semi-transparent orbital direction felt arrows and reverse neon light sweep ring',
-  '-fiery growing combo scale animation for stacked draw penalties (+2, +4, +6, +8)',
-  '-full 4-language (TR, EN, DE, ES) localization for RENQ, Profile, Chat, and Social',
-  '-spectator mode support to watch friends ongoing matches live'
+  '-fixed 4-player pisti round end team score calculation and bonus duplication bug',
+  '-overhauled renq 3d card physics engine with zero teleportation and true hardware arc',
+  '-added realistic seat-oriented flight departure angles and aerodynamic flip physics',
+  '-synchronized exact fanned hand slot landing coordinates for draws and discards',
+  '-enhanced discard pile landing micro-settle and staggered penalty cascade delivery'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.27.0';
+const versionTitle = process.argv[2] || 'v1.28.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

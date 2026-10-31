@@ -12,7 +12,7 @@ import {
   UserPlus,
   Globe,
   Shield,
-  Palette,
+  Zap,
   Mic,
   X
 } from 'lucide-react';
@@ -481,7 +481,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.23.1'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.24.0'}
         </span>
       </div>
 
@@ -546,12 +546,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-900/90 border border-pink-400/30 flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center text-pink-300 shrink-0">
-                  <Palette className="w-5 h-5" />
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-400/30 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                  <Zap className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-pink-200 font-cyber">
+                  <h4 className="text-sm font-bold text-amber-200 font-cyber">
                     {t.skinsTitle}
                   </h4>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">

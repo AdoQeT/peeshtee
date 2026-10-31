@@ -18,6 +18,7 @@ export interface Card {
 }
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
+export type BotPersonality = 'balanced' | 'aggressive' | 'tactician' | 'bluffer';
 
 export interface GameSetupConfig {
   playerCount: 2 | 4;
@@ -38,6 +39,7 @@ export interface Player {
   isAI: boolean;
   avatar: string; // Emoji fallback or label
   avatarId?: string; // Preset avatar id (e.g. 'wolf', 'lion', 'dayi')
+  personality?: BotPersonality;
   customAvatarUrl?: string; // Custom uploaded base64 data url
   customTitle?: string; // User title / rozet (e.g. '👑 Kurucu', '🃏 Kart Ustası')
   hand: Card[];

@@ -1544,28 +1544,35 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             </button>
 
             {showEmotePicker && (
-              <div className="absolute bottom-12 right-0 z-50 flex items-center gap-1 p-2 rounded-2xl bg-slate-950/95 border border-white/20 shadow-2xl backdrop-blur-md animate-fadeIn">
-                {[
-                  { emoji: '☕', name: 'Çay Ismarla' },
-                  { emoji: '👏', name: 'Alkış' },
-                  { emoji: '🔥', name: 'Alev' },
-                  { emoji: '😅', name: 'Balına' },
-                  { emoji: '🃏', name: 'Vale miydi!' },
-                  { emoji: '😎', name: 'Usta İşi' }
-                ].map(item => (
-                  <button
-                    key={item.emoji}
-                    type="button"
-                    onClick={() => {
-                      onSendEmote?.(item.emoji);
-                      setShowEmotePicker(false);
-                    }}
-                    title={item.name}
-                    className="w-9 h-9 rounded-xl hover:bg-white/15 flex items-center justify-center text-lg transition-transform hover:scale-125 active:scale-95 cursor-pointer"
-                  >
-                    {item.emoji}
-                  </button>
-                ))}
+              <div className="absolute bottom-14 right-0 z-50 p-2.5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_10px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.3)] backdrop-blur-xl animate-in zoom-in-95 duration-200">
+                <div className="text-[10px] font-bold text-amber-300 text-center mb-1.5 font-mono">
+                  REAKSİYON ÇARKI
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { emoji: '🔥', name: 'Alev' },
+                    { emoji: '😎', name: 'Usta İşi' },
+                    { emoji: '☕', name: 'Çay Molası' },
+                    { emoji: '👏', name: 'Tebrikler' },
+                    { emoji: '🃏', name: 'Vale miydi!' },
+                    { emoji: '😅', name: 'Balına' },
+                    { emoji: '😡', name: 'Olur mu böyle!' },
+                    { emoji: '👑', name: 'Masa Hükümdarı' }
+                  ].map(item => (
+                    <button
+                      key={item.emoji}
+                      type="button"
+                      onClick={() => {
+                        onSendEmote?.(item.emoji);
+                        setShowEmotePicker(false);
+                      }}
+                      title={item.name}
+                      className="w-10 h-10 rounded-2xl bg-white/5 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/60 flex items-center justify-center text-xl transition-all hover:scale-125 active:scale-90 cursor-pointer shadow-sm"
+                    >
+                      {item.emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

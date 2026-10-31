@@ -235,6 +235,9 @@ export interface UserProfile {
     unoMatchesPlayed: number;
     unoWins: number;
     highestUnoScore?: number;
+    currentStreak?: number;
+    bestWinStreak?: number;
+    recordPistiCount?: number;
   };
 }
 
@@ -600,6 +603,21 @@ export function recordMatchStats(
     if (score > profile.stats.highestScore) {
       profile.stats.highestScore = score;
     }
+  }
+
+  // Update Win Streaks & Record Piştis
+  if (isWin) {
+    profile.stats.currentStreak = (profile.stats.currentStreak || 0) + 1;
+    if (profile.stats.currentStreak > (profile.stats.bestWinStreak || 0)) {
+      profile.stats.bestWinStreak = profile.stats.currentStreak;
+    }
+  } else {
+    profile.stats.currentStreak = 0;
+  }
+
+  const matchTotalPistis = pistis + doublePistis;
+  if (matchTotalPistis > (profile.stats.recordPistiCount || 0)) {
+    profile.stats.recordPistiCount = matchTotalPistis;
   }
 
   // Calculate XP gained from match performance

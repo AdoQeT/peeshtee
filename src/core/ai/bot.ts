@@ -1,13 +1,14 @@
-import type { Card, AIDifficulty } from '../../types/game';
+import type { Card, AIDifficulty, BotPersonality } from '../../types/game';
 
 /**
- * Chooses the best card for the AI opponent based on difficulty level.
+ * Chooses the best card for the AI opponent based on difficulty level and personality profile.
  */
 export function chooseAICard(
   hand: Card[],
   tableCards: Card[],
   seenCards: Card[],
-  difficulty: AIDifficulty
+  difficulty: AIDifficulty,
+  personality: BotPersonality = 'balanced'
 ): Card {
   if (hand.length === 0) {
     throw new Error('AI hand is empty');
@@ -27,7 +28,7 @@ export function chooseAICard(
 
   const topCard = tableCards.length > 0 ? tableCards[tableCards.length - 1] : null;
 
-  // 2. Medium (Kurnaz) & 3. Hard (Şampiyon) Logic
+  // 2. Medium (Kurnaz) & 3. Hard (Şampiyon) Logic with Personality Biases
   if (topCard) {
     // Case A: Table has cards. Can we match the top card?
     const matches = hand.filter(c => c.value === topCard.value);
@@ -45,11 +46,24 @@ export function chooseAICard(
       const potBasePoints = tableCards.reduce((sum, c) => sum + (c.basePoints || 0), 0);
       const hasValuableCard = potBasePoints > 0;
 
-      // Hard bot evaluates the exact point density and pile thickness
-      const shouldJack =
-        difficulty === 'hard'
-          ? potBasePoints >= 2 || tableCards.length >= 4 || (hasValuableCard && tableCards.length >= 2)
-          : tableCards.length >= 3 || hasValuableCard;
+      // Personality adjustments to Jack eagerness:
+      let shouldJack: boolean;
+      if (personality === 'aggressive') {
+        // "Risk Alan Dayı": Very eager Jack player! Sweeps even with 2 cards or single point.
+        shouldJack = tableCards.length >= 2 || hasValuableCard;
+      } else if (personality === 'tactician') {
+        // "Pusucu / Kart Sayan": Strict conservation. Only Jacks for thick piles or multi-point pots.
+        shouldJack = potBasePoints >= 2 || tableCards.length >= 4;
+      } else if (personality === 'bluffer') {
+        // "Blöfçü": Unpredictable; occasionally sweeps empty-ish piles just to disrupt opponent rhythm!
+        shouldJack = tableCards.length >= 2 || hasValuableCard || Math.random() > 0.6;
+      } else {
+        // Balanced
+        shouldJack =
+          difficulty === 'hard'
+            ? potBasePoints >= 2 || tableCards.length >= 4 || (hasValuableCard && tableCards.length >= 2)
+            : tableCards.length >= 3 || hasValuableCard;
+      }
 
       if (shouldJack) {
         return jack;
@@ -57,13 +71,12 @@ export function chooseAICard(
     }
 
     // Case C: No match, no Jack (or saving Jack). Pick the safest discard.
-    // Avoid discarding points or Jacks.
-    return pickSafestDiscard(hand, seenCards, difficulty);
+    return pickSafestDiscard(hand, seenCards, difficulty, personality);
   }
 
   // Case D: Table is EMPTY.
   // We must throw a card without giving the opponent an easy Pişti!
-  return pickSafestEmptyTableDiscard(hand, seenCards, difficulty);
+  return pickSafestEmptyTableDiscard(hand, seenCards, difficulty, personality);
 }
 
 /**
@@ -72,7 +85,8 @@ export function chooseAICard(
 function pickSafestEmptyTableDiscard(
   hand: Card[],
   seenCards: Card[],
-  difficulty: AIDifficulty
+  difficulty: AIDifficulty,
+  personality: BotPersonality = 'balanced'
 ): Card {
   // Never discard a Jack (11) on an empty table if we have other cards!
   const nonJacks = hand.filter(c => c.value !== 11);
@@ -82,7 +96,12 @@ function pickSafestEmptyTableDiscard(
   const nonSpecials = pool.filter(c => !c.isSpecial);
   const candidatePool = nonSpecials.length > 0 ? nonSpecials : pool;
 
-  if (difficulty === 'hard') {
+  // Bluffer: Sometimes discards an unexpected medium rank to bait opponent
+  if (personality === 'bluffer' && candidatePool.length > 1 && Math.random() > 0.5) {
+    return candidatePool[Math.floor(Math.random() * candidatePool.length)];
+  }
+
+  if (difficulty === 'hard' || personality === 'tactician') {
     // MASTER STRATEGY: Card Counting!
     // Check which card values have already been seen the most.
     // If 3 cards of rank X were already played, rank X is 100% IMMUNE to Pişti!
@@ -102,8 +121,7 @@ function pickSafestEmptyTableDiscard(
     return sortedBySafety[0];
   }
 
-  // Medium: Pick rank with lowest value or where AI holds a duplicate
-  // If AI has two of the same rank (e.g. two 7s), throwing one is great because if player matches, AI can Pişti back!
+  // Medium / Balanced / Aggressive: Pick rank with duplicate if available
   const valueFrequencies: Record<number, number> = {};
   for (const c of candidatePool) {
     valueFrequencies[c.value] = (valueFrequencies[c.value] || 0) + 1;
@@ -114,7 +132,7 @@ function pickSafestEmptyTableDiscard(
     return duplicates[0];
   }
 
-  // Otherwise pick any non-special card
+  // Otherwise pick lowest base non-special card
   return candidatePool[0];
 }
 
@@ -124,7 +142,8 @@ function pickSafestEmptyTableDiscard(
 function pickSafestDiscard(
   hand: Card[],
   seenCards: Card[],
-  difficulty: AIDifficulty
+  difficulty: AIDifficulty,
+  personality: BotPersonality = 'balanced'
 ): Card {
   // Don't waste Jack
   const nonJacks = hand.filter(c => c.value !== 11);
@@ -134,7 +153,7 @@ function pickSafestDiscard(
   const nonSpecials = pool.filter(c => !c.isSpecial);
   const candidates = nonSpecials.length > 0 ? nonSpecials : pool;
 
-  if (difficulty === 'hard') {
+  if (difficulty === 'hard' || personality === 'tactician') {
     // Count how many of each rank have been seen + held in hand to minimize opponent match risk
     const rankCounts: Record<number, number> = {};
     for (const c of seenCards) {
@@ -149,4 +168,109 @@ function pickSafestDiscard(
   }
 
   return candidates[0];
+}
+
+export type BotReactionContext =
+  | 'pisti_scored'
+  | 'pisti_suffered'
+  | 'jack_sweep'
+  | 'opponent_jack'
+  | 'majority_won'
+  | 'game_lost'
+  | 'game_won';
+
+export interface BotReaction {
+  text: string;
+  emoji: string;
+}
+
+/**
+ * Returns a contextual speech dialogue and emote according to bot personality and game event.
+ */
+export function getBotContextualReaction(
+  context: BotReactionContext,
+  personality: BotPersonality = 'balanced',
+  lang: 'tr' | 'en' = 'tr'
+): BotReaction {
+  const isTr = lang === 'tr';
+
+  switch (context) {
+    case 'pisti_scored':
+      if (personality === 'aggressive') {
+        return {
+          text: isTr ? 'İşte böyle basarlar! 🔥' : 'Boom! That is how it is done! 🔥',
+          emoji: '🔥'
+        };
+      }
+      if (personality === 'tactician') {
+        return {
+          text: isTr ? 'Hesaplarıma göre tam zamanıydı. 🧠' : 'Calculated to perfection. 🧠',
+          emoji: '😎'
+        };
+      }
+      if (personality === 'bluffer') {
+        return {
+          text: isTr ? 'Göz göre göre geldi değil mi? 😉' : 'Saw that one coming, right? 😉',
+          emoji: '😉'
+        };
+      }
+      return {
+        text: isTr ? 'Temiz bir Pişti! 🎴' : 'A clean Pişti! 🎴',
+        emoji: '😎'
+      };
+
+    case 'pisti_suffered':
+      if (personality === 'aggressive') {
+        return {
+          text: isTr ? 'Şansın yaver gitti sadece! 😤' : 'Pure luck, nothing more! 😤',
+          emoji: '😡'
+        };
+      }
+      if (personality === 'tactician') {
+        return {
+          text: isTr ? 'O kartı saymıştım ama tebrikler... 🧐' : 'I counted that card, well played... 🧐',
+          emoji: '🧐'
+        };
+      }
+      return {
+        text: isTr ? 'Güzel hamleydi, hakkını yemeyelim. 👏' : 'Great move, gotta admit it. 👏',
+        emoji: '👏'
+      };
+
+    case 'jack_sweep':
+      if (personality === 'aggressive') {
+        return {
+          text: isTr ? 'Masa temizliği benden sorulur! 🧹' : 'Table cleaning duty taken care of! 🧹',
+          emoji: '🧹'
+        };
+      }
+      return {
+        text: isTr ? 'Vale kesene yarar dedik! 🃏' : 'The Jack sweeps clean! 🃏',
+        emoji: '🃏'
+      };
+
+    case 'opponent_jack':
+      return {
+        text: isTr ? 'Tam da biriktiriyordum ya... 🥲' : 'I was just building that pot... 🥲',
+        emoji: '🥲'
+      };
+
+    case 'majority_won':
+      return {
+        text: isTr ? 'Kart çoğunluğu bizde! 📦' : 'Card majority secured! 📦',
+        emoji: '🏆'
+      };
+
+    case 'game_won':
+      return {
+        text: isTr ? 'Güzel maçtı, eline sağlık! 🏆' : 'Great match, well played! 🏆',
+        emoji: '🏆'
+      };
+
+    case 'game_lost':
+      return {
+        text: isTr ? 'Rövanşı alırız elbet! 🤝' : 'Rematch is definitely on! 🤝',
+        emoji: '🤝'
+      };
+  }
 }

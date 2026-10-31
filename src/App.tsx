@@ -273,7 +273,13 @@ export default function App() {
     resetMultiplayerState,
     setIsSetupOpen,
     runWithIntro,
-    showDevToast
+    showDevToast,
+    onBotReaction: (playerIdx, emoji, text) => {
+      triggerEmote(playerIdx, emoji);
+      if (text) {
+        showDevToast(`${playersRef.current[playerIdx]?.name || 'Bot'}: "${text}"`);
+      }
+    }
   });
 
   // Initialize Canvas Particle Engine

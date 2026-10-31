@@ -11,7 +11,8 @@ import {
   MessageCircle,
   Gamepad2,
   UserPlus,
-  Send
+  Send,
+  Zap
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
@@ -604,6 +605,27 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     }
   };
 
+  const handleQuickMatch = async () => {
+    sound.playClick();
+    setErrorMsg(null);
+    setIsConnecting(true);
+
+    try {
+      const onlinePlayers = friendNetwork.getOnlinePlayers();
+      const openLobbyPlayer = onlinePlayers.find(
+        p => p.status === 'lobby' && p.roomCode && p.roomCode.length >= 4 && p.gameType === gameType
+      );
+
+      if (openLobbyPlayer && openLobbyPlayer.roomCode) {
+        await handleJoinRoomWithCode(openLobbyPlayer.roomCode);
+        return;
+      }
+    } catch {}
+
+    // No open lobby found -> Host fresh room automatically!
+    await handleCreateRoom();
+  };
+
   const handleStartMatchAsHost = () => {
     if (!createdRoomCode) return;
     const connectedGuests = slots.filter(s => s.seatIndex > 0 && s.peerId);
@@ -904,6 +926,31 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 </div>
               ) : (
                 <>
+                  {/* 0. Quick Matchmaking Card */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 border-2 border-amber-400/80 shadow-[0_0_25px_rgba(245,158,11,0.25)] flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-xs font-black text-amber-300 font-cyber flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        <span>HIZLI MAÇ BUL</span>
+                      </span>
+                      <p className="text-[11px] text-slate-300 mt-0.5 truncate">
+                        Açık odalara anında katıl veya otomatik oda kur
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleQuickMatch}
+                      disabled={isConnecting}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs font-cyber shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shrink-0"
+                    >
+                      {isConnecting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                      )}
+                      <span>BAŞLA</span>
+                    </button>
+                  </div>
+
                   {/* 1. Create Lobby Card */}
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 space-y-3">
                     <div className="flex items-center justify-between">

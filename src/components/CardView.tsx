@@ -342,12 +342,22 @@ export const CardFrontSurface: React.FC<{
 
       {/* Holographic Sheen for Special Cards & Subtle Finish Sheen */}
       <div
-        className={`absolute inset-0 pointer-events-none rounded-[inherit] ${
+        className={`absolute inset-0 pointer-events-none rounded-[inherit] overflow-hidden ${
           isHighValueSpecial || isJack
-            ? 'bg-gradient-to-tr from-amber-400/[0.08] via-white/25 to-cyan-300/[0.08]'
+            ? 'bg-gradient-to-tr from-amber-400/15 via-white/30 to-cyan-300/15'
             : 'bg-gradient-to-tr from-black/[0.04] via-transparent to-white/35'
         }`}
-      />
+      >
+        {/* Dynamic Specular Light Sweep on Special / Point Cards */}
+        {(isHighValueSpecial || isJack || isAce) && (
+          <div
+            className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -skew-x-12 pointer-events-none opacity-60"
+            style={{
+              animation: 'cardSpecularGlint 3.6s ease-in-out infinite'
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };
@@ -406,6 +416,14 @@ export const CardView: React.FC<CardViewProps> = ({
       ) : (
         <CardFrontSurface card={card} theme={theme} />
       )}
+      <style>{`
+        @keyframes cardSpecularGlint {
+          0% { transform: translateX(-160%); opacity: 0; }
+          15% { opacity: 0.6; }
+          35% { transform: translateX(160%); opacity: 0; }
+          100% { transform: translateX(160%); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 };

@@ -12,7 +12,8 @@ import {
 } from '../types/game';
 import { createDeck, shuffleDeck, dealInitialGame } from '../core/deck';
 import { evaluatePlay, calculateRoundBreakdown } from '../core/rules';
-import { chooseAICard } from '../core/ai/bot';
+import { chooseAICard, getBotContextualReaction } from '../core/ai/bot';
+import { getLanguage } from '../utils/i18n';
 import { sound } from '../core/audio/soundEngine';
 import { particleEngine } from '../core/particles/particleEngine';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
@@ -109,6 +110,7 @@ export interface UsePistiGameProps {
     start: () => void
   ) => void;
   showDevToast: (msg: string) => void;
+  onBotReaction?: (playerIdx: number, emoji: string, text?: string) => void;
 }
 
 export function usePistiGame({
@@ -139,7 +141,8 @@ export function usePistiGame({
   resetMultiplayerState,
   setIsSetupOpen,
   runWithIntro,
-  showDevToast
+  showDevToast,
+  onBotReaction
 }: UsePistiGameProps) {
   // Animation & Zero-Teleportation States
   const [isShuffling, setIsShuffling] = useState(false);
@@ -214,6 +217,13 @@ export function usePistiGame({
         ? 'Şampiyon AI'
         : 'Kurnaz Bot';
 
+      const bot1Personality =
+        difficulty === 'hard'
+          ? 'tactician'
+          : difficulty === 'easy'
+          ? 'aggressive'
+          : 'balanced';
+
       const basePlayers: Player[] = [
         {
           id: 'user',
@@ -236,8 +246,15 @@ export function usePistiGame({
           id: 'bot-1',
           name: p1Name,
           isAI: !customOpponentName,
+          personality: bot1Personality,
           avatar: customOpponentAvatar || '🤖',
           avatarId: 'lion',
+          customTitle:
+            bot1Personality === 'tactician'
+              ? '🧠 Pusucu & Kart Sayan'
+              : bot1Personality === 'aggressive'
+              ? '🔥 Risk Alan Bot'
+              : '🃏 Kurnaz Kart Ustası',
           hand: [],
           collectedCards: [],
           pistiPairs: [],
@@ -255,8 +272,10 @@ export function usePistiGame({
             id: 'bot-2',
             name: 'Dayı (Ortak)',
             isAI: true,
+            personality: 'aggressive',
             avatar: '👴',
             avatarId: 'dayi',
+            customTitle: '🔥 Risk Alan Dayı',
             hand: [],
             collectedCards: [],
             pistiPairs: [],
@@ -270,8 +289,10 @@ export function usePistiGame({
             id: 'bot-3',
             name: 'Muhtar',
             isAI: true,
+            personality: 'tactician',
             avatar: '🧔',
             avatarId: 'muhtar',
+            customTitle: '🧠 Pusucu & Kart Sayan',
             hand: [],
             collectedCards: [],
             pistiPairs: [],
@@ -1574,6 +1595,38 @@ export function usePistiGame({
             sound.playMatchSweep();
           }
 
+          // Contextual AI speech & emote reactions
+          if (onBotReaction) {
+            const curLang = getLanguage();
+            if (isPisti || isDouble) {
+              if (actingPlayer.isAI) {
+                const r = getBotContextualReaction('pisti_scored', actingPlayer.personality, curLang);
+                onBotReaction(playerIndex, r.emoji, r.text);
+              } else {
+                const oppBotIdx = currentPlayers.findIndex((p, i) => i !== playerIndex && p.isAI);
+                if (oppBotIdx !== -1) {
+                  const oppBot = currentPlayers[oppBotIdx];
+                  const r = getBotContextualReaction('pisti_suffered', oppBot.personality, curLang);
+                  const botReactTimer = window.setTimeout(() => onBotReaction(oppBotIdx, r.emoji, r.text), 500);
+                  dealTimersRef.current.push(botReactTimer);
+                }
+              }
+            } else if (placedCard.value === 11) {
+              if (actingPlayer.isAI) {
+                const r = getBotContextualReaction('jack_sweep', actingPlayer.personality, curLang);
+                onBotReaction(playerIndex, r.emoji, r.text);
+              } else {
+                const oppBotIdx = currentPlayers.findIndex((p, i) => i !== playerIndex && p.isAI);
+                if (oppBotIdx !== -1) {
+                  const oppBot = currentPlayers[oppBotIdx];
+                  const r = getBotContextualReaction('opponent_jack', oppBot.personality, curLang);
+                  const botReactTimer = window.setTimeout(() => onBotReaction(oppBotIdx, r.emoji, r.text), 500);
+                  dealTimersRef.current.push(botReactTimer);
+                }
+              }
+            }
+          }
+
           const sweepTimer = window.setTimeout(() => {
             animateSweepToCollector(
               updatedPile,
@@ -1995,7 +2048,8 @@ export function usePistiGame({
         currentBot.hand,
         tableCards,
         seenCards,
-        settings.aiDifficulty
+        settings.aiDifficulty,
+        currentBot.personality || 'balanced'
       );
       handlePlayCardWithAnimation(currentTurn, chosenCard);
     }, delay);

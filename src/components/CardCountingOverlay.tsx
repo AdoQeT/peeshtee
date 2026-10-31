@@ -323,7 +323,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   theme = 'traditional',
   cardBack = 'classic_blue',
   dealSpeed = 'normal',
-  targetScore: _targetScore,
+  targetScore,
   isMultiplayer = false,
   isReadyForNextRound = false,
   readySeatsCount = 0,
@@ -909,19 +909,36 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
             {/* Action Button: Next Round or Match Over */}
             {isGameOver ? (
-              <div className="w-full flex flex-col items-center gap-2">
-                <div className="px-4 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border border-amber-400 text-amber-200 font-black text-xs sm:text-sm shadow-xl flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-400" />
-                  <span>
-                    {roundScores?.winner
-                      ? `${roundScores.winner.name.toUpperCase()} ${t.wonMatch}`
-                      : t.matchCompleted}
+              <div className="w-full flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-300">
+                {/* Winner Podium Showcase */}
+                <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gradient-to-b from-amber-500/25 via-yellow-500/10 to-amber-950/40 border-2 border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.5)] w-full text-center">
+                  <div className="relative">
+                    <AvatarBadge
+                      avatarId={roundScores?.winner?.avatarId || 'lion'}
+                      customAvatarUrl={roundScores?.winner?.customAvatarUrl}
+                      size="md"
+                    />
+                    <div className="absolute -top-2.5 -right-2 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md">
+                      👑 1.
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5 text-amber-300 font-black text-xs sm:text-sm">
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                    <span>
+                      {roundScores?.winner
+                        ? `${roundScores.winner.name.toUpperCase()} ${t.wonMatch}`
+                        : t.matchCompleted}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-200/80 font-mono">
+                    Hedef {targetScore} Puan Aşıldı
                   </span>
                 </div>
+
                 {onRestartGame && (
                   <button
                     onClick={onRestartGame}
-                    className="w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center justify-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
                     <span>{t.newMatch}</span>

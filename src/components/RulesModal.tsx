@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Flame, Zap, Award, BookOpen } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -8,6 +9,12 @@ interface RulesModalProps {
 }
 
 export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
+
   const [tab, setTab] = useState<'pisti' | 'uno'>('pisti');
   if (!isOpen) return null;
 
@@ -33,8 +40,8 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             <BookOpen className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">OYUN KURALLARI</h2>
-            <p className="text-[11px] text-slate-400">Pişti & RENQ Puanlama ve Mekanik Rehberi</p>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">{t.rulesTitle}</h2>
+            <p className="text-[11px] text-slate-400">{t.rulesSubtitle}</p>
           </div>
         </div>
 
@@ -51,7 +58,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            🎴 Pişti Kuralları
+            {t.rulesTabPisti}
           </button>
           <button
             onClick={() => {
@@ -64,7 +71,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            🌈 RENQ Kuralları
+            {t.rulesTabRenq}
           </button>
         </div>
 
@@ -74,41 +81,41 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
               <span className="font-bold text-white flex items-center gap-1.5 text-xs text-cyan-300">
                 <Zap className="w-3.5 h-3.5" />
-                Dağıtım & Kart Toplama
+                {t.rulesDealTitle}
               </span>
               <p className="text-slate-400">
-                Masanın ortasına 4 kart konulur (ilk 3 kapalı, en üst açık). Herkese 4'er kart dağıtılır. Yerdeki kartla aynı değerde kart atan veya Vale atan yerdeki tüm kartları toplar.
+                {t.rulesDealDesc}
               </p>
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
               <span className="font-bold text-white flex items-center gap-1.5 text-xs text-purple-300">
                 <Award className="w-3.5 h-3.5" />
-                Vale (J) Gücü & Pişti
+                {t.rulesJackTitle}
               </span>
               <p className="text-slate-400">
-                <strong>Vale:</strong> Yerde kaç kart olursa olsun hepsini süpürür. Yerde tek bir kart varken aynısını atarsan <strong>Pişti (10 Puan)</strong>, Vale üstüne Vale atarsan <strong>Çift Pişti (20 Puan)</strong> kazanırsın.
+                {t.rulesJackDesc}
               </p>
             </div>
 
-            {/* Puan Tablosu */}
+            {/* Scoring Table */}
             <div>
-              <span className="font-bold text-white block mb-2 text-xs">Puanlama Tablosu</span>
+              <span className="font-bold text-white block mb-2 text-xs">{t.rulesScoringTitle}</span>
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-slate-900/90 border border-amber-500/30 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] text-slate-400 block">Karo 10</span>
+                  <span className="text-[10px] text-slate-400 block">{t.rulesCardD10}</span>
                   <span className="text-sm font-bold text-amber-300">+3 Puan</span>
                 </div>
                 <div className="bg-slate-900/90 border border-cyan-500/30 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] text-slate-400 block">Sinek 2</span>
+                  <span className="text-[10px] text-slate-400 block">{t.rulesCardC2}</span>
                   <span className="text-sm font-bold text-cyan-300">+2 Puan</span>
                 </div>
                 <div className="bg-slate-900/90 border border-emerald-500/30 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] text-slate-400 block">As & Vale</span>
+                  <span className="text-[10px] text-slate-400 block">{t.rulesCardAJ}</span>
                   <span className="text-sm font-bold text-emerald-300">+1 Puan</span>
                 </div>
                 <div className="bg-slate-900/90 border border-rose-500/30 rounded-xl p-2.5 text-center col-span-3">
-                  <span className="text-[10px] text-slate-400 block">Kart Çoğunluğu (27+ Kart Toplayan)</span>
+                  <span className="text-[10px] text-slate-400 block">{t.rulesCardMajority}</span>
                   <span className="text-sm font-bold text-rose-300">+3 Puan</span>
                 </div>
               </div>
@@ -119,28 +126,28 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
               <span className="font-bold text-white flex items-center gap-1.5 text-xs text-red-400">
                 <Flame className="w-3.5 h-3.5" />
-                Kart Eşleştirme & Yön
+                {t.rulesRenqMatchTitle}
               </span>
               <p className="text-slate-400">
-                Yerdeki kartla aynı renk veya aynı sayıdaki kartı at. Uygun kartın yoksa desteden 1 kart çek.
+                {t.rulesRenqMatchDesc}
               </p>
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
               <span className="font-bold text-white flex items-center gap-1.5 text-xs text-amber-300">
-                +2 & +4 Cezaları Birikir (Stacking)
+                {t.rulesRenqStackTitle}
               </span>
               <p className="text-slate-400">
-                Birisi +2 attığında elinde +2 veya +4 varsa üstüne basabilirsin! Ceza birikerek sonraki oyuncuya aktarılır.
+                {t.rulesRenqStackDesc}
               </p>
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-1">
               <span className="font-bold text-white flex items-center gap-1.5 text-xs text-yellow-300">
-                ⚡ Son Karta Düşerken "RENQ!"
+                {t.rulesRenqLastTitle}
               </span>
               <p className="text-slate-400">
-                Elinde 2 kart varken birini oynayıp tek karta düşeceğin zaman RENQ butonuna basmayı unutma! Unutursan 2 kart ceza çekersin.
+                {t.rulesRenqLastDesc}
               </p>
             </div>
           </div>
@@ -152,7 +159,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             onClick={handleClose}
             className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white font-bold text-xs transition-colors cursor-pointer"
           >
-            Tamam, Anladım
+            {t.rulesUnderstood}
           </button>
         </div>
       </div>

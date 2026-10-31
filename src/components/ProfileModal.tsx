@@ -537,6 +537,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <span className="text-slate-400 text-[10px] block">Kazanma Serisi (Streak)</span>
+                    <span className="text-sm font-black text-amber-400 font-cyber">
+                      🔥 {activeProfile.stats.currentStreak || 0}{' '}
+                      <span className="text-xs text-slate-400 font-normal">
+                        (En İyi: {activeProfile.stats.bestWinStreak || 0})
+                      </span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <span className="text-slate-400 text-[10px] block">Tek Maç Rekor Pişti</span>
+                    <span className="text-sm font-black text-rose-400 font-cyber">
+                      💥 {activeProfile.stats.recordPistiCount || 0} Pişti
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
                     <span className="text-slate-400 text-[10px] block">Toplam XP</span>
                     <span className="text-sm font-black text-emerald-300 font-cyber">
                       {activeProfile.xp || 0} XP

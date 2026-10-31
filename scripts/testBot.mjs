@@ -58,3 +58,17 @@ test('bot.ts: card counting on hard difficulty selects most-seen rank to prevent
   // 8 is 100% immune to Pişti because all other 3 are accounted for!
   assert.equal(chosen.value, 8);
 });
+
+test('bot.ts: aggressive personality eagerly plays Jack on thin 2-card table', () => {
+  const hand = [
+    { id: 'c1', value: 3, isSpecial: false, basePoints: 0 },
+    { id: 'c2', value: 11, isSpecial: true, basePoints: 1 }
+  ];
+  const thinTable = [
+    { id: 't1', value: 6, isSpecial: false, basePoints: 0 },
+    { id: 't2', value: 7, isSpecial: false, basePoints: 0 }
+  ];
+  // Aggressive bot ("Risk Alan Dayı") plays Jack even on thin 2-card pile!
+  const chosenAggressive = chooseAICard(hand, thinTable, [], 'medium', 'aggressive');
+  assert.equal(chosenAggressive.value, 11);
+});

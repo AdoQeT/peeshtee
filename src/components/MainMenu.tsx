@@ -323,16 +323,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
 
-        {/* 3 Master Game Mode Cards (Sade, Modern ve Güçlü Düzen) */}
+        {/* 3 Master Game Mode Cards (Sade, Şık, Modern Glassmorphism) */}
         <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Card 1: TEK OYUNCULU PİŞTİ */}
-          <div className="flex flex-col justify-between rounded-3xl bg-slate-950/90 border border-amber-400/30 hover:border-amber-400/70 p-5 sm:p-6 shadow-2xl transition-all duration-200 hover:-translate-y-1 relative group">
+          <div className="flex flex-col justify-between rounded-3xl bg-slate-950/80 backdrop-blur-xl border border-white/10 hover:border-amber-400/60 p-5 sm:p-6 shadow-[0_15px_40px_rgba(0,0,0,0.7)] transition-all duration-300 hover:-translate-y-1 relative group">
             <div>
               <div className="flex items-center justify-between mb-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 shadow-md">
                   <Swords className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-400/30">
                   {t.againstBots}
                 </span>
               </div>
@@ -344,8 +344,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               </p>
 
               {/* Target Score Selector inside card */}
-              <div className="mb-4 flex items-center justify-between bg-slate-900/90 p-2 rounded-2xl border border-white/10">
-                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+              <div className="mb-4 flex items-center justify-between bg-slate-900/80 backdrop-blur-md p-2 rounded-2xl border border-white/10">
+                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5 pl-1">
                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
                   {t.target}
                 </span>
@@ -357,10 +357,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         sound.playClick();
                         setTargetScore(score);
                       }}
-                      className={`px-2 py-0.5 rounded-lg text-xs font-black font-cyber transition-colors ${
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-black font-cyber transition-all ${
                         targetScore === score
-                          ? 'bg-amber-400 text-slate-950 shadow-sm'
-                          : 'text-slate-400 hover:text-white'
+                          ? 'bg-amber-400 text-slate-950 shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       {score}
@@ -383,7 +383,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     })
                   )
                 }
-                className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
+                className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.35)] transition-all active:scale-95 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
                 <span>{t.duel1v1}</span>
@@ -400,7 +400,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     })
                   )
                 }
-                className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/40 hover:border-amber-400 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-95 cursor-pointer"
+                className="py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 border border-amber-400/40 hover:border-amber-400 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>{t.players4}</span>
@@ -409,13 +409,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
 
           {/* Card 2: ONLINE ÇOK OYUNCULU LOBİ */}
-          <div className="flex flex-col justify-between rounded-3xl bg-slate-950/90 border border-cyan-400/30 hover:border-cyan-400/70 p-5 sm:p-6 shadow-2xl transition-all duration-200 hover:-translate-y-1 relative group">
+          <div className="flex flex-col justify-between rounded-3xl bg-slate-950/80 backdrop-blur-xl border border-white/10 hover:border-cyan-400/60 p-5 sm:p-6 shadow-[0_15px_40px_rgba(0,0,0,0.7)] transition-all duration-300 hover:-translate-y-1 relative group">
             <div>
               <div className="flex items-center justify-between mb-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-slate-950 shadow-md">
                   <Globe className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
                   {t.onlineLobbyTag}
                 </span>
               </div>
@@ -429,7 +429,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
             <button
               onClick={() => handleClick(onOpenMultiplayer)}
-              className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-transform active:scale-95 cursor-pointer mt-4"
+              className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-all active:scale-95 cursor-pointer mt-4"
             >
               <Globe className="w-4 h-4" />
               <span>{t.mpBtn}</span>
@@ -437,14 +437,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
 
           {/* Card 3: 🌈 TAM BAĞIMSIZ RENQ MODU */}
-          <div className="flex flex-col justify-between rounded-3xl bg-slate-950/90 border border-red-500/40 hover:border-red-400 p-5 sm:p-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] transition-all duration-200 hover:-translate-y-1 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex flex-col justify-between rounded-3xl bg-slate-950/80 backdrop-blur-xl border border-white/10 hover:border-rose-400/60 p-5 sm:p-6 shadow-[0_15px_40px_rgba(0,0,0,0.7)] transition-all duration-300 hover:-translate-y-1 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
             <div>
               <div className="flex items-center justify-between mb-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 via-amber-500 to-blue-600 flex items-center justify-center text-white shadow-md font-black italic text-base">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 via-amber-500 to-emerald-500 flex items-center justify-center text-slate-950 shadow-md font-black italic text-base">
                   RENQ
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-400/40 animate-pulse">
+                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-400/40 animate-pulse">
                   {t.specialMode}
                 </span>
               </div>
@@ -458,9 +458,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
             <button
               onClick={() => handleClick(onStartUnoGame)}
-              className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 hover:from-red-500 hover:to-emerald-400 text-white font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(239,68,68,0.45)] transition-transform active:scale-95 cursor-pointer mt-4"
+              className="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 hover:from-rose-400 hover:to-emerald-300 text-slate-950 font-black text-xs font-cyber uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(244,63,94,0.35)] transition-all active:scale-95 cursor-pointer mt-4"
             >
-              <Flame className="w-4 h-4 text-yellow-300" />
+              <Flame className="w-4 h-4 text-slate-950" />
               <span>{t.renqBtn}</span>
             </button>
           </div>
@@ -481,7 +481,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.24.1'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.25.0'}
         </span>
       </div>
 

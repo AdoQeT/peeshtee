@@ -503,20 +503,20 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   const getThemeBg = () => {
     switch (theme) {
       case 'sakura':
-        return 'bg-[#0f0212] bg-[radial-gradient(ellipse_at_center,_#3d0c2e_0%,_#1f0523_52%,_#09010b_100%)] border-pink-700/60 shadow-[inset_0_0_120px_rgba(244,114,182,0.2),0_0_35px_rgba(244,114,182,0.15),0_25px_60px_rgba(0,0,0,0.95)]';
+        return 'bg-[#0f0212] bg-[radial-gradient(ellipse_at_center,_#4a0e38_0%,_#220627_50%,_#09010b_100%)] border-pink-500/70 shadow-[inset_0_0_140px_rgba(244,114,182,0.25),0_0_45px_rgba(244,114,182,0.2),0_25px_70px_rgba(0,0,0,0.95)]';
       case 'estoril_blue':
-        return 'bg-[#020b17] bg-[radial-gradient(ellipse_at_center,_#0f4882_0%,_#062242_48%,_#01060f_100%)] border-sky-400/70 shadow-[inset_0_0_130px_rgba(14,165,233,0.38),0_0_45px_rgba(56,189,248,0.25),0_25px_60px_rgba(0,0,0,0.98)]';
+        return 'bg-[#020b17] bg-[radial-gradient(ellipse_at_center,_#12589e_0%,_#07284f_48%,_#01060f_100%)] border-sky-400/80 shadow-[inset_0_0_150px_rgba(14,165,233,0.45),0_0_55px_rgba(56,189,248,0.3),0_25px_70px_rgba(0,0,0,0.98)]';
       case 'alpine_white':
-        return 'bg-[#12161f] bg-[radial-gradient(ellipse_at_center,_#384250_0%,_#1e2530_52%,_#0a0d12_100%)] border-slate-300/50 shadow-[inset_0_0_110px_rgba(255,255,255,0.08),0_0_30px_rgba(203,213,225,0.12),0_25px_60px_rgba(0,0,0,0.92)]';
+        return 'bg-[#12161f] bg-[radial-gradient(ellipse_at_center,_#404c5c_0%,_#222a38_50%,_#0a0d12_100%)] border-slate-200/70 shadow-[inset_0_0_130px_rgba(255,255,255,0.12),0_0_40px_rgba(203,213,225,0.18),0_25px_70px_rgba(0,0,0,0.92)]';
       case 'melbourne_red':
-        return 'bg-[#170305] bg-[radial-gradient(ellipse_at_center,_#5a0b14_0%,_#2e050a_52%,_#0a0102_100%)] border-red-500/50 shadow-[inset_0_0_120px_rgba(220,38,38,0.28),0_0_35px_rgba(239,68,68,0.18),0_25px_60px_rgba(0,0,0,0.95)]';
+        return 'bg-[#170305] bg-[radial-gradient(ellipse_at_center,_#6e0d19_0%,_#36060c_50%,_#0a0102_100%)] border-red-500/70 shadow-[inset_0_0_140px_rgba(220,38,38,0.35),0_0_45px_rgba(239,68,68,0.25),0_25px_70px_rgba(0,0,0,0.95)]';
       case 'monaco_velvet':
-        return 'bg-[#10021c] bg-[radial-gradient(ellipse_at_center,_#430973_0%,_#280547_55%,_#080111_100%)] border-amber-400/70 shadow-[inset_0_0_120px_rgba(245,158,11,0.3),0_0_40px_rgba(168,85,247,0.22),0_25px_60px_rgba(0,0,0,0.98)]';
+        return 'bg-[#10021c] bg-[radial-gradient(ellipse_at_center,_#510b8c_0%,_#2e0652_52%,_#080111_100%)] border-amber-400/80 shadow-[inset_0_0_150px_rgba(245,158,11,0.38),0_0_50px_rgba(168,85,247,0.3),0_25px_70px_rgba(0,0,0,0.98)]';
       case 'luxury_gold':
-        return 'bg-[#120507] bg-[radial-gradient(ellipse_at_center,_#421a0f_0%,_#1f0b0f_58%,_#060203_100%)] border-amber-500/60 shadow-[inset_0_0_120px_rgba(245,158,11,0.22),0_0_35px_rgba(245,158,11,0.18),0_25px_60px_rgba(0,0,0,0.95)]';
+        return 'bg-[#120507] bg-[radial-gradient(ellipse_at_center,_#522013_0%,_#260d13_55%,_#060203_100%)] border-amber-400/80 shadow-[inset_0_0_150px_rgba(245,158,11,0.32),0_0_45px_rgba(245,158,11,0.25),0_25px_70px_rgba(0,0,0,0.95)]';
       case 'traditional':
       default:
-        return 'bg-[#041c13] bg-[radial-gradient(ellipse_at_center,_#0f4c34_0%,_#072e20_55%,_#02130d_100%)] border-amber-800/60 shadow-[inset_0_0_120px_rgba(0,0,0,0.9),0_0_30px_rgba(245,158,11,0.1),0_25px_60px_rgba(0,0,0,0.95)]';
+        return 'bg-[#041c13] bg-[radial-gradient(ellipse_at_center,_#12593d_0%,_#093827_52%,_#02130d_100%)] border-amber-700/70 shadow-[inset_0_0_150px_rgba(0,0,0,0.92),0_0_40px_rgba(245,158,11,0.2),0_25px_70px_rgba(0,0,0,0.95)]';
     }
   };
 

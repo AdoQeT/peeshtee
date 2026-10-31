@@ -1378,11 +1378,18 @@ export function usePistiGame({
         });
       }
 
-      let startX = centerX;
-      let startY = isHuman ? window.innerHeight - 110 : 110;
-      const startRot = initialTilt;
+      const totalPlayers = settingsRef.current.playerCount;
+      const cardIdx = targetPlayerObj ? targetPlayerObj.hand.findIndex(c => c.id === card.id) : 0;
+      const safeCardIdx = cardIdx >= 0 ? cardIdx : 1;
+      const fallbackTarget = getHandCardFallbackTarget(playerIndex, safeCardIdx, totalPlayers);
 
-      if (sourceRect) {
+      let startX = fallbackTarget.x;
+      let startY = fallbackTarget.y;
+      const startRot = initialTilt !== 0 ? initialTilt : fallbackTarget.rotation;
+      const isSideSeat = totalPlayers === 4 && (playerIndex === 1 || playerIndex === 3 || playerIndex === 2);
+      const startScale = isSideSeat ? 0.78 : 1;
+
+      if (sourceRect && sourceRect.width > 0 && sourceRect.height > 0) {
         startX = sourceRect.left + sourceRect.width / 2;
         startY = sourceRect.top + sourceRect.height / 2;
       } else {
@@ -1395,14 +1402,6 @@ export function usePistiGame({
             startX = r.left + r.width / 2;
             startY = r.top + r.height / 2;
           }
-        } else {
-          const handCenter = getCenter(
-            tableRefs.current.handEls[playerIndex],
-            centerX,
-            startY
-          );
-          startX = handCenter.x;
-          startY = handCenter.y;
         }
       }
 
@@ -1443,7 +1442,7 @@ export function usePistiGame({
         targetRotation: tableRotation,
         startFaceUp: isHuman,
         endFaceUp: true,
-        startScale: 1,
+        startScale,
         targetScale: 1,
         duration: isSlamStrike ? 680 : (isHuman ? 490 : 460),
         arcHeight: isSlamStrike ? 160 : 96,

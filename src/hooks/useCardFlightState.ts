@@ -99,11 +99,23 @@ export function useCardFlightState(
         tableRefs.current.collectedEls[winnerIdx] ||
         tableRefs.current.handEls[winnerIdx];
 
-      const targetPos = getCenter(
-        targetEl,
-        centerX - 180,
-        winnerIdx === 0 ? window.innerHeight - 100 : 100
-      );
+      const defaultX =
+        winnerIdx === 0
+          ? centerX - 180
+          : winnerIdx === 2
+          ? centerX - 180
+          : winnerIdx === 1
+          ? window.innerWidth - 95
+          : 95;
+
+      const defaultY =
+        winnerIdx === 0
+          ? window.innerHeight - 100
+          : winnerIdx === 2
+          ? 100
+          : centerY - 50;
+
+      const targetPos = getCenter(targetEl, defaultX, defaultY);
 
       sound.playSweepGather();
       setTableCards([]);
@@ -115,6 +127,11 @@ export function useCardFlightState(
       }
 
       let finishedCount = 0;
+
+      const baseWinnerRot =
+        winnerIdx === 1 ? -90 : winnerIdx === 3 ? 90 : 0;
+      const isSideWinner = winnerIdx === 1 || winnerIdx === 3;
+      const targetScale = isSideWinner ? 0.78 : 1;
 
       const sweepFlying: FlyingCardData[] = visibleToFly.map((c, idx) => {
         const ox = c.tableOffsetX ?? 0;
@@ -140,11 +157,10 @@ export function useCardFlightState(
           (playersRef.current[winnerIdx]?.doublePistiCount || 0);
 
         const targetRot = isPistiSweep && isTopCardOfPair
-          ? (currentPistiCount % 2 === 0 ? 1 : -1) * (2 + Math.min(currentPistiCount * 1.5, 8))
-          : (idx % 2 === 0 ? 1 : -1) * 3;
+          ? baseWinnerRot + (currentPistiCount % 2 === 0 ? 1 : -1) * (2 + Math.min(currentPistiCount * 1.5, 8))
+          : baseWinnerRot + (idx % 2 === 0 ? 1 : -1) * 3;
 
         const endFaceUp = isPistiSweep ? isTopCardOfPair : false;
-        const targetScale = 1;
 
         return {
           id: flyId,

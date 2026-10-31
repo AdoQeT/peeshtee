@@ -244,16 +244,8 @@ export interface UserProfile {
 const STORAGE_KEY = 'project_p_user_profile_v2';
 const OWNER_VERIFIED_UID_KEY = 'project_p_verified_admin_uid';
 const VALID_OWNER_PASSCODES = [
-  'ado',
-  'kurucu',
-  '1881',
-  'peeshtee',
-  'developer',
-  'admin',
-  'projectp',
-  'overdrive',
-  'ado1881',
-  'creator'
+  '01.02.1995',
+  'zeitnotisthegreatest'
 ];
 
 /**
@@ -823,23 +815,68 @@ export function updateDailyTaskProgress(
   taskIdSuffix: 'pisti_win' | 'pisti_count' | 'uno_play',
   increment: number = 1,
   forcedProfile?: UserProfile
-): void {
+): { autoClaimedXp: number; leveledUp: boolean } {
   const profile = forcedProfile || getUserProfile();
   getOrInitDailyTasks(profile);
+
+  let autoClaimedXp = 0;
+  let leveledUp = false;
 
   if (profile.dailyTasks) {
     const fullId = `task_${taskIdSuffix}`;
     profile.dailyTasks.tasks = profile.dailyTasks.tasks.map(t => {
       if (t.id === fullId && !t.claimed) {
+        const nextCurrent = Math.min(t.target, t.current + increment);
+        const reached = nextCurrent >= t.target;
+        if (reached) {
+          autoClaimedXp += t.rewardXp;
+          return {
+            ...t,
+            current: nextCurrent,
+            claimed: true
+          };
+        }
         return {
           ...t,
-          current: Math.min(t.target, t.current + increment)
+          current: nextCurrent
         };
       }
       return t;
     });
+
+    if (autoClaimedXp > 0) {
+      const xpRes = addXpToProfile(profile, autoClaimedXp);
+      leveledUp = xpRes.leveledUp;
+    }
     if (!forcedProfile) saveUserProfile(profile);
   }
+
+  return { autoClaimedXp, leveledUp };
+}
+
+export function checkAndAutoClaimDailyTasks(forcedProfile?: UserProfile): { claimedXp: number; leveledUp: boolean } {
+  const profile = forcedProfile || getUserProfile();
+  getOrInitDailyTasks(profile);
+  if (!profile.dailyTasks) return { claimedXp: 0, leveledUp: false };
+
+  let totalXp = 0;
+  let hasClaimed = false;
+
+  profile.dailyTasks.tasks = profile.dailyTasks.tasks.map(t => {
+    if (t.current >= t.target && !t.claimed) {
+      totalXp += t.rewardXp;
+      hasClaimed = true;
+      return { ...t, claimed: true };
+    }
+    return t;
+  });
+
+  if (hasClaimed && totalXp > 0) {
+    const xpRes = addXpToProfile(profile, totalXp);
+    if (!forcedProfile) saveUserProfile(profile);
+    return { claimedXp: totalXp, leveledUp: xpRes.leveledUp };
+  }
+  return { claimedXp: 0, leveledUp: false };
 }
 
 export function claimDailyTaskReward(taskId: string): { rewardXp: number; leveledUp: boolean } | null {

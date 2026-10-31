@@ -33,14 +33,15 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-fixed 4-player pisti round end team score calculation and bonus duplication bug',
-  '-overhauled renq 3d card physics engine with zero teleportation and true hardware arc',
-  '-added realistic seat-oriented flight departure angles and aerodynamic flip physics',
-  '-synchronized exact fanned hand slot landing coordinates for draws and discards',
-  '-enhanced discard pile landing micro-settle and staggered penalty cascade delivery'
+  '-cancelled dead-center deck cut +5 bonus points rule',
+  '-fixed match history and level XP progression persistence bug',
+  '-added main menu left-side daily quests widget with automated reward claiming',
+  '-modularized monolithic code and extracted unoopponentseat to reduce token footprint',
+  '-cleaned all database collections and test profiles in realtime database',
+  '-restored secure founder crown verification with custom high-security passcodes'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.28.0';
+const versionTitle = process.argv[2] || 'v1.29.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

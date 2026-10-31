@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Sparkles, CalendarCheck, Check, Gift } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, CalendarCheck, Check } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import {
   UserProfile,
   calculateLevel,
   getOrInitDailyTasks,
-  claimDailyTaskReward,
+  checkAndAutoClaimDailyTasks,
   DailyTask,
   getUserProfile
 } from '../features/profile/profileManager';
@@ -23,17 +23,17 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
   className = ''
 }) => {
   const [tasks, setTasks] = useState<DailyTask[]>(() => getOrInitDailyTasks(userProfile));
-  const [claimedRewardToast, setClaimedRewardToast] = useState<string | null>(null);
+  const [autoClaimToast, setAutoClaimToast] = useState<string | null>(null);
 
   const lang = getLanguage() as Language;
   const t = translations[lang] || translations.tr;
 
   const lvlInfo = calculateLevel(userProfile.xp || 0);
 
-  const handleClaim = (taskId: string) => {
-    sound.playClick();
-    const result = claimDailyTaskReward(taskId);
-    if (result) {
+  // Automatically claim any finished tasks on mount or when profile updates
+  useEffect(() => {
+    const res = checkAndAutoClaimDailyTasks();
+    if (res.claimedXp > 0) {
       sound.playMatchSweep();
       const updatedTasks = getOrInitDailyTasks();
       setTasks([...updatedTasks]);
@@ -41,12 +41,16 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
       if (onProfileUpdated) {
         onProfileUpdated(freshProfile);
       }
-      setClaimedRewardToast(`+${result.rewardXp} XP!`);
-      window.setTimeout(() => setClaimedRewardToast(null), 2500);
+      setAutoClaimToast(
+        lang === 'en'
+          ? `🎉 Quest Complete! +${res.claimedXp} XP auto-claimed!`
+          : `🎉 Görev Tamamlandı! +${res.claimedXp} XP otomatik eklendi!`
+      );
+      window.setTimeout(() => setAutoClaimToast(null), 3000);
     }
-  };
+  }, [lang, onProfileUpdated]);
 
-  const unclaimedCount = tasks.filter(t => t.current >= t.target && !t.claimed).length;
+  const completedCount = tasks.filter(t => t.claimed).length;
 
   return (
     <div
@@ -63,16 +67,9 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
               {t.tabTasks || 'GÖREVLER'}
             </h3>
           </div>
-          {unclaimedCount > 0 ? (
-            <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse flex items-center gap-1 shadow-md">
-              <Gift className="w-3 h-3" />
-              <span>{unclaimedCount} {lang === 'en' ? 'Ready' : 'Hazır'}</span>
-            </span>
-          ) : (
-            <span className="text-[10px] font-mono text-slate-400">
-              00:00 ↻
-            </span>
-          )}
+          <span className="text-[10px] font-mono text-amber-400/90 font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+            {completedCount}/{tasks.length} {lang === 'en' ? 'Done' : 'Bitti'}
+          </span>
         </div>
 
         {/* Level & XP Progress Section */}
@@ -102,15 +99,15 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
         {/* Quests List */}
         <div className="space-y-2.5">
           {tasks.map(task => {
-            const isDone = task.current >= task.target;
-            const pct = Math.min(100, Math.round((task.current / task.target) * 100));
+            const isDone = task.current >= task.target || task.claimed;
+            const pct = isDone ? 100 : Math.min(100, Math.round((task.current / task.target) * 100));
 
             return (
               <div
                 key={task.id}
                 className={`p-2.5 rounded-2xl border transition-all ${
                   task.claimed
-                    ? 'bg-slate-950/40 border-white/5 opacity-60'
+                    ? 'bg-slate-950/40 border-emerald-500/20'
                     : isDone
                     ? 'bg-amber-950/30 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
                     : 'bg-slate-900/70 border-white/10'
@@ -126,25 +123,20 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-mono font-bold">
-                      +{task.rewardXp}
-                    </span>
                     {task.claimed ? (
-                      <span className="text-[10px] text-slate-400 font-bold px-1.5 py-0.5 rounded bg-slate-800 flex items-center gap-0.5">
-                        <Check className="w-2.5 h-2.5" />
+                      <span className="text-[10px] text-emerald-400 font-black px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        <span>+{task.rewardXp} XP</span>
                       </span>
-                    ) : isDone ? (
-                      <button
-                        type="button"
-                        onClick={() => handleClaim(task.id)}
-                        className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-[10px] font-black cursor-pointer shadow animate-pulse"
-                      >
-                        {lang === 'en' ? 'Claim' : 'Al'}
-                      </button>
                     ) : (
-                      <span className="text-[10px] text-slate-400 font-mono font-bold">
-                        {task.current}/{task.target}
-                      </span>
+                      <>
+                        <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px] font-mono font-bold">
+                          +{task.rewardXp} XP
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono font-bold">
+                          {task.current}/{task.target}
+                        </span>
+                      </>
                     )}
                   </div>
                 </div>
@@ -154,7 +146,7 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
                       task.claimed
-                        ? 'bg-slate-600'
+                        ? 'bg-emerald-400'
                         : isDone
                         ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]'
                         : 'bg-cyan-400'
@@ -168,10 +160,10 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
         </div>
       </div>
 
-      {/* Claim Toast / Feedback notification */}
-      {claimedRewardToast && (
-        <div className="mt-2.5 py-1 px-2.5 rounded-xl bg-amber-400/90 text-slate-950 text-xs font-black text-center shadow-lg animate-in fade-in zoom-in-95">
-          🎉 {claimedRewardToast}
+      {/* Auto-Claim Toast Notification */}
+      {autoClaimToast && (
+        <div className="mt-2.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 text-xs font-black text-center shadow-lg animate-in fade-in zoom-in-95">
+          {autoClaimToast}
         </div>
       )}
     </div>

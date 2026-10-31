@@ -1,8 +1,10 @@
 import { useState, useCallback, MutableRefObject } from 'react';
 import { Card, Player } from '../types/game';
 import { FlyingCardData } from '../components/CardAnimationLayer';
-import { TableDomRefs, RecentCaptureFeedback } from '../components/TableSurface';
+import type { TableDomRefs, RecentCaptureFeedback } from '../components/TableSurface';
 import { sound } from '../core/audio/soundEngine';
+
+export const cardDomElements = new Map<string, HTMLElement>();
 
 export function getCenter(el: HTMLElement | null, fallbackX: number, fallbackY: number) {
   if (!el) return { x: fallbackX, y: fallbackY };

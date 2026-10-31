@@ -4,7 +4,7 @@ A high-performance, deterministic card game platform and real-time multiplayer e
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.x-61dafb.svg?logo=react&logoColor=black)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Vite](https://img.shields.io/badge/Vite-6.x-646cff.svg?logo=vite&logoColor=white)](https://vite.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-RTDB-FFA611.svg?logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg)](./LICENSE)
 
@@ -63,8 +63,9 @@ graph TD
 
 ### 4. Distributed Networking & Cloud Synchronization
 - **Cloud State & Persistence**: Google Firebase Realtime Database for instantaneous room discovery, persistent presence indicators, real-time friend graph synchronization, and direct match invites.
-- **Pure Firebase RTDB Mesh**: Robust event and message synchronization using real-time database nodes (`rooms/{code}/events`) with monotonic sequence validation and zero reliance on deprecated external MQTT brokers.
+- **Firebase RTDB Event Mesh**: Real-time event and message synchronization using database nodes (`rooms/{code}/events`) with monotonic sequence validation and local `BroadcastChannel` cross-tab synchronization.
 - **Security & Integrity**:
+  - Authenticated `senderId` -> `presence/{senderId}/uid === auth.uid` enforcement in RTDB rules.
   - Peer ID slot validation (`senderSlot.peerId === envelope.senderId`).
   - Monotonic packet sequence counter (`seq`) to reject duplicates and out-of-order replay attacks.
   - Sanitized in-game payload filtering (`cleanForRtdb`).
@@ -74,9 +75,8 @@ graph TD
 ## Project Structure
 
 ```
-├── public/                 # Static public assets
-├── scripts/                # CI/CD and deployment scripts
-│   └── sendDiscordChangelog.mjs
+├── public/                 # Static public assets & PWA manifest/icons
+├── scripts/                # Automated test suite & changelog scripts
 ├── src/
 │   ├── components/         # React presentation layer & table components
 │   ├── core/
@@ -84,16 +84,18 @@ graph TD
 │   │   ├── audio/          # Procedural Web Audio API sound synthesizer
 │   │   ├── deck/           # Deck generation and shuffle routines
 │   │   ├── particles/      # Canvas 2D particle simulation
-│   │   └── rules/          # Deterministic game rules & score breakdowns
+│   │   └── rules.ts        # Deterministic game rules & score breakdowns
 │   ├── features/
 │   │   ├── friends/        # Firebase friend graph & presence network
 │   │   ├── multiplayer/    # Firebase RTDB room connection and event manager
 │   │   ├── profile/        # Local & cloud profile data management
 │   │   └── uno/            # Secondary card game engine (Renq)
+│   ├── hooks/              # Modular game state, multiplayer, and flight hooks
 │   ├── types/              # TypeScript definitions & data contracts
-│   ├── utils/              # i18n localization and shared helpers
+│   ├── utils/              # i18n localization, central logger, and shared helpers
 │   ├── App.tsx             # Root application orchestrator
 │   └── main.tsx            # Entry point
+├── database.rules.json     # Firebase RTDB security rules
 ├── LICENSE                 # MIT License
 ├── package.json            # Dependencies and version configuration
 ├── ROADMAP.md              # Technical milestone release history
@@ -105,8 +107,8 @@ graph TD
 ## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **Package Manager**: npm v9.0.0 or higher
+- **Node.js**: v24.12.0 or higher
+- **Package Manager**: npm v10.0.0 or higher
 
 ### Installation
 ```bash

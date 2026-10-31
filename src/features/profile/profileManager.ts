@@ -262,7 +262,8 @@ export function isDeviceOwnerVerified(): boolean {
 export async function grantOwnerAccess(_passcode?: string): Promise<boolean> {
   try {
     if (!rtdb) return false;
-    const uid = await ensureFirebaseAuth();
+    const authUser = await ensureFirebaseAuth();
+    const uid = authUser?.uid;
     if (!uid) return false;
     const snap = await get(ref(rtdb, `admins/${uid}`));
     if (snap.exists() && snap.val() === true) {

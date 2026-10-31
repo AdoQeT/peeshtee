@@ -489,24 +489,33 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     labelPos: 'top' | 'bottom' = 'bottom',
     _compact: boolean = false
   ) => {
-    const countedSoFar =
-      playerIdx === 0
-        ? onTableCountState?.userCountedIndex ?? 0
-        : playerIdx === 1
-        ? onTableCountState?.oppCountedIndex ?? 0
-        : 0;
-    const totalToCount =
-      playerIdx === 0
-        ? onTableCountState?.userTotal ?? player.collectedCards.length
-        : playerIdx === 1
-        ? onTableCountState?.oppTotal ?? player.collectedCards.length
-        : player.collectedCards.length;
-    const count =
-      isCountingActive && !isFourPlayers
-        ? Math.max(0, totalToCount - countedSoFar)
-        : isCountingActive
-        ? 0
-        : player.collectedCards.length;
+    const teamUserCounted = onTableCountState?.userCountedIndex ?? 0;
+    const teamOppCounted = onTableCountState?.oppCountedIndex ?? 0;
+    const count = !isCountingActive
+      ? player.collectedCards.length
+      : !isFourPlayers
+      ? Math.max(
+          0,
+          (playerIdx === 0
+            ? onTableCountState?.userTotal ?? player.collectedCards.length
+            : onTableCountState?.oppTotal ?? player.collectedCards.length) -
+            (playerIdx === 0 ? teamUserCounted : teamOppCounted)
+        )
+      : playerIdx === 0
+      ? Math.max(0, player.collectedCards.length - teamUserCounted)
+      : playerIdx === 2
+      ? Math.max(
+          0,
+          player.collectedCards.length -
+            Math.max(0, teamUserCounted - (players[0]?.collectedCards.length ?? 0))
+        )
+      : playerIdx === 1
+      ? Math.max(0, player.collectedCards.length - teamOppCounted)
+      : Math.max(
+          0,
+          player.collectedCards.length -
+            Math.max(0, teamOppCounted - (players[1]?.collectedCards.length ?? 0))
+        );
     const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
 
     const hasCapturePulse =

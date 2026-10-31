@@ -377,14 +377,15 @@ export function getUserProfile(): UserProfile {
     logger.warn('Profile read error:', e);
   }
 
-  // Default clean profile for normal players
+  // Default clean profile for normal players (assigns a random stock avatar automatically)
   const randomSuffix = Math.floor(100 + Math.random() * 900);
+  const randomPreset = PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)] || PRESET_AVATARS[0];
   const defaultProfile: UserProfile = {
     id: `player-${Math.random().toString(36).substring(2, 9)}`,
     friendCode: generateFriendCode(),
     name: `Oyuncu_${randomSuffix}`,
-    avatarId: 'wolf',
-    customTitle: '🃏 Kart Ustası',
+    avatarId: randomPreset.id,
+    customTitle: randomPreset.title || '🃏 Kart Ustası',
     isOwner: false,
     friends: [],
     stats: {

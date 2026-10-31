@@ -263,12 +263,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             sound.playClick();
             onClose();
           }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/55 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
         />
       )}
 
       {/* Right Slide-over Drawer Menu */}
-      <div className="pointer-events-auto relative w-full max-w-[320px] sm:max-w-[340px] h-full bg-slate-950/98 border-l border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
+      <div className="pointer-events-auto relative w-full max-w-[320px] sm:max-w-[340px] h-full bg-slate-950/85 backdrop-blur-xl border-l border-white/15 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 overflow-hidden">
         {/* Top Header */}
         <div className="px-5 py-3.5 border-b border-white/10 bg-slate-950 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">

@@ -173,24 +173,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between mb-2.5">
                   <label className="font-bold text-white flex items-center gap-2 text-xs sm:text-sm">
                     <Palette className="w-4 h-4 text-amber-400" />
-                    Masa Çuhası & Özel Tema
+                    {t.themeLabel}
                   </label>
                   <span className="text-[11px] text-amber-300 font-mono font-bold">
-                    {themes.find(t => t.id === settings.theme)?.name}
+                    {themes.find(th => th.id === settings.theme)?.name}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {themes.map(t => {
-                    const isSelected = settings.theme === t.id;
+                  {themes.map(th => {
+                    const isSelected = settings.theme === th.id;
                     return (
                       <button
-                        key={t.id}
+                        key={th.id}
                         onClick={() => {
                           sound.playClick();
-                          const matchingCardBack = getCardBackForTheme(t.id);
-                          onUpdateSettings({ theme: t.id, cardBack: matchingCardBack });
+                          const matchingCardBack = getCardBackForTheme(th.id);
+                          onUpdateSettings({ theme: th.id, cardBack: matchingCardBack });
                         }}
-                        className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden bg-gradient-to-br cursor-pointer ${t.preview} ${
+                        className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden bg-gradient-to-br cursor-pointer ${th.preview} ${
                           isSelected
                             ? 'ring-2 ring-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] scale-[1.01]'
                             : 'opacity-70 hover:opacity-100 hover:border-white/40'
@@ -198,13 +198,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-black text-xs sm:text-sm text-white font-cyber tracking-wide">
-                            {t.name}
+                            {th.name}
                           </span>
                           <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/10 text-slate-200 border border-white/20">
-                            {t.badge}
+                            {th.badge}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-300/80 font-sans">{t.subtitle}</p>
+                        <p className="text-[11px] text-slate-300/80 font-sans">{th.subtitle}</p>
                       </button>
                     );
                   })}
@@ -219,15 +219,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div>
                     <span className="font-bold text-xs text-white block">
-                      Otomatik Özgün Kart Seti
+                      {t.autoCardSetTitle}
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      {themes.find(t => t.id === settings.theme)?.cardDesc || 'Temaya özel el yapımı kart deseni'}
+                      {themes.find(th => th.id === settings.theme)?.cardDesc || 'Temaya özel el yapımı kart deseni'}
                     </span>
                   </div>
                 </div>
                 <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono font-bold shrink-0">
-                  AKTİF EŞLEŞTİRİLDİ
+                  {t.autoCardSetActive}
                 </span>
               </div>
             </div>
@@ -236,40 +236,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 2: SES & DİL */}
           {activeTab === 'audio' && (
             <div className="space-y-4">
-              {/* Dil Tercihi */}
-              <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+              {/* Dil Tercihi (4 Dil: TR, EN, DE, ES) */}
+              <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Globe className="w-5 h-5 text-sky-400" />
                   <div>
-                    <span className="font-bold text-xs sm:text-sm block text-white">Dil Seçimi / Language</span>
-                    <span className="text-[11px] text-slate-400">Arayüz dili</span>
+                    <span className="font-bold text-xs sm:text-sm block text-white">{t.langSelectTitle}</span>
+                    <span className="text-[11px] text-slate-400">{t.langSelectSub}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-white/10">
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      setLanguage('tr');
-                      setLang('tr');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      lang === 'tr' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    🇹🇷 TR
-                  </button>
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      setLanguage('en');
-                      setLang('en');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      lang === 'en' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    🇬🇧 EN
-                  </button>
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-950 rounded-xl border border-white/10">
+                  {(
+                    [
+                      { id: 'tr', flag: '🇹🇷', label: 'TR' },
+                      { id: 'en', flag: '🇬🇧', label: 'EN' },
+                      { id: 'de', flag: '🇩🇪', label: 'DE' },
+                      { id: 'es', flag: '🇪🇸', label: 'ES' }
+                    ] as const
+                  ).map(l => (
+                    <button
+                      key={l.id}
+                      onClick={() => {
+                        sound.playClick();
+                        setLanguage(l.id);
+                        setLang(l.id);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        lang === l.id ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>{l.flag}</span>
+                      <span>{l.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -339,20 +338,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <span className="text-xs text-purple-300 font-mono font-bold">
                     {settings.ambience === 'cafe'
-                      ? '☕ Kıraathane'
+                      ? `☕ ${t.ambCafe}`
                       : settings.ambience === 'rain'
-                      ? '🌧️ Yağmur'
+                      ? `🌧️ ${t.ambRain}`
                       : settings.ambience === 'jazz'
-                      ? '🎷 Gece Cazı'
-                      : '🔇 Sessiz'}
+                      ? `🎷 ${t.ambJazz}`
+                      : `🔇 ${t.ambNone}`}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'none', label: 'Sessiz', icon: '🔇' },
-                    { id: 'cafe', label: 'Kıraathane', icon: '☕' },
-                    { id: 'rain', label: 'Yağmur', icon: '🌧️' },
-                    { id: 'jazz', label: 'Gece Cazı', icon: '🎷' }
+                    { id: 'none', label: t.ambNone, icon: '🔇' },
+                    { id: 'cafe', label: t.ambCafe, icon: '☕' },
+                    { id: 'rain', label: t.ambRain, icon: '🌧️' },
+                    { id: 'jazz', label: t.ambJazz, icon: '🎷' }
                   ].map(amb => (
                     <button
                       key={amb.id}

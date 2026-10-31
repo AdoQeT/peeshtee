@@ -19,6 +19,7 @@ import {
 import { UnoCardView, UnoCardBack } from './UnoCardView';
 import { AvatarBadge } from './AvatarBadge';
 import { getUserProfile, recordMatchStats, getAvatarPreset } from '../features/profile/profileManager';
+import { getLanguage, getRandomBotNames } from '../utils/i18n';
 import { sound } from '../core/audio/soundEngine';
 import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLayer';
 import { UnoGrandShuffleLayer } from './UnoGrandShuffleLayer';
@@ -210,10 +211,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       }
     ];
 
+    const botNames = getRandomBotNames(3, getLanguage());
     const botTemplates = [
-      { name: 'Kurnaz Bot', avatarId: 'lion' },
-      { name: 'Siber AI', avatarId: 'cyber_samurai' },
-      { name: 'Kıraathane Dayısı', avatarId: 'dayi' }
+      { name: botNames[0] || 'Alex', avatarId: 'lion' },
+      { name: botNames[1] || 'Leo', avatarId: 'cyber_samurai' },
+      { name: botNames[2] || 'Max', avatarId: 'dayi' }
     ];
 
     for (let i = 1; i < playerCount; i++) {

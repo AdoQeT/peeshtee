@@ -332,7 +332,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   onNextRound,
   onRestartGame,
   onToggleReady,
-  onSkipCounting,
+  onSkipCounting: _onSkipCounting,
   onCountProgress,
   onCountingDone
 }) => {
@@ -379,27 +379,10 @@ export const CardCountingOverlay: React.FC<Props> = ({
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const baseStepDelay =
-    dealSpeed === 'fast' ? 120 : dealSpeed === 'cinematic' ? 280 : 210;
-  const stepDelay = prefersReducedMotion ? 40 : isFast ? 85 : baseStepDelay;
-
-  const handleInstantSkip = useCallback(
-    (e?: React.MouseEvent) => {
-      if (e) e.stopPropagation();
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-      const maxSteps = Math.max(userCards.length, oppCards.length);
-      setGatherFlights([]);
-      setUserFlight(null);
-      setOppFlight(null);
-      setStepTick(maxSteps + 1);
-      setIsDone(true);
-      setPhase('completed');
-      onCountProgress?.(userCards.length, oppCards.length);
-      onSkipCounting?.();
-      onCountingDone?.();
-    },
-    [userCards.length, oppCards.length, onCountProgress, onSkipCounting, onCountingDone]
+  const baseStepDelay = Math.round(
+    (dealSpeed === 'fast' ? 120 : dealSpeed === 'cinematic' ? 280 : 210) / 1.2
   );
+  const stepDelay = prefersReducedMotion ? 40 : isFast ? 70 : baseStepDelay;
 
   const measureFlightRects = useCallback(
     (isUser: boolean, isPoint: boolean, currentPointCount: number): { startRect: RectBox; targetRect: RectBox } => {
@@ -408,22 +391,22 @@ export const CardCountingOverlay: React.FC<Props> = ({
       const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
       const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 400;
 
-      // Hem 2 kişilik hem 4 kişilik oyunda mevcut toplanan deste elemanından (collectedEls[0] ve collectedEls[topIdx]) başla
-      const topIdx = isFourPlayers ? 2 : 1;
-      const sourceEl = tableRefs?.current?.collectedEls?.[isUser ? 0 : topIdx];
+      // Hem 2 kişilik hem 4 kişilik oyunda mevcut toplanan deste elemanından (collectedEls[0] ve sağ rakip collectedEls[1]) başla
+      const oppSourceIdx = 1;
+      const sourceEl = tableRefs?.current?.collectedEls?.[isUser ? 0 : oppSourceIdx];
 
       const openEl = isUser ? userOpenPileRef.current : oppOpenPileRef.current;
       const pointsEl = isUser ? userPointsBoxRef.current : oppPointsBoxRef.current;
 
       const fallbackStart: RectBox = {
-        left: centerX - 240,
-        top: isUser ? centerY + 120 : centerY - 240,
+        left: isUser ? centerX - 240 : isFourPlayers ? centerX + 220 : centerX - 240,
+        top: isUser ? centerY + 120 : isFourPlayers ? centerY - 60 : centerY - 240,
         width: defaultW,
         height: defaultH
       };
       const fallbackOpen: RectBox = {
-        left: centerX - 110,
-        top: isUser ? centerY + 90 : centerY - 210,
+        left: isUser ? centerX - 110 : isFourPlayers ? centerX + 80 : centerX - 110,
+        top: isUser ? centerY + 90 : isFourPlayers ? centerY - 60 : centerY - 210,
         width: defaultW,
         height: defaultH
       };
@@ -492,9 +475,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
     const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
     const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 400;
 
-    const topIdx = isFourPlayers ? 2 : 1;
+    const oppSourceIdx = 1;
     const userDeckEl = tableRefs?.current?.collectedEls?.[0];
-    const oppDeckEl = tableRefs?.current?.collectedEls?.[topIdx];
+    const oppDeckEl = tableRefs?.current?.collectedEls?.[oppSourceIdx];
 
     const uDeckRect = userDeckEl?.getBoundingClientRect();
     const oDeckRect = oppDeckEl?.getBoundingClientRect();
@@ -507,7 +490,12 @@ export const CardCountingOverlay: React.FC<Props> = ({
     const oppTargetRect: RectBox =
       oDeckRect && oDeckRect.width > 0
         ? { left: oDeckRect.left, top: oDeckRect.top, width: oDeckRect.width, height: oDeckRect.height }
-        : { left: centerX - 240, top: centerY - 240, width: defaultW, height: defaultH };
+        : {
+            left: isFourPlayers ? centerX + 220 : centerX - 240,
+            top: isFourPlayers ? centerY - 60 : centerY - 240,
+            width: defaultW,
+            height: defaultH
+          };
 
     const items: GatherFlightItem[] = [];
 
@@ -525,38 +513,40 @@ export const CardCountingOverlay: React.FC<Props> = ({
             startRect: { left: pRect.left, top: pRect.top, width: pRect.width, height: pRect.height },
             targetRect: isUserTeam ? userTargetRect : oppTargetRect,
             topFaceCard: topPair?.topCard,
-            delayMs: idx * 35
+            delayMs: idx * 90
           });
         }
       }
     });
 
-    // 2. 4 Kişilik modda ortak ve yan rakiplerin toplanan destelerini (collectedEls[1..3]) ana takım destelerine uçur
+    // 2. 4 Kişilik modda ortak (Koltuk 2) ve sol rakibin (Koltuk 3) toplanan destelerini ana takım destelerine (Koltuk 0 ve Koltuk 1) uçur
     if (isFourPlayers) {
       // Ortağın (Koltuk 2) toplanan kartları -> Bizim Desteye (Koltuk 0)
-      if ((players[2]?.collectedCards.length || 0) > 0 && oDeckRect && oDeckRect.width > 0) {
-        items.push({
-          id: 'gather-team-partner-2',
-          startRect: { left: oDeckRect.left, top: oDeckRect.top, width: oDeckRect.width, height: oDeckRect.height },
-          targetRect: userTargetRect,
-          delayMs: 20
-        });
-      }
-      // Yan Rakiplerin (Koltuk 1 ve 3) toplanan kartları -> Üst Rakip Takım Destesine (Koltuk 2)
-      [1, 3].forEach((sideIdx, i) => {
-        if ((players[sideIdx]?.collectedCards.length || 0) > 0) {
-          const sideEl = tableRefs?.current?.collectedEls?.[sideIdx];
-          const sRect = sideEl?.getBoundingClientRect();
-          if (sRect && sRect.width > 0) {
-            items.push({
-              id: `gather-team-opp-${sideIdx}`,
-              startRect: { left: sRect.left, top: sRect.top, width: sRect.width, height: sRect.height },
-              targetRect: oppTargetRect,
-              delayMs: 40 + i * 45
-            });
-          }
+      if ((players[2]?.collectedCards.length || 0) > 0) {
+        const partnerEl = tableRefs?.current?.collectedEls?.[2];
+        const pRect = partnerEl?.getBoundingClientRect();
+        if (pRect && pRect.width > 0) {
+          items.push({
+            id: 'gather-team-partner-2',
+            startRect: { left: pRect.left, top: pRect.top, width: pRect.width, height: pRect.height },
+            targetRect: userTargetRect,
+            delayMs: 80
+          });
         }
-      });
+      }
+      // Sol Rakibin (Koltuk 3) toplanan kartları -> Sağ Rakip Takım Destesine (Koltuk 1)
+      if ((players[3]?.collectedCards.length || 0) > 0) {
+        const leftOppEl = tableRefs?.current?.collectedEls?.[3];
+        const sRect = leftOppEl?.getBoundingClientRect();
+        if (sRect && sRect.width > 0) {
+          items.push({
+            id: 'gather-team-opp-3',
+            startRect: { left: sRect.left, top: sRect.top, width: sRect.width, height: sRect.height },
+            targetRect: oppTargetRect,
+            delayMs: 140
+          });
+        }
+      }
     }
 
     if (items.length > 0 && !prefersReducedMotion) {
@@ -565,7 +555,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
       const gatherTimer = window.setTimeout(() => {
         setGatherFlights([]);
         setPhase('counting');
-      }, 540);
+      }, 1150);
       return () => window.clearTimeout(gatherTimer);
     }
 
@@ -666,20 +656,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
     onCountingDone
   ]);
 
-  // Hepsini Anında Say (Skip)
-  const handleSkipAll = useCallback(() => {
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    const maxSteps = Math.max(userCards.length, oppCards.length);
-    setGatherFlights([]);
-    setStepTick(maxSteps + 1);
-    setPhase('completed');
-    setIsDone(true);
-    setUserFlight(null);
-    setOppFlight(null);
-    onCountProgress?.(userCards.length, oppCards.length);
-    onCountingDone?.();
-  }, [userCards.length, oppCards.length, onCountProgress, onCountingDone]);
-
   if (!isActive) return null;
 
   // Masaya inmiş (landed) kart sayısı:
@@ -736,7 +712,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-40 pointer-events-none select-none overflow-hidden">
-      {/* ── TOP RIGHT: Minik Sayım Kontrol Butonları ── */}
+      {/* ── TOP RIGHT: Minik Sayım Kontrol Butonu (Sadece Hız Değişimi, Atlama Yok) ── */}
       {!isDone && (
         <div className="absolute top-3 right-3 sm:right-6 flex items-center gap-2 pointer-events-auto z-50">
           <button
@@ -744,12 +720,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
             className="px-3 py-1 rounded-full text-xs font-bold bg-slate-950/85 text-amber-300 border border-amber-400/50 hover:bg-slate-900 transition-all cursor-pointer shadow-lg active:scale-95"
           >
             {isFast ? t.normalSpeed : t.fastSpeed}
-          </button>
-          <button
-            onClick={handleSkipAll}
-            className="px-3 py-1 rounded-full text-xs font-bold bg-slate-950/85 text-slate-200 border border-white/20 hover:bg-slate-900 transition-all cursor-pointer shadow-lg active:scale-95"
-          >
-            {t.instantCount}
           </button>
         </div>
       )}
@@ -761,7 +731,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           item={item}
           cardBack={cardBack}
           theme={theme}
-          durationMs={460}
+          durationMs={950}
         />
       ))}
 
@@ -787,8 +757,14 @@ export const CardCountingOverlay: React.FC<Props> = ({
         />
       )}
 
-      {/* ── 1. RAKİBİN MASADAKİ SAYIM İSTASYONU ── */}
-      <div className="absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 pointer-events-none z-30">
+      {/* ── 1. RAKİBİN MASADAKİ SAYIM İSTASYONU (4 kişilikte sağ rakibin önünde, 2 kişilikte üst rakibin önünde) ── */}
+      <div
+        className={
+          isFourPlayers
+            ? 'absolute right-6 sm:right-20 top-1/2 -translate-y-1/2 pointer-events-none z-30'
+            : 'absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 pointer-events-none z-30'
+        }
+      >
         <div className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl">
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
@@ -854,7 +830,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </span>
             {isDone && countState.oppMajority && (
               <span className="text-[10px] font-bold text-amber-300 mt-0.5">
-                +3P {lang === 'tr' ? 'Çoğunluk' : 'Majority'}
+                +3P {t.majorityWord}
               </span>
             )}
             {totalOppPistiPts > 0 && (
@@ -866,18 +842,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── 2. MASA MERKEZİ: ATLA DÜĞMESİ VEYA YENİ NESİL SKOR KARTI & SONRAKİ EL BUTONU ── */}
+      {/* ── 2. MASA MERKEZİ: YENİ NESİL SKOR KARTI & SONRAKİ EL BUTONU (Atlama butonu iptal edildi) ── */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40">
-        {!isDone && (
-          <div className="pointer-events-auto flex items-center gap-2">
-            <button
-              onClick={handleInstantSkip}
-              className="px-4 py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-xs font-bold shadow-lg transition-all cursor-pointer"
-            >
-              {t.skipCounting}
-            </button>
-          </div>
-        )}
         {isDone && (
           <div className="flex flex-col items-center gap-3 p-4 sm:p-5 rounded-3xl bg-slate-950/92 backdrop-blur-xl border border-amber-400/40 shadow-[0_20px_60px_rgba(0,0,0,0.85),0_0_35px_rgba(245,158,11,0.2)] animate-in zoom-in-95 duration-200 pointer-events-auto min-w-[290px] sm:min-w-[350px]">
             {/* Visual Score Duel Pods (Bizim Puan vs Rakibin Puanı + Altında Toplam Puan) */}
@@ -1094,7 +1060,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </span>
             {isDone && countState.userMajority && (
               <span className="text-[10px] font-bold text-emerald-300 mt-0.5">
-                +3P {lang === 'tr' ? 'Çoğunluk' : 'Majority'}
+                +3P {t.majorityWord}
               </span>
             )}
             {totalUserPistiPts > 0 && (

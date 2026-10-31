@@ -190,7 +190,7 @@ export interface BotReaction {
 export function getBotContextualReaction(
   context: BotReactionContext,
   personality: BotPersonality = 'balanced',
-  lang: 'tr' | 'en' = 'tr'
+  lang: 'tr' | 'en' | 'de' | 'es' = 'tr'
 ): BotReaction {
   const isTr = lang === 'tr';
 

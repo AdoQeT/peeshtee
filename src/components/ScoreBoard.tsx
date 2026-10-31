@@ -62,13 +62,13 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
   const isRivalTeamTurn = currentTurn === 1 || (isFourPlayers && currentTurn === 3);
 
   return (
-    <header className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-1.5 flex items-center justify-between z-20 gap-2">
+    <header className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-1.5 min-h-[64px] flex items-center justify-between z-20 gap-2 shrink-0">
       {/* Left Side: User / User Team Status Card */}
       <div
-        className={`flex items-center gap-3 px-3.5 py-2 rounded-2xl backdrop-blur-md transition-all duration-300 ${
+        className={`flex items-center gap-3 px-3.5 py-2 rounded-2xl border-2 backdrop-blur-md transition-colors duration-300 ${
           isUserTeamTurn
-            ? 'border-2 border-emerald-400/90 shadow-[0_0_24px_rgba(52,211,153,0.35)] bg-emerald-950/70'
-            : 'border border-white/15 bg-slate-950/80 opacity-90'
+            ? 'border-emerald-400/90 shadow-[0_0_24px_rgba(52,211,153,0.35)] bg-emerald-950/70'
+            : 'border-white/15 bg-slate-950/80 opacity-90'
         }`}
       >
         <div className="relative flex items-center -space-x-2">
@@ -184,10 +184,10 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
 
       {/* Right Side: Opponent / Rival Team Status Card */}
       <div
-        className={`flex items-center gap-3 px-3.5 py-2 rounded-2xl backdrop-blur-md transition-all duration-300 ${
+        className={`flex items-center gap-3 px-3.5 py-2 rounded-2xl border-2 backdrop-blur-md transition-colors duration-300 ${
           isRivalTeamTurn
-            ? 'border-2 border-rose-400/90 shadow-[0_0_24px_rgba(251,113,133,0.35)] bg-rose-950/70'
-            : 'border border-white/15 bg-slate-950/80 opacity-90'
+            ? 'border-rose-400/90 shadow-[0_0_24px_rgba(251,113,133,0.35)] bg-rose-950/70'
+            : 'border-white/15 bg-slate-950/80 opacity-90'
         }`}
       >
         <div className="flex flex-col text-right">

@@ -33,14 +33,14 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-round starter rotation & direct hand slot dealing fixed',
-  '-4-player side seat orientation & team deck merge animation added',
-  '-end-of-hand VS score card redesigned & dashed slot borders removed',
-  '-firebase RTDB security rules, replay protection & test suite hardened',
-  '-full TR/EN translations & theme-matched intro palettes completed'
+  '-reworked main menu into 2-column Arcade Hub & upgraded online lobby UI',
+  '-added full 4-language support (TR, EN, DE, ES) & localized random AI bot names',
+  '-fixed ScoreBoard turn resize jitter, removed pile flash/count badges & enabled real-time deck decrement',
+  '-oriented 4P player banners horizontally on outer table edges & moved side piles',
+  '-rebuilt radial emote wheel, removed stock avatar picker & refined 1.2x card counting without skip'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.23.0';
+const versionTitle = process.argv[2] || 'v1.26.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

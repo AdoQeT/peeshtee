@@ -24,6 +24,7 @@ import {
 } from '../features/profile/profileManager';
 import { friendNetwork } from '../features/friends/friendNetwork';
 import { AvatarBadge } from './AvatarBadge';
+import { getLanguage, onLanguageChange, translations, Language, getRandomBotNames } from '../utils/i18n';
 
 interface MultiplayerModalProps {
   isOpen: boolean;
@@ -60,7 +61,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   onHostLaunchMatch
 }) => {
   const [profile, setProfile] = useState(getUserProfile);
-  const localName = profile.name || (userName === 'Oyuncu (Sen)' ? 'Usta Oyuncu' : userName);
+  const [lang, setLang] = useState<Language>(getLanguage());
+  const t = translations[lang];
+
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+
+  const localName = profile.name || (userName === 'Oyuncu (Sen)' ? 'Player' : userName);
   const localAvatarId = profile.avatarId || 'wolf';
   const localCustomAvatarUrl = profile.customAvatarDataUrl;
   const localAvatar = userAvatar || '😎';
@@ -93,7 +101,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       {
         seatIndex: 0,
         peerId: multiplayerManager.instanceId,
-        name: hName || 'Oda Sahibi',
+        name: hName || t.mpHostRole,
         avatar: hAvatar || '😎',
         avatarId: hAvatarId || 'wolf',
         customAvatarUrl: hCustomUrl,
@@ -104,7 +112,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       {
         seatIndex: 1,
         peerId: '',
-        name: count === 4 ? '1. Rakip Bekleniyor' : '2. Oyuncu Bekleniyor',
+        name: t.mpWaitOpponent,
         avatar: '⏳',
         avatarId: 'lion',
         isHost: false
@@ -116,7 +124,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         {
           seatIndex: 2,
           peerId: '',
-          name: 'Ortağın Bekleniyor',
+          name: t.mpWaitPartner,
           avatar: '⏳',
           avatarId: 'dayi',
           isHost: false
@@ -124,7 +132,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         {
           seatIndex: 3,
           peerId: '',
-          name: '2. Rakip Bekleniyor',
+          name: t.mpWaitOpponent,
           avatar: '⏳',
           avatarId: 'muhtar',
           isHost: false
@@ -679,7 +687,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     if (!createdRoomCode) return;
     const connectedGuests = slots.filter(s => s.seatIndex > 0 && s.peerId);
     if (connectedGuests.length === 0) {
-      setErrorMsg('Maçı başlatmak için en az 1 arkadaşının odaya katılması gerekiyor!');
+      setErrorMsg(t.mpWaitFriendsBtn);
       return;
     }
 
@@ -698,14 +706,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       }
     });
 
+    const botNames = getRandomBotNames(3, lang);
     const finalSlots = slots.map(s => {
       if (s.seatIndex > 0 && (!s.peerId || s.peerId === '')) {
         const botName =
           s.seatIndex === 2
-            ? 'Dayı (Ortak)'
+            ? botNames[1] || 'Leo'
             : s.seatIndex === 1
-            ? 'Kurnaz Bot'
-            : 'Muhtar';
+            ? botNames[0] || 'Alex'
+            : botNames[2] || 'Max';
         const botAvatar = s.seatIndex === 2 ? '👴' : s.seatIndex === 1 ? '🤖' : '🧔';
         const botAvatarId = s.seatIndex === 2 ? 'dayi' : s.seatIndex === 1 ? 'lion' : 'muhtar';
         return {
@@ -802,19 +811,19 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div className="relative w-full max-w-xl max-h-[92vh] flex flex-col rounded-3xl bg-slate-900 border border-slate-700/80 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl bg-slate-950/95 backdrop-blur-xl border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center font-black">
+        <div className="px-5 py-4 border-b border-white/10 bg-slate-950 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-blue-600/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center font-black shadow-sm">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-white font-cyber tracking-wide">
-                ONLINE ÇOK OYUNCULU LOBİ
+              <h2 className="text-base sm:text-lg font-black text-white font-cyber tracking-wide">
+                {t.mpModalTitle}
               </h2>
-              <span className="text-[10px] text-cyan-400 font-medium">
-                Senin ID: #{profile.friendCode} • Hızlı Oda & Canlı Bağlantı
+              <span className="text-[11px] text-cyan-400 font-medium">
+                {t.mpYourId} #{profile.friendCode} • {t.mpSubHeader}
               </span>
             </div>
           </div>
@@ -829,7 +838,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>Arkadaşlar</span>
+                <span>{t.mpFriendsBtn}</span>
               </button>
             )}
             <button
@@ -842,15 +851,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-950/90 border border-rose-500/50 text-rose-200 text-xs font-bold flex items-center justify-between">
               <span>⚠️ {errorMsg}</span>
               <button
                 onClick={() => setErrorMsg(null)}
-                className="text-rose-400 hover:text-white text-xs ml-2"
+                className="text-rose-400 hover:text-white text-xs ml-2 cursor-pointer"
               >
-                Kapat
+                {t.close}
               </button>
             </div>
           )}
@@ -862,40 +871,61 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           )}
 
           {lobbyRole === 'none' ? (
-            /* SIMPLE & MODERN LOBBY ENTRY VIEW */
+            /* HIGH-CRAFT ARCADE LOBBY ENTRY VIEW */
             <div className="space-y-4">
-              {/* Game Selector Bar */}
-              <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <Gamepad2 className="w-4 h-4 text-cyan-400" />
-                  <span>Oyun Modu:</span>
+              {/* Visual Arcade Game Mode Selector Cards */}
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                  <Gamepad2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{t.mpSelectGameTitle}</span>
                 </span>
-                <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-white/10">
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => {
                       sound.playClick();
                       setGameType('pisti');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
                       gameType === 'pisti'
-                        ? 'bg-amber-400 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-gradient-to-br from-amber-500/20 via-slate-900 to-slate-950 border-amber-400 ring-1 ring-amber-400/50 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                        : 'bg-slate-900/70 border-white/10 opacity-75 hover:opacity-100 hover:border-white/25'
                     }`}
                   >
-                    🎴 Pişti
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black text-base shadow-md shrink-0">
+                      🎴
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-cyber font-black text-xs sm:text-sm text-white truncate">
+                        PİŞTİ
+                      </div>
+                      <div className="text-[10px] text-amber-300/90 truncate">
+                        {t.mpPistiSub}
+                      </div>
+                    </div>
                   </button>
+
                   <button
                     onClick={() => {
                       sound.playClick();
                       setGameType('uno');
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
                       gameType === 'uno'
-                        ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-gradient-to-br from-rose-500/20 via-slate-900 to-slate-950 border-rose-400 ring-1 ring-rose-400/50 shadow-[0_0_20px_rgba(244,63,94,0.25)]'
+                        : 'bg-slate-900/70 border-white/10 opacity-75 hover:opacity-100 hover:border-white/25'
                     }`}
                   >
-                    🔥 RENQ
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 via-amber-500 to-emerald-500 text-slate-950 flex items-center justify-center font-black italic text-xs shadow-md shrink-0">
+                      RENQ
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-cyber font-black text-xs sm:text-sm text-white truncate">
+                        RENQ
+                      </div>
+                      <div className="text-[10px] text-rose-300/90 truncate">
+                        {t.mpRenqSub}
+                      </div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -905,20 +935,20 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-cyan-500/30 space-y-4 shadow-xl">
                   <div className="text-center space-y-1">
                     <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                      ✉️ Özel Oda Daveti
+                      {t.mpPrivateInviteBadge}
                     </span>
                     <h3 className="text-lg font-black text-white font-cyber tracking-tight">
-                      {gameType === 'uno' ? '🔥 RENQ Masasına Katıl' : '🎴 Pişti Masasına Katıl'}
+                      {gameType === 'uno' ? t.mpJoinRenqTable : t.mpJoinPistiTable}
                     </h3>
                     <div className="text-xs text-slate-400">
-                      Oda Kodu:{' '}
+                      {t.mpRoomCodeLabel}{' '}
                       <span className="font-mono font-black text-amber-400 text-base tracking-widest">
                         {invitedRoomCode}
                       </span>
                     </div>
                   </div>
 
-                  {/* Profile Preview Card: No redundant name asking! */}
+                  {/* Profile Preview Card */}
                   <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <AvatarBadge
@@ -929,7 +959,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                         isOwner={profile.isOwner}
                       />
                       <div>
-                        <div className="text-xs text-slate-400 font-semibold">Giriş Yapan Profil:</div>
+                        <div className="text-xs text-slate-400 font-semibold">{t.mpLoggedInProfile}</div>
                         <div className="text-sm font-black text-white flex items-center gap-1.5">
                           <span>{localName}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
@@ -939,7 +969,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                       </div>
                     </div>
                     <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-lg">
-                      Hazır ✓
+                      {t.mpReadyBadge}
                     </span>
                   </div>
 
@@ -951,12 +981,12 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     {isConnecting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>ODAYA BAĞLANILIYOR...</span>
+                        <span>{t.mpConnectingRoom}</span>
                       </>
                     ) : (
                       <>
                         <Play className="w-4 h-4 fill-slate-950" />
-                        <span>ODAYA KATIL ({invitedRoomCode})</span>
+                        <span>{t.mpJoinWithCodeBtn} ({invitedRoomCode})</span>
                       </>
                     )}
                   </button>
@@ -969,69 +999,69 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                       }}
                       className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
                     >
-                      Yeni bir oda kurmak istiyorum (Tüm Menü)
+                      {t.mpWantNewRoomLink}
                     </button>
                   </div>
                 </div>
               ) : (
                 <>
                   {/* 0. Quick Matchmaking Card */}
-                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 border-2 border-amber-400/80 shadow-[0_0_25px_rgba(245,158,11,0.25)] flex items-center justify-between gap-3">
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 border border-amber-400/60 shadow-[0_0_25px_rgba(245,158,11,0.18)] flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <span className="text-xs font-black text-amber-300 font-cyber flex items-center gap-1.5">
                         <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span>HIZLI MAÇ BUL</span>
+                        <span>{t.mpQuickMatchTitle}</span>
                       </span>
                       <p className="text-[11px] text-slate-300 mt-0.5 truncate">
-                        Açık odalara anında katıl veya otomatik oda kur
+                        {t.mpQuickMatchDesc}
                       </p>
                     </div>
                     <button
                       onClick={handleQuickMatch}
                       disabled={isConnecting}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs font-cyber shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shrink-0"
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs font-cyber shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shrink-0"
                     >
                       {isConnecting ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Play className="w-3.5 h-3.5 fill-current" />
                       )}
-                      <span>BAŞLA</span>
+                      <span>{t.mpQuickMatchBtn}</span>
                     </button>
                   </div>
 
                   {/* 1. Create Lobby Card */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10 space-y-3">
+                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Kişi Sayısı:</span>
-                      <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+                      <span className="text-xs font-bold text-slate-300">{t.mpPlayerCount}</span>
+                      <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
                         <button
                           onClick={() => handleSelectPlayerCount(2)}
                           className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                             playerCount === 2
-                              ? 'bg-cyan-500 text-slate-950'
+                              ? 'bg-cyan-400 text-slate-950 shadow-sm'
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          👥 2 Kişilik
+                          👥 {t.mp2Players}
                         </button>
                         <button
                           onClick={() => handleSelectPlayerCount(4)}
                           className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                             playerCount === 4
-                              ? 'bg-cyan-500 text-slate-950'
+                              ? 'bg-cyan-400 text-slate-950 shadow-sm'
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          👨‍👩‍👧‍👦 4 Kişilik
+                          👨‍👩‍👧‍👦 {t.mp4Players}
                         </button>
                       </div>
                     </div>
 
                     {gameType === 'pisti' && (
                       <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs font-bold text-slate-300">Hedef:</span>
-                        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+                        <span className="text-xs font-bold text-slate-300">{t.mpTargetScore}</span>
+                        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10">
                           <button
                             onClick={() => {
                               sound.playClick();
@@ -1042,9 +1072,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                                 ? 'bg-amber-400 text-slate-950 shadow-sm'
                                 : 'text-slate-400 hover:text-white'
                             }`}
-                            title="1 El (Tek El) — 52 kart bittiğinde kazanan belli olur"
                           >
-                            Tek El
+                            {t.mpSingleHand}
                           </button>
                           <button
                             onClick={() => {
@@ -1079,44 +1108,44 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     <button
                       onClick={handleCreateRoom}
                       disabled={isConnecting}
-                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-sm font-cyber tracking-wide shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs sm:text-sm font-cyber tracking-wide shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
                     >
                       {isConnecting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>ODA KURULUYOR...</span>
+                          <span>{t.mpCreatingRoom}</span>
                         </>
                       ) : (
                         <>
                           <Play className="w-4 h-4 fill-slate-950" />
-                          <span>YENİ ODA OLUŞTUR</span>
+                          <span>{t.mpCreateRoomBtn}</span>
                         </>
                       )}
                     </button>
                   </div>
 
                   {/* 2. Join Lobby Card */}
-                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 space-y-2.5">
+                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-white/10 space-y-2.5">
                     <span className="text-xs font-bold text-slate-300 block">
-                      Arkadaşının Odasına Katıl:
+                      {t.mpJoinRoomSection}
                     </span>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={joinCodeInput}
                         onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
-                        placeholder="Örn: 482915"
-                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs uppercase tracking-wider focus:outline-none focus:border-cyan-400"
+                        placeholder={t.mpJoinPlaceholder}
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-white font-mono text-xs uppercase tracking-wider focus:outline-none focus:border-cyan-400"
                       />
                       <button
                         onClick={() => handleJoinRoomWithCode(joinCodeInput)}
                         disabled={!joinCodeInput.trim() || isConnecting}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                       >
                         {isConnecting ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <span>KATIL</span>
+                          <span>{t.mpJoinBtn}</span>
                         )}
                       </button>
                     </div>
@@ -1128,10 +1157,10 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             /* SIMPLE & MODERN ACTIVE LOBBY VIEW */
             <div className="space-y-3.5">
               {/* Minimal Room Code Header */}
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 flex flex-wrap items-center justify-between gap-3">
+              <div className="p-3.5 rounded-2xl bg-slate-900 border border-amber-500/40 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-mono block">
-                    {gameType === 'uno' ? '🔥 RENQ ODASI' : '🎴 PİŞTİ ODASI'} • {playerCount} KİŞİLİK
+                    {gameType === 'uno' ? t.mpRoomHeaderRenq : t.mpRoomHeaderPisti} • {playerCount === 4 ? t.mp4Players : t.mp2Players}
                   </span>
                   <span className="text-xl sm:text-2xl font-black font-cyber text-amber-400 tracking-wider">
                     {createdRoomCode}
@@ -1148,7 +1177,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     ) : (
                       <Copy className="w-3.5 h-3.5" />
                     )}
-                    <span>{copied ? 'Kopyalandı' : 'Kodu Al'}</span>
+                    <span>{copied ? t.mpCopied : t.mpCopyCode}</span>
                   </button>
                   <button
                     onClick={handleCopyLink}
@@ -1159,7 +1188,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     ) : (
                       <Link className="w-3.5 h-3.5" />
                     )}
-                    <span>{copiedLink ? 'Link Alındı' : 'Linki Al'}</span>
+                    <span>{copiedLink ? t.mpLinkCopied : t.mpCopyLink}</span>
                   </button>
                   <button
                     onClick={handleShareWhatsApp}
@@ -1172,16 +1201,16 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     onClick={handleResetLobby}
                     className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold cursor-pointer"
                   >
-                    Çık
+                    {t.mpLeaveRoom}
                   </button>
                 </div>
               </div>
 
               {/* Quick 1-Click Friend Invite Bar inside Active Lobby */}
               {profile.friends && profile.friends.length > 0 && (
-                <div className="p-3 rounded-2xl bg-slate-950/70 border border-white/10 space-y-2">
+                <div className="p-3 rounded-2xl bg-slate-900/70 border border-white/10 space-y-2">
                   <span className="text-[11px] font-bold text-slate-400 block">
-                    Arkadaşlarını Tek Tıkla Bu Odaya Çağır:
+                    {t.mpQuickInviteFriends}
                   </span>
                   <div className="flex items-center gap-2 overflow-x-auto pb-1">
                     {profile.friends.map(fr => (
@@ -1193,8 +1222,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                             name: fr.name
                           })
                         }
-                        className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-950/80 border border-white/10 hover:border-emerald-400/50 flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
-                        title={`${fr.name} oyuncusuna canlı oda daveti gönder`}
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-950 hover:bg-emerald-950/80 border border-white/10 hover:border-emerald-400/50 flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
+                        title={fr.name}
                       >
                         <AvatarBadge
                           avatarId={fr.avatarId}
@@ -1225,7 +1254,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                           ? isMe
                             ? 'bg-cyan-950/30 border-cyan-400/60'
                             : 'bg-emerald-950/25 border-emerald-400/50'
-                          : 'bg-slate-950/60 border-white/10 border-dashed'
+                          : 'bg-slate-900/60 border-white/10 border-dashed'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -1245,7 +1274,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
                         <div className="min-w-0">
                           <div className="text-xs font-black text-white truncate flex items-center gap-1.5">
-                            <span>{slot.name} {isMe ? '(Sen)' : ''}</span>
+                            <span>{slot.name} {isMe ? `(${t.youLabel})` : ''}</span>
                             {slot.level && (
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono">
                                 Lvl.{slot.level}
@@ -1258,11 +1287,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                             ) : null}
                             {playerCount === 4
                               ? slot.seatIndex === 0 || slot.seatIndex === 2
-                                ? '🟢 A Takımı'
-                                : '🟠 B Takımı'
+                                ? t.mpTeamA
+                                : t.mpTeamB
                               : slot.seatIndex === 0
-                              ? 'Oda Sahibi'
-                              : 'Rakip'}
+                              ? t.mpHostRole
+                              : t.opponent}
                           </div>
                         </div>
                       </div>
@@ -1271,7 +1300,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                         {isOccupied && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span>Hazır</span>
+                            <span>{t.mpReadyBadge}</span>
                           </span>
                         )}
 
@@ -1286,7 +1315,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                             }}
                             className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-cyan-300 border border-cyan-500/30 shrink-0 cursor-pointer"
                           >
-                            Buraya Geç
+                            {t.mpSeatSwitch}
                           </button>
                         )}
                       </div>
@@ -1305,14 +1334,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   <Play className="w-4 h-4 fill-slate-950" />
                   <span>
                     {connectedHumanCount < 2
-                      ? 'ARKADAŞININ KATILMASI BEKLENİYOR...'
-                      : `MAÇI BAŞLAT (${connectedHumanCount}/${playerCount} OYUNCU)`}
+                      ? t.mpWaitFriendsBtn
+                      : `${t.mpStartMatchHostBtn} (${connectedHumanCount}/${playerCount})`}
                   </span>
                 </button>
               ) : (
-                <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/30 text-center text-xs text-cyan-300 font-bold flex items-center justify-center gap-2">
+                <div className="p-3.5 rounded-2xl bg-slate-900 border border-cyan-500/30 text-center text-xs text-cyan-300 font-bold flex items-center justify-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Oda sahibinin maçı başlatması bekleniyor...</span>
+                  <span>{t.mpWaitHostStart}</span>
                 </div>
               )}
             </div>

@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
   UserProfile,
-  PRESET_AVATARS,
   getAvatarPreset,
   saveUserProfile,
   grantOwnerAccess,
@@ -50,7 +49,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'tasks'>('profile');
   const [name, setName] = useState(profile.name);
-  const [selectedAvatarId, setSelectedAvatarId] = useState(profile.avatarId);
+  const [selectedAvatarId] = useState(profile.avatarId);
   const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | undefined>(
     profile.customAvatarDataUrl
   );
@@ -443,50 +442,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       placeholder={currentPreset.title}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none text-amber-300 text-sm font-semibold transition-colors"
                     />
-                  </div>
-                </div>
-              )}
-
-              {/* Avatar Preset Selector */}
-              {!isInspectingOther && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-300">
-                      Avatar Karakterini Seç
-                    </label>
-                    <span className="text-[11px] text-amber-400/80 font-medium">
-                      {PRESET_AVATARS.length} Karakter Mevcut
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {PRESET_AVATARS.map(preset => {
-                      const isSelected = selectedAvatarId === preset.id;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => {
-                            sound.playClick();
-                            setSelectedAvatarId(preset.id);
-                          }}
-                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                            isSelected
-                              ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/50 shadow-md'
-                              : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-950'
-                          }`}
-                        >
-                          <AvatarBadge avatarId={preset.id} size="sm" showBorder={false} />
-                          <div className="flex-1 min-w-0">
-                            <span className="block text-xs font-bold text-white truncate">
-                              {preset.name}
-                            </span>
-                            <span className="block text-[10px] text-amber-400/90 truncate">
-                              {preset.title}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
                   </div>
                 </div>
               )}

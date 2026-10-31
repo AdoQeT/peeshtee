@@ -13,7 +13,7 @@ import {
 import { createDeck, shuffleDeck, dealInitialGame } from '../core/deck';
 import { evaluatePlay, calculateRoundBreakdown } from '../core/rules';
 import { chooseAICard, getBotContextualReaction } from '../core/ai/bot';
-import { getLanguage } from '../utils/i18n';
+import { getLanguage, getRandomBotNames } from '../utils/i18n';
 import { sound } from '../core/audio/soundEngine';
 import { particleEngine } from '../core/particles/particleEngine';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
@@ -209,13 +209,10 @@ export function usePistiGame({
         return playersList;
       }
 
+      const botNames = getRandomBotNames(3, getLanguage());
       const p1Name = customOpponentName
         ? customOpponentName
-        : difficulty === 'easy'
-        ? 'Acemi Bot'
-        : difficulty === 'hard'
-        ? 'Şampiyon AI'
-        : 'Kurnaz Bot';
+        : botNames[0] || 'Alex';
 
       const bot1Personality =
         difficulty === 'hard'
@@ -251,10 +248,10 @@ export function usePistiGame({
           avatarId: 'lion',
           customTitle:
             bot1Personality === 'tactician'
-              ? '🧠 Pusucu & Kart Sayan'
+              ? '🧠 Tactician'
               : bot1Personality === 'aggressive'
-              ? '🔥 Risk Alan Bot'
-              : '🃏 Kurnaz Kart Ustası',
+              ? '🔥 Aggressive'
+              : '🃏 Balanced',
           hand: [],
           collectedCards: [],
           pistiPairs: [],
@@ -270,12 +267,12 @@ export function usePistiGame({
         basePlayers.push(
           {
             id: 'bot-2',
-            name: 'Dayı (Ortak)',
+            name: botNames[1] || 'Leo',
             isAI: true,
             personality: 'aggressive',
             avatar: '👴',
             avatarId: 'dayi',
-            customTitle: '🔥 Risk Alan Dayı',
+            customTitle: '🔥 Aggressive',
             hand: [],
             collectedCards: [],
             pistiPairs: [],
@@ -287,12 +284,12 @@ export function usePistiGame({
           },
           {
             id: 'bot-3',
-            name: 'Muhtar',
+            name: botNames[2] || 'Max',
             isAI: true,
             personality: 'tactician',
             avatar: '🧔',
             avatarId: 'muhtar',
-            customTitle: '🧠 Pusucu & Kart Sayan',
+            customTitle: '🧠 Tactician',
             hand: [],
             collectedCards: [],
             pistiPairs: [],
@@ -546,6 +543,7 @@ export function usePistiGame({
       steps.forEach((step, sIdx) => {
         const timerId = window.setTimeout(() => {
           sound.playCardDeal(step.pitch);
+          setDeck(prev => (prev.length > 0 ? prev.slice(0, -1) : prev));
 
           if (step.kind === 'table') {
             const isFourthCard = sIdx === 3;
@@ -937,6 +935,7 @@ export function usePistiGame({
         potSteps.forEach((pStep, sIdx) => {
           const tFlight = window.setTimeout(() => {
             sound.playCardDeal();
+            setDeck(prev => (prev.length > 0 ? prev.slice(0, -1) : prev));
 
             if (pStep.isJackAward) {
               const flyToPotId = `pot-jack-${sIdx}-${Date.now()}`;
@@ -1090,6 +1089,7 @@ export function usePistiGame({
 
       const is4Player = configuredSettings.playerCount === 4;
       const playersList: MatchIntroPlayer[] = [];
+      const introBotNames = getRandomBotNames(3, getLanguage());
 
       if (is4Player) {
         playersList.push({
@@ -1101,21 +1101,21 @@ export function usePistiGame({
           team: 0
         });
         playersList.push({
-          name: 'Takım Arkadaşı',
+          name: introBotNames[1] || 'Leo',
           avatar: '🤖',
           avatarId: 'wolf',
           isMe: false,
           team: 0
         });
         playersList.push({
-          name: 'Rakip 1',
+          name: introBotNames[0] || 'Alex',
           avatar: '🤖',
           avatarId: 'lion',
           isMe: false,
           team: 1
         });
         playersList.push({
-          name: 'Rakip 2',
+          name: introBotNames[2] || 'Max',
           avatar: '🤖',
           avatarId: 'eagle',
           isMe: false,
@@ -1131,7 +1131,7 @@ export function usePistiGame({
           team: 0
         });
         playersList.push({
-          name: 'Yapay Zeka',
+          name: introBotNames[0] || 'Alex',
           avatar: '🤖',
           avatarId: 'wolf',
           isMe: false,

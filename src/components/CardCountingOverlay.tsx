@@ -176,6 +176,7 @@ interface Props {
   tableRefs?: React.MutableRefObject<TableDomRefs>;
   theme?: TableTheme;
   cardBack?: string;
+  dealSpeed?: 'fast' | 'normal' | 'cinematic';
   targetScore: number;
   isMultiplayer?: boolean;
   isReadyForNextRound?: boolean;
@@ -185,6 +186,7 @@ interface Props {
   onNextRound?: () => void;
   onRestartGame?: () => void;
   onToggleReady?: () => void;
+  onSkipCounting?: () => void;
   onCountProgress?: (userCounted: number, oppCounted: number) => void;
   onCountingDone?: () => void;
 }
@@ -199,6 +201,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   tableRefs,
   theme = 'traditional',
   cardBack = 'classic_blue',
+  dealSpeed = 'normal',
   targetScore: _targetScore,
   isMultiplayer = false,
   isReadyForNextRound = false,
@@ -208,6 +211,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   onNextRound,
   onRestartGame,
   onToggleReady,
+  onSkipCounting,
   onCountProgress,
   onCountingDone
 }) => {
@@ -244,7 +248,31 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const userPistiPoints = countState.userPistiPoints ?? 0;
   const oppPistiPoints = countState.oppPistiPoints ?? 0;
 
-  const stepDelay = isFast ? 105 : 220;
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const baseStepDelay =
+    dealSpeed === 'fast' ? 120 : dealSpeed === 'cinematic' ? 280 : 210;
+  const stepDelay = prefersReducedMotion ? 40 : isFast ? 85 : baseStepDelay;
+
+  const handleInstantSkip = useCallback(
+    (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      const maxSteps = Math.max(userCards.length, oppCards.length);
+      setUserFlight(null);
+      setOppFlight(null);
+      setStepTick(maxSteps + 1);
+      setIsDone(true);
+      setPhase('completed');
+      onCountProgress?.(userCards.length, oppCards.length);
+      onSkipCounting?.();
+      onCountingDone?.();
+    },
+    [userCards.length, oppCards.length, onCountProgress, onSkipCounting, onCountingDone]
+  );
 
   const measureFlightRects = useCallback(
     (isUser: boolean, isPoint: boolean, currentPointCount: number): { startRect: RectBox; targetRect: RectBox } => {
@@ -675,8 +703,18 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── 2. MASA MERKEZİ: ÇOĞUNLUK & SONRAKİ EL BUTONU ── */}
+      {/* ── 2. MASA MERKEZİ: ATLA DÜĞMESİ VEYA ÇOĞUNLUK & SONRAKİ EL BUTONU ── */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40">
+        {!isDone && (
+          <div className="pointer-events-auto flex items-center gap-2">
+            <button
+              onClick={handleInstantSkip}
+              className="px-4 py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-xs font-bold shadow-lg transition-all cursor-pointer"
+            >
+              Sayımı Atla ⏭
+            </button>
+          </div>
+        )}
         {isDone && (
           <div className="flex flex-col items-center gap-2.5 p-3.5 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto">
             {/* Majority Announcement */}

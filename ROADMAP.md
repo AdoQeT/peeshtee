@@ -92,6 +92,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.23.0**: Fixed round starter rotation & direct-to-slot hand card dealing, oriented 4P side player piles & badges perpendicular to table edges, removed dashed card slot borders, added pre-count Pişti & 4P team deck merge animation, redesigned end-of-hand VS score card, hardened RTDB security rules & replay protection, and completed TR/EN i18n & theme-matched intro palettes.
 - **v1.22.0**: Extracted `useCardFlightState`, `useMultiplayerRoom`, and `usePistiGame` custom hooks from `App.tsx`, reducing `App.tsx` from ~3,700 lines to ~1,160 lines.
 - **v1.21.1**: Upright score & name badges across all counting stations (zero inverted text), spacious centered tabletop felt positioning, zero card spawn/delete physical continuity during hand-to-count ceremony, and tactile single-card flip transition.
 - **v1.21.0**: Kinetic Pişti Slam physics (slow dramatic 160px loft rise, apex hang anticipation, explosive downward crash with table shudder impact), physical deck pool glide from collection tray to player felt stations (zero teleportation), and seat-perspective spatial counting stations (0° user front, 180° opponent top, 90°/-90° table flanks).

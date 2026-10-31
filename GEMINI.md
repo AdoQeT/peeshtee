@@ -30,10 +30,12 @@ Aşağıdaki 3 dosyada sürüm numarası eşitlenmelidir:
   - **Embed Rengi**: `0x10B981` (Emerald yeşili)
   - **Footer**: `Project P • Peeshtee: Overdrive`
 - **Gönderim Komutu**:
+  `scripts/sendDiscordChangelog.mjs` içindeki `defaultBullets` ve `versionTitle` güncellenip doğrudan çalıştırılır (veya tek satırda `\n` otomatik gerçek satır sonuna dönüştürülür):
   ```bash
+  npm run changelog
+  # veya:
   node scripts/sendDiscordChangelog.mjs "vX.Y.Z" "-feature 1\n-bugfix 2\n-update 3"
   ```
-  veya `scripts/sendDiscordChangelog.mjs` içindeki varsayılan metin güncellenip `npm run changelog` çalıştırılır.
 
 ### 3. Build, Test & Git Dağıtımı
 - Her görev için ayrı git dalı (`git switch -c <dal-adi>`) açılır; her parçadan sonra `npm test` ve `npm run build` çalıştırılır ve geçmeden görev tamamlandı denmez.

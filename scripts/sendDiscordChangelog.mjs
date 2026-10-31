@@ -33,15 +33,24 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-duplicate deck on table fixed',
-  '-deck cut & merge animation smoothed',
-  '-duplicate social button removed',
-  '-online match stats & history fixed',
-  '-pisti placement & cascade updated'
+  '-round starter rotation & direct hand slot dealing fixed',
+  '-4-player side seat orientation & team deck merge animation added',
+  '-end-of-hand VS score card redesigned & dashed slot borders removed',
+  '-firebase RTDB security rules, replay protection & test suite hardened',
+  '-full TR/EN translations & theme-matched intro palettes completed'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.14.3';
-const changelogDescription = process.argv[3] || defaultBullets;
+const versionTitle = process.argv[2] || 'v1.23.0';
+const rawDescription = process.argv[3] || defaultBullets;
+
+const changelogDescription = rawDescription
+  .replace(/\\n/g, '\n')                 // yazılı "\n" -> gerçek satır sonu
+  .split('\n')
+  .map(line => line.trim())
+  .filter(Boolean)                        // boş satırları at
+  .map(line => (line.startsWith('-') ? line : `- ${line}`))
+  .join('\n')
+  .slice(0, 4000);
 
 async function sendWebhook() {
   try {

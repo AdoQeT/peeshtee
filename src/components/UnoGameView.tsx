@@ -1138,11 +1138,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       // Anti-cheat verification helper
       const isSenderAuthorized = (seatIndex: number, declaredPeerId?: string): boolean => {
         const verifiedId = (event as any)._verifiedSenderId;
-        if (!mpSlots || !mpSlots[seatIndex]) return true;
-        const expectedPeerId = mpSlots[seatIndex].peerId;
-        if (!expectedPeerId) return true; // Bot or unassigned slot
+        if (!verifiedId || !mpSlots || !mpSlots[seatIndex]) return false;
+        const slot = mpSlots[seatIndex];
+        const expectedPeerId = slot.isAI ? mpSlots[0]?.peerId : slot.peerId;
+        if (!expectedPeerId) return false;
 
-        if (verifiedId && verifiedId !== expectedPeerId) {
+        if (verifiedId !== expectedPeerId) {
           console.warn(`[AntiCheat] Blocked spoofed UNO event ${event.type} from sender ${verifiedId} targeting seat ${seatIndex} (${expectedPeerId})`);
           return false;
         }
@@ -1207,6 +1208,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         showSeatBubble(targetLocalIdx, '⏭️ Pas Geçti', 1800);
         advanceTurn(1);
       } else if (event.type === 'MP_UNO_NEXT_ROUND') {
+        if (!isSenderAuthorized(0)) return;
         startNewRound(event.seedCards);
       } else if (event.type === 'MP_MATCH_ABORTED') {
         if (event.gameType && event.gameType !== 'uno') return;

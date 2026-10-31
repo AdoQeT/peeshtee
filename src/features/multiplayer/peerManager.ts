@@ -623,19 +623,13 @@ export class MultiplayerManager {
 
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
-    // Discard replayed or out-of-order packets (except important lobby syncs and handshakes)
-    const isStateSync =
-      envelope.payload?.type === 'GUEST_JOINED' ||
-      envelope.payload?.type === 'HOST_LOBBY_SYNC' ||
-      envelope.payload?.type === 'MP_GAME_START';
-
-    if (!isStateSync && typeof envelope.seq === 'number' && envelope.senderId) {
-      const last = this.lastSeenSeq.get(envelope.senderId) || 0;
-      if (envelope.seq <= last) {
-        return;
-      }
-      this.lastSeenSeq.set(envelope.senderId, envelope.seq);
+    // Discard replayed or out-of-order packets for all message types
+    if (typeof envelope.seq !== 'number' || !envelope.senderId) return;
+    const last = this.lastSeenSeq.get(envelope.senderId) || 0;
+    if (envelope.seq <= last) {
+      return;
     }
+    this.lastSeenSeq.set(envelope.senderId, envelope.seq);
 
     this.seenMsgIds.add(envelope.msgId);
     if (this.seenMsgIds.size > 500) {
@@ -667,12 +661,13 @@ export class MultiplayerManager {
   public send(payload: MultiplayerEvent) {
     if (!this.roomCode) return;
 
+    this.seq = Math.max(this.seq + 1, Date.now());
     const envelope: PacketEnvelope = {
       __pistiEnvelope: true,
       msgId: `${this.instanceId}-${Date.now()}-${getCryptoRandomString(6)}`,
       roomCode: this.roomCode,
       ...(this.roomToken ? { roomToken: this.roomToken } : {}),
-      seq: ++this.seq,
+      seq: this.seq,
       senderId: this.instanceId,
       timestamp: Date.now(),
       payload

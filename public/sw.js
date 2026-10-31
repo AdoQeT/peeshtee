@@ -1,11 +1,14 @@
-const CACHE_NAME = 'pisti-overdrive-v1.18.1';
+const swVersion = new URL(self.location.href).searchParams.get('v') || '1';
+const CACHE_NAME = `pisti-overdrive-v${swVersion}`;
 
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.svg',
-  '/og-image.svg'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './og-image.png'
 ];
 
 self.addEventListener('install', event => {
@@ -33,6 +36,11 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Only cache GET requests (cache.put throws on POST/PUT/DELETE)
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   // Don't intercept Firebase RTDB webSocket/database requests or external APIs
   const url = new URL(event.request.url);
   if (

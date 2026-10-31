@@ -791,6 +791,7 @@ export default function App() {
         tableRefs={tableRefs}
         theme={settings.theme}
         cardBack={settings.cardBack}
+        dealSpeed={settings.dealSpeed}
         targetScore={settings.targetScore}
         isMultiplayer={isMultiplayerGame}
         isReadyForNextRound={isReadyForNextRound}
@@ -800,6 +801,7 @@ export default function App() {
         onNextRound={handleNextRound}
         onRestartGame={handleRestartGame}
         onToggleReady={handleToggleReady}
+        onSkipCounting={handleSkipCounting}
         onCountProgress={handleUpdateCountingProgress}
         onCountingDone={handleFinishCounting}
       />

@@ -30,10 +30,12 @@ export function chooseAICard(
   // 2. Medium (Kurnaz) & 3. Hard (Şampiyon) Logic
   if (topCard) {
     // Case A: Table has cards. Can we match the top card?
-    const match = hand.find(c => c.value === topCard.value);
-    if (match) {
-      // Prioritize Pişti or capturing pile!
-      return match;
+    const matches = hand.filter(c => c.value === topCard.value);
+    if (matches.length > 0) {
+      // Prioritize capturing with the highest-point matching card (e.g., Karo 10 or Sinek 2)
+      // so the bot secures its own special card points inside the captured pile!
+      const sortedMatches = [...matches].sort((a, b) => (b.basePoints || 0) - (a.basePoints || 0));
+      return sortedMatches[0];
     }
 
     // Case B: Can we play a Jack to sweep the pile?
@@ -133,15 +135,14 @@ function pickSafestDiscard(
   const candidates = nonSpecials.length > 0 ? nonSpecials : pool;
 
   if (difficulty === 'hard') {
-    // Count how many of each rank have been seen
+    // Count how many of each rank have been seen + held in hand to minimize opponent match risk
     const rankCounts: Record<number, number> = {};
     for (const c of seenCards) {
       rankCounts[c.value] = (rankCounts[c.value] || 0) + 1;
     }
-    // Ranks with more seen cards are safer because the opponent has fewer remaining copies
     const sorted = [...candidates].sort((a, b) => {
-      const seenA = rankCounts[a.value] || 0;
-      const seenB = rankCounts[b.value] || 0;
+      const seenA = (rankCounts[a.value] || 0) + hand.filter(c => c.value === a.value).length - 1;
+      const seenB = (rankCounts[b.value] || 0) + hand.filter(c => c.value === b.value).length - 1;
       return seenB - seenA;
     });
     return sorted[0];

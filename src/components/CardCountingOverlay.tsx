@@ -16,6 +16,7 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { Card, OnTableCountState, TableTheme, Player } from '../types/game';
 import { CardFrontSurface, CardBackSurface } from './CardView';
+import { AvatarBadge } from './AvatarBadge';
 import { DetailedRoundScore } from '../core/rules';
 import type { TableDomRefs } from './TableSurface';
 import { RotateCcw, ArrowRight, Trophy } from 'lucide-react';
@@ -160,6 +161,127 @@ const FlyingCountCard: React.FC<FlyingCountCardProps> = ({
   );
 };
 
+interface GatherFlightItem {
+  id: string;
+  startRect: RectBox;
+  targetRect: RectBox;
+  topFaceCard?: Card;
+  delayMs: number;
+}
+
+const GatheringPileCard: React.FC<{
+  item: GatherFlightItem;
+  cardBack: string;
+  theme: TableTheme;
+  durationMs: number;
+}> = ({ item, cardBack, theme, durationMs }) => {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const outerEl = outerRef.current;
+    const innerEl = innerRef.current;
+    if (!outerEl || !innerEl) return;
+
+    const dx = item.targetRect.left - item.startRect.left;
+    const dy = item.targetRect.top - item.startRect.top;
+
+    const outerAnim = outerEl.animate(
+      [
+        { transform: 'translate3d(0px, 0px, 0px) scale(1)', opacity: 1 },
+        {
+          transform: `translate3d(${dx * 0.5}px, ${dy * 0.5 - 22}px, 0px) scale(1.08)`,
+          opacity: 1,
+          offset: 0.5
+        },
+        { transform: `translate3d(${dx}px, ${dy}px, 0px) scale(0.96)`, opacity: 0.92 }
+      ],
+      {
+        duration: durationMs,
+        delay: item.delayMs,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        fill: 'forwards'
+      }
+    );
+
+    const innerAnim = item.topFaceCard
+      ? innerEl.animate(
+          [
+            { transform: 'rotateY(180deg)' },
+            { transform: 'rotateY(0deg)' }
+          ],
+          {
+            duration: durationMs,
+            delay: item.delayMs,
+            easing: 'cubic-bezier(0.25, 0.9, 0.35, 1)',
+            fill: 'forwards'
+          }
+        )
+      : null;
+
+    return () => {
+      outerAnim.cancel();
+      innerAnim?.cancel();
+    };
+  }, [item, durationMs]);
+
+  return (
+    <div
+      ref={outerRef}
+      style={{
+        position: 'fixed',
+        left: item.startRect.left,
+        top: item.startRect.top,
+        width: item.targetRect.width,
+        height: item.targetRect.height,
+        perspective: '1000px',
+        zIndex: 46,
+        pointerEvents: 'none',
+        willChange: 'transform'
+      }}
+    >
+      <div
+        ref={innerRef}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          transformStyle: 'preserve-3d',
+          transform: item.topFaceCard ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          willChange: 'transform'
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            transform: 'rotateY(0deg)'
+          }}
+          className="rounded-xl overflow-hidden shadow-xl"
+        >
+          <CardBackSurface cardBack={cardBack} />
+        </div>
+        {item.topFaceCard && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)'
+            }}
+            className="rounded-xl overflow-hidden shadow-2xl border border-amber-400/80"
+          >
+            <CardFrontSurface card={item.topFaceCard} theme={theme} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 interface Props {
   isActive: boolean;
   countState: OnTableCountState;
@@ -214,7 +336,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   onCountProgress,
   onCountingDone
 }) => {
-  const [phase, setPhase] = useState<'ready' | 'counting' | 'completed'>('ready');
+  const [phase, setPhase] = useState<'ready' | 'gathering' | 'counting' | 'completed'>('ready');
 
   // Step counter: k = 0..maxCards.
   // At step k:
@@ -226,14 +348,13 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const [isDone, setIsDone] = useState(false);
   const [isFast, setIsFast] = useState(false);
 
+  const [gatherFlights, setGatherFlights] = useState<GatherFlightItem[]>([]);
   const [userFlight, setUserFlight] = useState<FlippingCardFlight | null>(null);
   const [oppFlight, setOppFlight] = useState<FlippingCardFlight | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const startedRef = useRef(false);
 
-  const userClosedPileRef = useRef<HTMLDivElement | null>(null);
-  const oppClosedPileRef = useRef<HTMLDivElement | null>(null);
   const userOpenPileRef = useRef<HTMLDivElement | null>(null);
   const oppOpenPileRef = useRef<HTMLDivElement | null>(null);
   const userPointsBoxRef = useRef<HTMLDivElement | null>(null);
@@ -267,6 +388,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
       if (e) e.stopPropagation();
       if (timerRef.current) window.clearTimeout(timerRef.current);
       const maxSteps = Math.max(userCards.length, oppCards.length);
+      setGatherFlights([]);
       setUserFlight(null);
       setOppFlight(null);
       setStepTick(maxSteps + 1);
@@ -286,12 +408,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
       const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
       const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 400;
 
-      // 2 kişilik oyunda doğrudan mevcut toplanan deste elemanından (tableRefs.collectedEls) başla
-      const sourceEl = !isFourPlayers
-        ? tableRefs?.current?.collectedEls?.[isUser ? 0 : 1]
-        : isUser
-        ? userClosedPileRef.current
-        : oppClosedPileRef.current;
+      // Hem 2 kişilik hem 4 kişilik oyunda mevcut toplanan deste elemanından (collectedEls[0] ve collectedEls[topIdx]) başla
+      const topIdx = isFourPlayers ? 2 : 1;
+      const sourceEl = tableRefs?.current?.collectedEls?.[isUser ? 0 : topIdx];
 
       const openEl = isUser ? userOpenPileRef.current : oppOpenPileRef.current;
       const pointsEl = isUser ? userPointsBoxRef.current : oppPointsBoxRef.current;
@@ -347,11 +466,12 @@ export const CardCountingOverlay: React.FC<Props> = ({
     [isFourPlayers, tableRefs]
   );
 
-  // Başlatma
+  // Başlatma + Pişti ve 4 Kişilik Takım Destelerinin Birleşme Koreografisi (Gathering Phase)
   useEffect(() => {
     if (!isActive) {
       startedRef.current = false;
       if (timerRef.current) window.clearTimeout(timerRef.current);
+      setGatherFlights([]);
       setUserFlight(null);
       setOppFlight(null);
       return;
@@ -360,7 +480,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
     if (startedRef.current) return;
     startedRef.current = true;
 
-    setPhase('ready');
     setStepTick(0);
     setIsDone(false);
     setIsFast(false);
@@ -368,7 +487,90 @@ export const CardCountingOverlay: React.FC<Props> = ({
     setOppFlight(null);
     onCountProgress?.(0, 0);
 
-    // İlk karede hedef ref'lerin ölçülebilmesi için kısa hazırlık
+    const defaultW = typeof window !== 'undefined' && window.innerWidth >= 640 ? 96 : 88;
+    const defaultH = typeof window !== 'undefined' && window.innerWidth >= 640 ? 144 : 128;
+    const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
+    const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 400;
+
+    const topIdx = isFourPlayers ? 2 : 1;
+    const userDeckEl = tableRefs?.current?.collectedEls?.[0];
+    const oppDeckEl = tableRefs?.current?.collectedEls?.[topIdx];
+
+    const uDeckRect = userDeckEl?.getBoundingClientRect();
+    const oDeckRect = oppDeckEl?.getBoundingClientRect();
+
+    const userTargetRect: RectBox =
+      uDeckRect && uDeckRect.width > 0
+        ? { left: uDeckRect.left, top: uDeckRect.top, width: uDeckRect.width, height: uDeckRect.height }
+        : { left: centerX - 240, top: centerY + 140, width: defaultW, height: defaultH };
+
+    const oppTargetRect: RectBox =
+      oDeckRect && oDeckRect.width > 0
+        ? { left: oDeckRect.left, top: oDeckRect.top, width: oDeckRect.width, height: oDeckRect.height }
+        : { left: centerX - 240, top: centerY - 240, width: defaultW, height: defaultH };
+
+    const items: GatherFlightItem[] = [];
+
+    // 1. Tüm oyuncuların Pişti yığınlarını (pistiEls) kendi takımlarının ana destesine uçur
+    players.forEach((p, idx) => {
+      const pairs = p.pistiPairs || [];
+      if (pairs.length > 0) {
+        const pistiEl = tableRefs?.current?.pistiEls?.[idx];
+        const pRect = pistiEl?.getBoundingClientRect();
+        if (pRect && pRect.width > 0) {
+          const isUserTeam = idx === 0 || (isFourPlayers && idx === 2);
+          const topPair = pairs[pairs.length - 1];
+          items.push({
+            id: `gather-pisti-${idx}`,
+            startRect: { left: pRect.left, top: pRect.top, width: pRect.width, height: pRect.height },
+            targetRect: isUserTeam ? userTargetRect : oppTargetRect,
+            topFaceCard: topPair?.topCard,
+            delayMs: idx * 35
+          });
+        }
+      }
+    });
+
+    // 2. 4 Kişilik modda ortak ve yan rakiplerin toplanan destelerini (collectedEls[1..3]) ana takım destelerine uçur
+    if (isFourPlayers) {
+      // Ortağın (Koltuk 2) toplanan kartları -> Bizim Desteye (Koltuk 0)
+      if ((players[2]?.collectedCards.length || 0) > 0 && oDeckRect && oDeckRect.width > 0) {
+        items.push({
+          id: 'gather-team-partner-2',
+          startRect: { left: oDeckRect.left, top: oDeckRect.top, width: oDeckRect.width, height: oDeckRect.height },
+          targetRect: userTargetRect,
+          delayMs: 20
+        });
+      }
+      // Yan Rakiplerin (Koltuk 1 ve 3) toplanan kartları -> Üst Rakip Takım Destesine (Koltuk 2)
+      [1, 3].forEach((sideIdx, i) => {
+        if ((players[sideIdx]?.collectedCards.length || 0) > 0) {
+          const sideEl = tableRefs?.current?.collectedEls?.[sideIdx];
+          const sRect = sideEl?.getBoundingClientRect();
+          if (sRect && sRect.width > 0) {
+            items.push({
+              id: `gather-team-opp-${sideIdx}`,
+              startRect: { left: sRect.left, top: sRect.top, width: sRect.width, height: sRect.height },
+              targetRect: oppTargetRect,
+              delayMs: 40 + i * 45
+            });
+          }
+        }
+      });
+    }
+
+    if (items.length > 0 && !prefersReducedMotion) {
+      setGatherFlights(items);
+      setPhase('gathering');
+      const gatherTimer = window.setTimeout(() => {
+        setGatherFlights([]);
+        setPhase('counting');
+      }, 540);
+      return () => window.clearTimeout(gatherTimer);
+    }
+
+    setGatherFlights([]);
+    setPhase('ready');
     const readyTimer = window.setTimeout(() => {
       setPhase('counting');
     }, 80);
@@ -376,7 +578,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
     return () => {
       window.clearTimeout(readyTimer);
     };
-  }, [isActive, onCountProgress]);
+  }, [isActive, isFourPlayers, players, prefersReducedMotion, tableRefs, onCountProgress]);
 
   // Adım adım fiziksel kart çekme ve süzülme motoru
   useEffect(() => {
@@ -468,6 +670,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const handleSkipAll = useCallback(() => {
     if (timerRef.current) window.clearTimeout(timerRef.current);
     const maxSteps = Math.max(userCards.length, oppCards.length);
+    setGatherFlights([]);
     setStepTick(maxSteps + 1);
     setPhase('completed');
     setIsDone(true);
@@ -489,13 +692,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
     ? oppCards.length
     : Math.min(Math.max(0, stepTick - 1), oppCards.length);
 
-  const userDrawnCount = isDone
-    ? userCards.length
-    : Math.min(stepTick, userCards.length);
-  const oppDrawnCount = isDone
-    ? oppCards.length
-    : Math.min(stepTick, oppCards.length);
-
   const userLandedCards = userCards.slice(0, userLandedCount);
   const oppLandedCards = oppCards.slice(0, oppLandedCount);
 
@@ -516,18 +712,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
     oppCardScore +
     oppPistiPoints +
     (isDone && countState.oppMajority ? 3 : 0);
-
-  const userRemainingCount = Math.max(0, userCards.length - userDrawnCount);
-  const oppRemainingCount = Math.max(0, oppCards.length - oppDrawnCount);
-
-  const userRemainingLayers = Math.min(
-    12,
-    Math.max(userRemainingCount > 0 ? 1 : 0, Math.ceil(userRemainingCount / 2.2))
-  );
-  const oppRemainingLayers = Math.min(
-    12,
-    Math.max(oppRemainingCount > 0 ? 1 : 0, Math.ceil(oppRemainingCount / 2.2))
-  );
 
   const ourRoundScore = roundScores?.user.totalRoundPoints ?? userTotalPts;
   const oppRoundScore = roundScores?.opp.totalRoundPoints ?? oppTotalPts;
@@ -552,7 +736,18 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ── HAVADA SÜZÜLEREK 3B AÇILAN FİZİKSEL KARTLAR ── */}
+      {/* ── AŞAMA 1: PİŞTİLERİN VE TAKIM DESTELERİNİN ANA DESTEYE BİRLEŞME UÇUŞU ── */}
+      {gatherFlights.map(item => (
+        <GatheringPileCard
+          key={item.id}
+          item={item}
+          cardBack={cardBack}
+          theme={theme}
+          durationMs={460}
+        />
+      ))}
+
+      {/* ── AŞAMA 2: HAVADA SÜZÜLEREK 3B AÇILAN FİZİKSEL KARTLAR ── */}
       {userFlight && (
         <FlyingCountCard
           key={`user-flight-${userFlight.index}`}
@@ -577,39 +772,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
       {/* ── 1. RAKİBİN MASADAKİ SAYIM İSTASYONU ── */}
       <div className="absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 pointer-events-none z-30">
         <div className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl">
-          {/* 4 Kişilik oyunda ortak deste kutusu; 2 kişilik oyunda mevcut collectedEls destesi kullanılır */}
-          {isFourPlayers && (
-            <div className="relative flex flex-col items-center">
-              <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
-                {t.remainingCount} ({oppRemainingCount})
-              </span>
-              <div
-                ref={oppClosedPileRef}
-                className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20"
-              >
-                {oppRemainingCount > 0 ? (
-                  <div className="relative w-full h-full">
-                    {Array.from({ length: oppRemainingLayers }).map((_, layerIdx) => (
-                      <div
-                        key={layerIdx}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          transform: `translate3d(${((layerIdx * 13) % 5) - 2}px, ${layerIdx * -1}px, 0) rotate(${((layerIdx * 17) % 7) - 3}deg)`
-                        }}
-                        className="rounded-xl overflow-hidden shadow-md"
-                      >
-                        <CardBackSurface cardBack={cardBack} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-white/30 font-mono">{t.finishedZero}</span>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
@@ -617,9 +779,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </span>
             <div
               ref={oppOpenPileRef}
-              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20"
+              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center"
             >
-              {oppCountedPile.length > 0 ? (
+              {oppCountedPile.length > 0 &&
                 oppCountedPile.slice(-5).map((c, idx) => {
                   const rot = ((idx * 11) % 7) - 3;
                   const ox = ((idx * 7) % 5) - 2;
@@ -637,10 +799,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                       <CardFrontSurface card={c} theme={theme} />
                     </div>
                   );
-                })
-              ) : (
-                <span className="text-[10px] text-white/30 font-mono">{t.openDeck}</span>
-              )}
+                })}
             </div>
           </div>
 
@@ -653,21 +812,17 @@ export const CardCountingOverlay: React.FC<Props> = ({
               ref={oppPointsBoxRef}
               className="relative flex items-center -space-x-5 sm:-space-x-7 min-w-[88px] min-h-[128px] sm:min-w-24 sm:min-h-36"
             >
-              {oppPointCards.length === 0 ? (
-                <span className="text-[10px] text-slate-500 italic">{t.noneYet}</span>
-              ) : (
-                oppPointCards.map((pc, idx) => (
-                  <div
-                    key={`opp-pc-${pc.id}-${idx}`}
-                    className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl shadow-2xl border-2 border-rose-400 overflow-hidden shrink-0"
-                  >
-                    <CardFrontSurface card={pc} theme={theme} />
-                    <div className="absolute top-0 right-0 px-1.5 py-0.5 rounded-bl bg-rose-500 text-white font-black text-[10px]">
-                      +{pc.basePoints}P
-                    </div>
+              {oppPointCards.map((pc, idx) => (
+                <div
+                  key={`opp-pc-${pc.id}-${idx}`}
+                  className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl shadow-2xl border-2 border-rose-400 overflow-hidden shrink-0"
+                >
+                  <CardFrontSurface card={pc} theme={theme} />
+                  <div className="absolute top-0 right-0 px-1.5 py-0.5 rounded-bl bg-rose-500 text-white font-black text-[10px]">
+                    +{pc.basePoints}P
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -684,7 +839,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── 2. MASA MERKEZİ: ATLA DÜĞMESİ VEYA EL PUANI + TOPLAM PUAN + SONRAKİ EL BUTONU ── */}
+      {/* ── 2. MASA MERKEZİ: ATLA DÜĞMESİ VEYA YENİ NESİL SKOR KARTI & SONRAKİ EL BUTONU ── */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40">
         {!isDone && (
           <div className="pointer-events-auto flex items-center gap-2">
@@ -697,29 +852,64 @@ export const CardCountingOverlay: React.FC<Props> = ({
           </div>
         )}
         {isDone && (
-          <div className="flex flex-col items-center gap-2 p-4 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto min-w-[260px] sm:min-w-[320px]">
-            {/* 1. Bizim Puan vs Rakibin Puanı */}
-            <div className="flex items-center justify-center gap-3 text-xs sm:text-sm font-black">
-              <span className="text-emerald-300">
-                {t.ourPoints}: <span className="text-amber-300 font-cyber">+{ourRoundScore}</span>
-              </span>
-              <span className="text-slate-500">vs</span>
-              <span className="text-rose-300">
-                {t.oppPoints}: <span className="text-rose-200 font-cyber">+{oppRoundScore}</span>
-              </span>
+          <div className="flex flex-col items-center gap-3 p-4 sm:p-5 rounded-3xl bg-slate-950/92 backdrop-blur-xl border border-amber-400/40 shadow-[0_20px_60px_rgba(0,0,0,0.85),0_0_35px_rgba(245,158,11,0.2)] animate-in zoom-in-95 duration-200 pointer-events-auto min-w-[290px] sm:min-w-[350px]">
+            {/* Visual Score Duel Pods (Bizim Puan vs Rakibin Puanı + Altında Toplam Puan) */}
+            <div className="w-full flex items-center justify-between gap-2.5 sm:gap-3">
+              {/* Left Pod: Our Score */}
+              <div className="flex-1 flex flex-col items-center p-2.5 sm:p-3 rounded-2xl bg-gradient-to-b from-emerald-950/70 to-slate-900/90 border border-emerald-400/40 shadow-inner">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AvatarBadge
+                    avatarId={user?.avatarId || 'wolf'}
+                    customAvatarUrl={user?.customAvatarUrl}
+                    fallbackEmoji={user?.avatar || '🐺'}
+                    size="xs"
+                    showBorder={false}
+                  />
+                  <span className="text-[11px] font-bold text-emerald-200 truncate max-w-[85px]">
+                    {isFourPlayers ? t.ourTeam : (user?.name || t.youLabel)}
+                  </span>
+                </div>
+                <span className="text-2xl sm:text-3xl font-arcade text-amber-300 leading-none my-0.5 drop-shadow-[0_2px_10px_rgba(251,191,36,0.4)]">
+                  +{ourRoundScore}
+                </span>
+                <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-black/45 border border-white/10 text-[10px] font-semibold text-slate-300">
+                  {t.totalScoreLabel}:{' '}
+                  <span className="text-emerald-300 font-cyber font-black">{user?.score ?? 0}</span>
+                </div>
+              </div>
+
+              {/* Center VS Pill */}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-[11px] flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.5)] shrink-0">
+                VS
+              </div>
+
+              {/* Right Pod: Opponent Score */}
+              <div className="flex-1 flex flex-col items-center p-2.5 sm:p-3 rounded-2xl bg-gradient-to-b from-rose-950/70 to-slate-900/90 border border-rose-400/40 shadow-inner">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AvatarBadge
+                    avatarId={opp?.avatarId || 'lion'}
+                    customAvatarUrl={opp?.customAvatarUrl}
+                    fallbackEmoji={opp?.avatar || '🦁'}
+                    size="xs"
+                    showBorder={false}
+                  />
+                  <span className="text-[11px] font-bold text-rose-200 truncate max-w-[85px]">
+                    {isFourPlayers ? t.rivalTeam : (opp?.name || t.opponent)}
+                  </span>
+                </div>
+                <span className="text-2xl sm:text-3xl font-arcade text-rose-300 leading-none my-0.5 drop-shadow-[0_2px_10px_rgba(251,113,133,0.4)]">
+                  +{oppRoundScore}
+                </span>
+                <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-black/45 border border-white/10 text-[10px] font-semibold text-slate-300">
+                  {t.totalScoreLabel}:{' '}
+                  <span className="text-rose-300 font-cyber font-black">{opp?.score ?? 0}</span>
+                </div>
+              </div>
             </div>
 
-            {/* 2. Toplam Puan */}
-            <div className="px-3.5 py-1 rounded-full bg-white/5 border border-white/15 text-xs font-bold text-slate-200">
-              {t.totalScoreLabel}:{' '}
-              <span className="text-amber-300 font-cyber font-black">{user?.score ?? 0}</span>
-              <span className="mx-1.5 text-slate-500">-</span>
-              <span className="text-rose-300 font-cyber font-black">{opp?.score ?? 0}</span>
-            </div>
-
-            {/* 3. Sonraki El veya Maç Sonu Butonu */}
+            {/* Action Button: Next Round or Match Over */}
             {isGameOver ? (
-              <div className="flex flex-col items-center gap-2 mt-1">
+              <div className="w-full flex flex-col items-center gap-2">
                 <div className="px-4 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border border-amber-400 text-amber-200 font-black text-xs sm:text-sm shadow-xl flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-amber-400" />
                   <span>
@@ -731,7 +921,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                 {onRestartGame && (
                   <button
                     onClick={onRestartGame}
-                    className="px-8 py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center gap-2"
+                    className="w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center justify-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
                     <span>{t.newMatch}</span>
@@ -739,7 +929,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                 )}
               </div>
             ) : isMultiplayer ? (
-              <div className="flex flex-col items-center gap-2 mt-1">
+              <div className="w-full flex flex-col items-center gap-2">
                 {slotsReadiness.length > 0 && (
                   <div className="flex flex-wrap justify-center gap-1.5">
                     {slotsReadiness.map(slot => (
@@ -759,7 +949,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                 )}
                 <button
                   onClick={onToggleReady}
-                  className={`px-8 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all active:scale-95 flex items-center gap-2 cursor-pointer shadow-xl ${
+                  className={`w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shadow-xl ${
                     isReadyForNextRound
                       ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-300'
                       : 'bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 animate-pulse'
@@ -783,7 +973,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
             ) : (
               <button
                 onClick={onNextRound}
-                className="mt-1 px-8 py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+                className="w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.45)] transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>{t.startNextRoundBtn}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -796,39 +986,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
       {/* ── 3. KULLANICININ MASADAKİ SAYIM İSTASYONU ── */}
       <div className="absolute bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 pointer-events-none z-30">
         <div className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl">
-          {/* 4 Kişilik oyunda ortak deste kutusu; 2 kişilik oyunda mevcut collectedEls destesi kullanılır */}
-          {isFourPlayers && (
-            <div className="relative flex flex-col items-center">
-              <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
-                {t.remainingCount} ({userRemainingCount})
-              </span>
-              <div
-                ref={userClosedPileRef}
-                className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20"
-              >
-                {userRemainingCount > 0 ? (
-                  <div className="relative w-full h-full">
-                    {Array.from({ length: userRemainingLayers }).map((_, layerIdx) => (
-                      <div
-                        key={layerIdx}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          transform: `translate3d(${((layerIdx * 13) % 5) - 2}px, ${layerIdx * -1}px, 0) rotate(${((layerIdx * 17) % 7) - 3}deg)`
-                        }}
-                        className="rounded-xl overflow-hidden shadow-md"
-                      >
-                        <CardBackSurface cardBack={cardBack} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-white/30 font-mono">{t.finishedZero}</span>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Kullanıcı Açılan Normal Deste */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
@@ -836,9 +993,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </span>
             <div
               ref={userOpenPileRef}
-              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20"
+              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center"
             >
-              {userCountedPile.length > 0 ? (
+              {userCountedPile.length > 0 &&
                 userCountedPile.slice(-5).map((c, idx) => {
                   const rot = ((idx * 11) % 7) - 3;
                   const ox = ((idx * 7) % 5) - 2;
@@ -856,10 +1013,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                       <CardFrontSurface card={c} theme={theme} />
                     </div>
                   );
-                })
-              ) : (
-                <span className="text-[10px] text-white/30 font-mono">{t.openDeck}</span>
-              )}
+                })}
             </div>
           </div>
 
@@ -872,21 +1026,17 @@ export const CardCountingOverlay: React.FC<Props> = ({
               ref={userPointsBoxRef}
               className="relative flex items-center -space-x-5 sm:-space-x-7 min-w-[88px] min-h-[128px] sm:min-w-24 sm:min-h-36"
             >
-              {userPointCards.length === 0 ? (
-                <span className="text-[10px] text-slate-500 italic">{t.noneYet}</span>
-              ) : (
-                userPointCards.map((pc, idx) => (
-                  <div
-                    key={`user-pc-${pc.id}-${idx}`}
-                    className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl shadow-2xl border-2 border-amber-400 overflow-hidden shrink-0"
-                  >
-                    <CardFrontSurface card={pc} theme={theme} />
-                    <div className="absolute top-0 right-0 px-1.5 py-0.5 rounded-bl bg-amber-400 text-slate-950 font-black text-[10px]">
-                      +{pc.basePoints}P
-                    </div>
+              {userPointCards.map((pc, idx) => (
+                <div
+                  key={`user-pc-${pc.id}-${idx}`}
+                  className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl shadow-2xl border-2 border-amber-400 overflow-hidden shrink-0"
+                >
+                  <CardFrontSurface card={pc} theme={theme} />
+                  <div className="absolute top-0 right-0 px-1.5 py-0.5 rounded-bl bg-amber-400 text-slate-950 font-black text-[10px]">
+                    +{pc.basePoints}P
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </div>
 

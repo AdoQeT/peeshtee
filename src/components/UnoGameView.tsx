@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   UnoCard,
@@ -1144,11 +1145,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         if (!expectedPeerId) return false;
 
         if (verifiedId !== expectedPeerId) {
-          console.warn(`[AntiCheat] Blocked spoofed UNO event ${event.type} from sender ${verifiedId} targeting seat ${seatIndex} (${expectedPeerId})`);
+          logger.warn(`[AntiCheat] Blocked spoofed UNO event ${event.type} from sender ${verifiedId} targeting seat ${seatIndex} (${expectedPeerId})`);
           return false;
         }
         if (declaredPeerId && declaredPeerId !== expectedPeerId) {
-          console.warn(`[AntiCheat] Blocked spoofed UNO peerId in ${event.type}: declared ${declaredPeerId} vs expected ${expectedPeerId}`);
+          logger.warn(`[AntiCheat] Blocked spoofed UNO peerId in ${event.type}: declared ${declaredPeerId} vs expected ${expectedPeerId}`);
           return false;
         }
         return true;
@@ -1168,7 +1169,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         if (foundCard) {
           executePlayCard(targetLocalIdx, foundCard, event.chosenColor as UnoColor);
         } else {
-          console.warn(`Card ${event.cardId} not found in player ${targetLocalIdx}'s hand!`);
+          logger.warn(`Card ${event.cardId} not found in player ${targetLocalIdx}'s hand!`);
         }
       } else if (event.type === 'MP_UNO_DRAW_CARD') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
@@ -1574,7 +1575,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         });
         multiplayerManager.leaveRoom();
       } catch (e) {
-        console.warn(e);
+        logger.warn(e);
       }
     }
     friendNetwork.setStatus('menu', undefined);

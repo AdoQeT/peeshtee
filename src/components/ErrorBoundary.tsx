@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { RotateCcw, AlertTriangle } from 'lucide-react';
 
@@ -21,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an unhandled render error:', error, errorInfo);
+    logger.error('ErrorBoundary caught an unhandled render error:', error, errorInfo);
   }
 
   private handleReset = () => {

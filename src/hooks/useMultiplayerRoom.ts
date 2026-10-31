@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, GameSettings, Player, ShuffleStyle } from '../types/game';
 import { DetailedRoundScore } from '../core/rules';
@@ -86,7 +87,7 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
         }
       }
     } catch (err) {
-      console.error('URL parse error:', err);
+      logger.error('URL parse error:', err);
     }
   }, []);
 
@@ -134,7 +135,7 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
         window.history.pushState(null, '', window.location.pathname);
       }
     } catch (err) {
-      console.error('URL sync error:', err);
+      logger.error('URL sync error:', err);
     }
   }, [screen, isMultiplayerGame]);
 
@@ -430,7 +431,7 @@ export function useMultiplayerEvents({
 
         const senderSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === msg.seatIndex);
         if (!senderSlot || !senderSlot.peerId || !envelopeSender || senderSlot.peerId !== envelopeSender) {
-          console.warn(
+          logger.warn(
             `[Anti-Cheat] Unauthorized card play rejected: verified sender "${envelopeSender}" is not registered in seat ${msg.seatIndex} (slot peerId: "${senderSlot?.peerId}")!`
           );
           return;
@@ -440,7 +441,7 @@ export function useMultiplayerEvents({
         const targetLocalIdx = (msg.seatIndex - myMultiplayerSeatRef.current + N) % N;
 
         if (currentTurnRef.current !== targetLocalIdx) {
-          console.warn(
+          logger.warn(
             `Out-of-turn card play attempt: seat ${msg.seatIndex} played but turn is ${currentTurnRef.current}!`
           );
           return;
@@ -453,7 +454,7 @@ export function useMultiplayerEvents({
         if (foundCard) {
           onPlayRemoteCard(targetLocalIdx, foundCard);
         } else {
-          console.warn(
+          logger.warn(
             `Card desync: player seat ${msg.seatIndex} played ${msg.cardId} but not in local hand!`
           );
           if (!multiplayerManager.isHost) {

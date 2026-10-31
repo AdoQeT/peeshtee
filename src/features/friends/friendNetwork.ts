@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 /**
  * Project Pişti - Pure Firebase Realtime Database Friend & Social Network (v1.17.0)
  * Completely powered by Firebase RTDB with minimal presence footprint,
@@ -97,7 +98,7 @@ export class FriendNetwork {
 
     const user = await ensureFirebaseAuth();
     if (!user) {
-      console.warn('Firebase anonymous authentication failed in friendNetwork');
+      logger.warn('Firebase anonymous authentication failed in friendNetwork');
     }
 
     const myProfile = getUserProfile();
@@ -111,7 +112,7 @@ export class FriendNetwork {
         this.serverTimeOffset = typeof snap.val() === 'number' ? snap.val() : 0;
       });
     } catch (e) {
-      console.warn('Server time offset listener warning:', e);
+      logger.warn('Server time offset listener warning:', e);
     }
 
     // 0.1 Register onDisconnect once when connected
@@ -125,14 +126,14 @@ export class FriendNetwork {
             try {
               onDisconnect(myPresenceRef).remove();
             } catch (err) {
-              console.error('onDisconnect setup error:', err);
+              logger.error('onDisconnect setup error:', err);
             }
             this.announcePresence();
           }
         }
       });
     } catch (e) {
-      console.warn('Connected listener warning:', e);
+      logger.warn('Connected listener warning:', e);
     }
 
     if (myCode) {
@@ -170,15 +171,15 @@ export class FriendNetwork {
             // Remove handled invite
             try {
               remove(snapshot.ref).catch(err => {
-                console.error('Firebase remove invite error:', err);
+                logger.error('Firebase remove invite error:', err);
               });
             } catch (err) {
-              console.error('Firebase remove invite exception:', err);
+              logger.error('Firebase remove invite exception:', err);
             }
           }
         });
       } catch (err) {
-        console.warn('Firebase invite listener error:', err);
+        logger.warn('Firebase invite listener error:', err);
       }
 
       // 2. Firebase Cloud: Listen for Incoming Friend Requests
@@ -218,7 +219,7 @@ export class FriendNetwork {
           this.notifyListeners();
         });
       } catch (err) {
-        console.warn('Firebase friend request listener error:', err);
+        logger.warn('Firebase friend request listener error:', err);
       }
 
       // 3. Firebase Cloud: Listen for Social Notices (Accept / Remove)
@@ -246,14 +247,14 @@ export class FriendNetwork {
           // Remove handled notice
           try {
             remove(snapshot.ref).catch(err => {
-              console.error('Firebase remove notice error:', err);
+              logger.error('Firebase remove notice error:', err);
             });
           } catch (err) {
-            console.error('Firebase remove notice exception:', err);
+            logger.error('Firebase remove notice exception:', err);
           }
         });
       } catch (err) {
-        console.warn('Firebase notice listener error:', err);
+        logger.warn('Firebase notice listener error:', err);
       }
 
       // 4. Firebase Cloud: Discover / Explore presence query (last 30 active players)
@@ -285,7 +286,7 @@ export class FriendNetwork {
           }
         });
       } catch (err) {
-        console.warn('Firebase explore presence query error:', err);
+        logger.warn('Firebase explore presence query error:', err);
       }
 
       // 5. Setup individual presence listeners for friends
@@ -341,7 +342,7 @@ export class FriendNetwork {
           });
           this.friendPresenceListeners.set(code, presenceNodeRef);
         } catch (err) {
-          console.warn(`Friend presence listener error for ${code}:`, err);
+          logger.warn(`Friend presence listener error for ${code}:`, err);
         }
       }
     });
@@ -403,7 +404,7 @@ export class FriendNetwork {
       const myPresenceRef = ref(rtdb, `presence/${profile.friendCode}`);
       await set(myPresenceRef, cleanForRtdb(presence));
     } catch (err) {
-      console.error('Firebase presence exception:', err);
+      logger.error('Firebase presence exception:', err);
     }
   }
 
@@ -441,7 +442,7 @@ export class FriendNetwork {
       await push(ref(rtdb, `invites/${cleanTargetCode}`), cleanForRtdb(invite));
       return true;
     } catch (e) {
-      console.error('Send game invite error:', e);
+      logger.error('Send game invite error:', e);
       return false;
     }
   }
@@ -474,7 +475,7 @@ export class FriendNetwork {
       await push(ref(rtdb, `requests/${cleanTargetCode}`), cleanForRtdb(req));
       return true;
     } catch (e) {
-      console.error('Send friend request error:', e);
+      logger.error('Send friend request error:', e);
       return false;
     }
   }
@@ -506,7 +507,7 @@ export class FriendNetwork {
       this.syncFriendPresenceListeners();
       return true;
     } catch (e) {
-      console.error('Send friend accept error:', e);
+      logger.error('Send friend accept error:', e);
       return false;
     }
   }
@@ -524,16 +525,16 @@ export class FriendNetwork {
           Object.entries(val).forEach(([key, item]: [string, any]) => {
             if (item && item.fromFriendCode === cleanTargetCode) {
               remove(ref(rtdb, `requests/${profile.friendCode}/${key}`)).catch((err) => {
-                console.error('Remove declined request error:', err);
+                logger.error('Remove declined request error:', err);
               });
             }
           });
         }
       }).catch((err) => {
-        console.error('Fetch requests for decline error:', err);
+        logger.error('Fetch requests for decline error:', err);
       });
     } catch (err) {
-      console.error('Decline friend request exception:', err);
+      logger.error('Decline friend request exception:', err);
     }
   }
 
@@ -564,7 +565,7 @@ export class FriendNetwork {
       this.syncFriendPresenceListeners();
       return true;
     } catch (e) {
-      console.error('Send friend removed notice error:', e);
+      logger.error('Send friend removed notice error:', e);
       return false;
     }
   }

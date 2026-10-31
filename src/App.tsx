@@ -14,7 +14,7 @@ import { evaluatePlay, calculateRoundBreakdown, DetailedRoundScore } from './cor
 import { chooseAICard } from './core/ai/bot';
 import { sound } from './core/audio/soundEngine';
 import { particleEngine } from './core/particles/particleEngine';
-import { multiplayerManager, MultiplayerEvent, LobbyPlayerSlot } from './features/multiplayer/peerManager';
+import { multiplayerManager, LobbyPlayerSlot } from './features/multiplayer/peerManager';
 import { MainMenu } from './components/MainMenu';
 import { TableSurface, TableDomRefs, ActiveEmote, SlotReadinessInfo, cardDomElements } from './components/TableSurface';
 import { ScoreBoard } from './components/ScoreBoard';
@@ -26,7 +26,7 @@ import { GameSetupModal } from './components/GameSetupModal';
 import { ProfileModal } from './components/ProfileModal';
 import { FriendsModal } from './components/FriendsModal';
 import { WelcomeModal } from './components/WelcomeModal';
-import { InGameChat, ChatMessage } from './components/InGameChat';
+import { InGameChat } from './components/InGameChat';
 const UnoGameView = lazy(() =>
   import('./components/UnoGameView').then(m => ({ default: m.UnoGameView }))
 );
@@ -44,6 +44,7 @@ import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
 import { useCardFlightState, getCenter } from './hooks/useCardFlightState';
+import { useMultiplayerRoom, useMultiplayerEvents } from './hooks/useMultiplayerRoom';
 import confetti from 'canvas-confetti';
 import { AlertTriangle, Bell, Play, X } from 'lucide-react';
 
@@ -111,9 +112,8 @@ function loadSavedSettings(): GameSettings {
 export default function App() {
   const [settings, setSettings] = useState<GameSettings>(loadSavedSettings);
   const [screen, setScreen] = useState<'menu' | 'game' | 'uno'>('menu');
-  const [isMultiplayerGame, setIsMultiplayerGame] = useState<boolean>(false);
-  const [isMultiplayerHost, setIsMultiplayerHost] = useState<boolean>(true);
-  const [multiplayerSeedUnoDeck, setMultiplayerSeedUnoDeck] = useState<any[] | null>(null);
+  // User Profile & Sabit PP System
+  const [userProfile, setUserProfile] = useState<UserProfile>(getUserProfile);
 
   // Persist settings changes
   useEffect(() => {
@@ -126,7 +126,6 @@ export default function App() {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [inspectedProfile, setInspectedProfile] = useState<UserProfile | null>(null);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
@@ -138,14 +137,6 @@ export default function App() {
     gameType: 'pisti' | 'uno';
   } | null>(null);
   const [incomingInvite, setIncomingInvite] = useState<IncomingGameInvite | null>(null);
-  const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false);
-  const [matchAbortedInfo, setMatchAbortedInfo] = useState<{ senderName: string; reason?: string } | null>(null);
-
-  // User Profile & Sabit PP System
-  const [userProfile, setUserProfile] = useState<UserProfile>(getUserProfile);
-
-  // In-Game Chat System
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   // Dev Test Macro: Reveal all players' hands exclusively on this client (Ctrl+Shift+X or Alt+X)
   const [devSeeAllHands, setDevSeeAllHands] = useState(false);
@@ -162,9 +153,6 @@ export default function App() {
       devToastTimerRef.current = null;
     }, 3000);
   }, []);
-
-  // Synchronous Ready-Check for Multiplayer Next Round
-  const [readySeatsForNextRound, setReadySeatsForNextRound] = useState<Set<number>>(new Set());
 
   // Animation & Zero-Teleportation States
   const [isShuffling, setIsShuffling] = useState(false);
@@ -220,7 +208,6 @@ export default function App() {
   const matchIntroRef = useRef(matchIntro);
   matchIntroRef.current = matchIntro;
   const introStartRef = useRef<(() => void) | null>(null);
-  const queuedMpEventsRef = useRef<MultiplayerEvent[]>([]);
 
   const runWithIntro = useCallback(
     (
@@ -233,16 +220,8 @@ export default function App() {
     []
   );
 
-  // Social & Deep Linking States
-  const [initialJoinCode, setInitialJoinCode] = useState<string>('');
+  // Active Emotes System
   const [activeEmotes, setActiveEmotes] = useState<ActiveEmote[]>([]);
-  const [peerReconnectingSeconds, setPeerReconnectingSeconds] = useState<number | null>(null);
-  const [myMultiplayerSeat, setMyMultiplayerSeat] = useState<number>(0);
-  const myMultiplayerSeatRef = useRef<number>(0);
-  myMultiplayerSeatRef.current = myMultiplayerSeat;
-  const [activeMultiplayerSlots, setActiveMultiplayerSlots] = useState<LobbyPlayerSlot[]>([]);
-  const activeMultiplayerSlotsRef = useRef<LobbyPlayerSlot[]>(activeMultiplayerSlots);
-  activeMultiplayerSlotsRef.current = activeMultiplayerSlots;
 
   // On-Table Live Card Counting Ceremony State
   const [onTableCount, setOnTableCount] = useState<OnTableCountState>({
@@ -315,11 +294,44 @@ export default function App() {
   playersRef.current = players;
   const settingsRef = useRef<GameSettings>(settings);
   settingsRef.current = settings;
-  const isMultiplayerGameRef = useRef<boolean>(isMultiplayerGame);
-  isMultiplayerGameRef.current = isMultiplayerGame;
-  const isMultiplayerHostRef = useRef<boolean>(isMultiplayerHost);
-  isMultiplayerHostRef.current = isMultiplayerHost;
   const dealTimersRef = useRef<number[]>([]);
+
+  // Multiplayer Room & Session Hook (v1.22.0)
+  const {
+    isMultiplayerGame,
+    setIsMultiplayerGame,
+    isMultiplayerGameRef,
+    isMultiplayerHost,
+    setIsMultiplayerHost,
+    isMultiplayerHostRef,
+    myMultiplayerSeat,
+    setMyMultiplayerSeat,
+    myMultiplayerSeatRef,
+    activeMultiplayerSlots,
+    setActiveMultiplayerSlots,
+    activeMultiplayerSlotsRef,
+    multiplayerSeedUnoDeck,
+    setMultiplayerSeedUnoDeck,
+    isMultiplayerOpen,
+    setIsMultiplayerOpen,
+    initialJoinCode,
+    setInitialJoinCode,
+    chatMessages,
+    setChatMessages,
+    readySeatsForNextRound,
+    setReadySeatsForNextRound,
+    queuedMpEventsRef,
+    isSurrenderModalOpen,
+    setIsSurrenderModalOpen,
+    matchAbortedInfo,
+    setMatchAbortedInfo,
+    peerReconnectingSeconds,
+    setPeerReconnectingSeconds,
+    cleanUrlDeepLink,
+    handleSendChatMessage,
+    resetMultiplayerState
+  } = useMultiplayerRoom({ userProfile, screen, playersRef });
+
   const {
     flyingCards,
     setFlyingCards,
@@ -418,90 +430,12 @@ export default function App() {
     } catch {}
   }, []);
 
-  // Persist active multiplayer match state for recovery
+  // Close drawers when leaving menu
   useEffect(() => {
-    try {
-      if (
-        (screen === 'game' || screen === 'uno') &&
-        isMultiplayerGame &&
-        multiplayerManager.roomCode
-      ) {
-        localStorage.setItem(
-          'project_p_active_match',
-          JSON.stringify({
-            roomCode: multiplayerManager.roomCode,
-            screen,
-            timestamp: Date.now()
-          })
-        );
-      } else if (screen === 'menu') {
-        localStorage.removeItem('project_p_active_match');
-      }
-    } catch {}
-  }, [screen, isMultiplayerGame]);
-
-  // Instant room join via URL query params (?oda=... or ?room=...)
-  // Evaluated BEFORE URL synchronization so join code query params are preserved
-  const initialDeepLinkHandledRef = useRef(false);
-  const deepLinkConsumedRef = useRef(false);
-
-  const cleanUrlDeepLink = useCallback(() => {
-    deepLinkConsumedRef.current = true;
-    try {
-      if (typeof window !== 'undefined') {
-        window.history.pushState(null, '', window.location.pathname);
-      }
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || initialDeepLinkHandledRef.current) return;
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomParam = urlParams.get('oda') || urlParams.get('room') || urlParams.get('kod');
-      if (roomParam) {
-        initialDeepLinkHandledRef.current = true;
-        const normalized = multiplayerManager.normalizeCode(roomParam);
-        if (normalized) {
-          setInitialJoinCode(normalized);
-          setIsMultiplayerOpen(true);
-        }
-      }
-    } catch (err) {
-      console.error('URL parse error:', err);
+    if (screen === 'game' || screen === 'uno') {
+      setIsFriendsOpen(false);
     }
-  }, []);
-
-  // Synchronize browser URL and close drawers on match start/exit
-  // Clean URL when deepLinkConsumedRef is true or match changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      if (screen === 'game') {
-        setIsFriendsOpen(false);
-        const code = multiplayerManager.roomCode;
-        if (isMultiplayerGame && code) {
-          window.history.pushState(null, '', `?oda=${code}`);
-        } else {
-          window.history.pushState(null, '', '?mode=pisti');
-        }
-      } else if (screen === 'uno') {
-        setIsFriendsOpen(false);
-        const code = multiplayerManager.roomCode;
-        if (isMultiplayerGame && code) {
-          window.history.pushState(null, '', `?oda=${code}&mode=renq`);
-        } else {
-          window.history.pushState(null, '', '?mode=renq');
-        }
-      } else if (screen === 'menu') {
-        if (deepLinkConsumedRef.current) {
-          window.history.pushState(null, '', window.location.pathname);
-        }
-      }
-    } catch {
-      // Ignore in restricted iframe environments
-    }
-  }, [screen, isMultiplayerGame]);
+  }, [screen]);
 
   // Initialize Global Friend & Presence Network
   useEffect(() => {
@@ -1925,180 +1859,39 @@ export default function App() {
   );
 
   // Listen to Online Multiplayer Events (Host & Guest Synchronization)
-  useEffect(() => {
-    const unsubscribe = multiplayerManager.onEvent((msg: MultiplayerEvent) => {
-      if (msg.type === 'MP_GAME_START') {
-        // Guest receives synchronized match launch from Host!
-        if (!multiplayerManager.isHost) {
-          const mySlot = msg.slots.find(s => s.peerId === multiplayerManager.instanceId);
-          const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
-          setInitialJoinCode('');
-          setChatMessages([]);
-
-          const activeSlots = msg.slots.filter(s => s && s.peerId);
-          const introPlayers: MatchIntroPlayer[] = activeSlots.map(s => ({
-            name: s.name,
-            avatar: s.avatar,
-            avatarId: s.avatarId,
-            customAvatarUrl: s.customAvatarUrl,
-            isMe: s.peerId === multiplayerManager.instanceId,
-            team: (s.seatIndex % 2 === mySeatIdx % 2 ? 0 : 1)
-          }));
-
-          if (msg.gameType === 'uno') {
-            setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
-            setIsMultiplayerGame(true);
-            setIsMultiplayerHost(false);
-            setMyMultiplayerSeat(mySeatIdx);
-            setActiveMultiplayerSlots(msg.slots);
-            setIsMultiplayerOpen(false);
-
-            runWithIntro(
-              {
-                players: introPlayers,
-                label: 'Canlı Çok Oyunculu',
-                gameType: 'uno'
-              },
-              () => {
-                setScreen('uno');
-              }
-            );
-          } else {
-            runWithIntro(
-              {
-                players: introPlayers,
-                label: 'Canlı Çok Oyunculu',
-                gameType: 'pisti'
-              },
-              () => {
-                startMatchWithDeck(msg.settings, msg.seedDeck, msg.shuffleStyle, {
-                  isMultiplayer: true,
-                  isHost: false,
-                  mySeatIndex: mySeatIdx,
-                  slots: msg.slots
-                });
-              }
-            );
-          }
-        }
-      } else if (msg.type === 'MP_CARD_PLAYED') {
-        const envelopeSender = (msg as any)._verifiedSenderId || msg.senderPeerId;
-        if (envelopeSender === multiplayerManager.instanceId) return;
-
-        // If match intro is still active, queue the card event so it's not dropped or processed prematurely
-        if (matchIntroRef.current) {
-          queuedMpEventsRef.current.push(msg);
-          return;
-        }
-
-        // 1. Validate that envelope sender strictly matches the assigned seat's peerId
-        const senderSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === msg.seatIndex);
-        if (!senderSlot || !senderSlot.peerId || !envelopeSender || senderSlot.peerId !== envelopeSender) {
-          console.warn(
-            `[Anti-Cheat] Unauthorized card play rejected: verified sender "${envelopeSender}" is not registered in seat ${msg.seatIndex} (slot peerId: "${senderSlot?.peerId}")!`
-          );
-          return;
-        }
-
-        const N = settingsRef.current.playerCount;
-        const targetLocalIdx = (msg.seatIndex - myMultiplayerSeatRef.current + N) % N;
-
-        // 2. Validate that it is currently this player's turn
-        if (currentTurnRef.current !== targetLocalIdx) {
-          console.warn(
-            `Out-of-turn card play attempt: seat ${msg.seatIndex} played but turn is ${currentTurnRef.current}!`
-          );
-          return;
-        }
-
-        const targetPlayer = playersRef.current[targetLocalIdx];
-        if (!targetPlayer) return;
-
-        const foundCard = targetPlayer.hand.find(c => c.id === msg.cardId);
-        if (foundCard) {
-          handlePlayCardWithAnimation(targetLocalIdx, foundCard, undefined, 0, true);
-        } else {
-          console.warn(
-            `Card desync: player seat ${msg.seatIndex} played ${msg.cardId} but not in local hand!`
-          );
-          if (!multiplayerManager.isHost) {
-            multiplayerManager.send({
-              type: 'REQUEST_RESYNC',
-              seatIndex: myMultiplayerSeatRef.current,
-              senderPeerId: multiplayerManager.instanceId
-            });
-          }
-        }
-      } else if (msg.type === 'MP_NEXT_ROUND') {
-        if (!multiplayerManager.isHost) {
-          setReadySeatsForNextRound(new Set());
-          setRoundScores(null);
-          const N = settingsRef.current.playerCount;
-          const guestStartingTurn = (msg.startingTurnSeat - myMultiplayerSeatRef.current + N) % N;
-          startNextRoundWithDeck(msg.seedDeck, msg.shuffleStyle, guestStartingTurn);
-        }
-      } else if (msg.type === 'MP_ROUND_READY') {
-        setReadySeatsForNextRound(prev => {
-          const next = new Set(prev);
-          if (msg.isReady) {
-            next.add(msg.seatIndex);
-          } else {
-            next.delete(msg.seatIndex);
-          }
-          return next;
-        });
-      } else if (msg.type === 'MP_CHAT_MESSAGE') {
-        if (msg.senderPeerId === multiplayerManager.instanceId) return;
-        const safeText = typeof msg.text === 'string' ? msg.text.trim().slice(0, 80) : '';
-        if (!safeText) return;
-        setChatMessages(prev => [
-          ...prev,
-          {
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            senderName: msg.senderName.slice(0, 20),
-            senderAvatarId: msg.senderAvatarId,
-            senderAvatarEmoji: msg.senderAvatar,
-            text: safeText,
-            timestamp: msg.timestamp,
-            isMe: false
-          }
-        ]);
-      } else if (msg.type === 'MP_EMOTE') {
-        if (msg.senderPeerId === multiplayerManager.instanceId) return;
-        const N = settingsRef.current.playerCount;
-        const targetLocalIdx = (msg.seatIndex - myMultiplayerSeatRef.current + N) % N;
-        triggerEmote(targetLocalIdx, msg.emoji);
-      } else if (msg.type === 'PEER_RECONNECTING') {
-        setPeerReconnectingSeconds(msg.secondsLeft);
-      } else if (msg.type === 'PEER_RECONNECTED') {
-        setPeerReconnectingSeconds(null);
-      } else if (msg.type === 'PEER_DISCONNECTED') {
-        setPeerReconnectingSeconds(null);
-        if (isMultiplayerGameRef.current) {
-          setMatchAbortedInfo({
-            senderName: 'Rakip',
-            reason: 'disconnect'
-          });
-        }
-      } else if (msg.type === 'MP_DECK_CUT') {
-        if (msg.senderPeerId === multiplayerManager.instanceId) return;
-        handleCutDeckAndProceed(msg.cutIndex);
-      } else if (msg.type === 'MP_MATCH_ABORTED') {
-        if (msg.gameType && msg.gameType !== 'pisti') return;
-        setPeerReconnectingSeconds(null);
-        setMatchAbortedInfo({
-          senderName: msg.senderName || 'Rakip oyuncu',
-          reason: msg.reason || 'surrender'
-        });
-        // Record match win for local player
-        recordMatchStats(true, 50, 0, 0, false, msg.senderName || 'Online Rakip');
-        setUserProfile(getUserProfile());
-        friendNetwork.announcePresence();
-      }
-    });
-
-    return unsubscribe;
-  }, [startMatchWithDeck, handlePlayCardWithAnimation, startNextRoundWithDeck, triggerEmote, handleCutDeckAndProceed, runWithIntro, userProfile]);
+  useMultiplayerEvents({
+    userProfile,
+    setUserProfile,
+    playersRef,
+    currentTurnRef,
+    settingsRef,
+    matchIntroRef,
+    setScreen,
+    setRoundScores,
+    setIsMultiplayerGame,
+    setIsMultiplayerHost,
+    setMyMultiplayerSeat,
+    myMultiplayerSeatRef,
+    setActiveMultiplayerSlots,
+    activeMultiplayerSlotsRef,
+    setIsMultiplayerOpen,
+    setInitialJoinCode,
+    setMultiplayerSeedUnoDeck,
+    setChatMessages,
+    setReadySeatsForNextRound,
+    queuedMpEventsRef,
+    setMatchAbortedInfo,
+    setPeerReconnectingSeconds,
+    isMultiplayerGameRef,
+    onPlayRemoteCard: (targetLocalIdx, card) => {
+      handlePlayCardWithAnimation(targetLocalIdx, card, undefined, 0, true);
+    },
+    onCutDeckAndProceed: handleCutDeckAndProceed,
+    onTriggerEmote: triggerEmote,
+    onStartMatchWithDeck: startMatchWithDeck,
+    onStartNextRoundWithDeck: startNextRoundWithDeck,
+    onRunWithIntro: runWithIntro
+  });
 
   // Turn Countdown Timer: ONLY active in Multiplayer mode!
   useEffect(() => {
@@ -2765,14 +2558,9 @@ export default function App() {
       } catch (e) {
         console.warn(e);
       }
-      setIsMultiplayerGame(false);
-      setMyMultiplayerSeat(0);
-      myMultiplayerSeatRef.current = 0;
     }
     friendNetwork.setStatus('menu', undefined);
-    setInitialJoinCode('');
-    setActiveMultiplayerSlots([]);
-    setMultiplayerSeedUnoDeck(null);
+    resetMultiplayerState();
     clearScheduledTimers();
     sound.playClick();
     clearFlights();
@@ -2781,30 +2569,8 @@ export default function App() {
     setIsActionLocked(false);
     setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
     setRoundScores(null);
-    setReadySeatsForNextRound(new Set());
-    setChatMessages([]);
     setScreen('menu');
-  }, [userProfile.name, clearScheduledTimers]);
-
-  // Notify peer on tab close / reload in multiplayer
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (isMultiplayerGameRef.current) {
-        try {
-          multiplayerManager.send({
-            type: 'MP_MATCH_ABORTED',
-            reason: 'disconnect',
-            senderName: userProfile.name
-          });
-          multiplayerManager.leaveRoom();
-        } catch {
-          // Ignored
-        }
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [userProfile.name]);
+  }, [userProfile.name, clearScheduledTimers, clearFlights, resetMultiplayerState]);
 
   // Dev Test Macro: Reveal all hands exclusively on local client (Ctrl+Shift+X or Alt+X)
   useEffect(() => {
@@ -2849,62 +2615,6 @@ export default function App() {
     );
     friendNetwork.announcePresence();
   }, []);
-
-  const handleSendChatMessage = useCallback(
-    (text: string) => {
-      const newMsg: ChatMessage = {
-        id: `msg-${Date.now()}-${Math.random()}`,
-        senderName: userProfile.name,
-        senderAvatarId: userProfile.avatarId,
-        text,
-        timestamp: Date.now(),
-        isMe: true
-      };
-
-      setChatMessages(prev => [...prev, newMsg]);
-
-      if (isMultiplayerGame && multiplayerManager.isConnected) {
-        multiplayerManager.send({
-          type: 'MP_CHAT_MESSAGE',
-          senderPeerId: multiplayerManager.instanceId,
-          senderName: userProfile.name,
-          senderAvatarId: userProfile.avatarId,
-          text,
-          seatIndex: myMultiplayerSeatRef.current,
-          timestamp: Date.now()
-        });
-      } else if (!isMultiplayerGame) {
-        // Singleplayer Bot Banter
-        if (Math.random() < 0.7) {
-          const botReplies = [
-            'Attığın karta dikkat et!',
-            'Bu pişti senin sonun olacak :)',
-            'Şansın yaver gitti bu el...',
-            'İyi oynadın ama ben buradayım!',
-            'Kıraathane reisi affetmez!'
-          ];
-          const randomReply =
-            botReplies[Math.floor(Math.random() * botReplies.length)];
-          const botName = playersRef.current[1]?.name || 'Kurnaz Bot';
-          const t = window.setTimeout(() => {
-            setChatMessages(prev => [
-              ...prev,
-              {
-                id: `bot-msg-${Date.now()}`,
-                senderName: botName,
-                senderAvatarId: 'lion',
-                text: randomReply,
-                timestamp: Date.now(),
-                isMe: false
-              }
-            ]);
-          }, 1100);
-          dealTimersRef.current.push(t);
-        }
-      }
-    },
-    [isMultiplayerGame, userProfile]
-  );
 
   return (
     <div
@@ -3485,18 +3195,14 @@ export default function App() {
             <button
               onClick={() => {
                 setMatchAbortedInfo(null);
-                setIsMultiplayerGame(false);
-      setMyMultiplayerSeat(0);
-      myMultiplayerSeatRef.current = 0;
+                resetMultiplayerState();
                 clearScheduledTimers();
-                setFlyingCards([]);
-                setHiddenCardIds(new Set());
+                clearFlights();
                 setIsShuffling(false);
                 setIsDealingAnimation(false);
                 setIsActionLocked(false);
                 setOnTableCount(prev => ({ ...prev, isActive: false, isDone: false }));
                 setRoundScores(null);
-                setReadySeatsForNextRound(new Set());
                 setScreen('menu');
               }}
               className="px-6 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-lg cursor-pointer"

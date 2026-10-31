@@ -7,16 +7,17 @@
  * 2. HAVUZDAN MASAYA FİZİKSEL KAYMA (Physical Deck Glide):
  *    Sayım başladığında, toplanan kart destesi sol köşedeki havuzdan ('collectedEls')
  *    çuhanın üzerinden fiziksel olarak kayarak oyuncunun önüne süzülür (Işınlanma 0).
- * 3. OYUNCU PERSPEKTİFLERİ & MASA DÜZENİ:
- *    - Alt Oyuncu (Sen): 0° rotasyon, el alanının biraz ilerisinde, çuhanın ortasına doğru doğal mesafede.
- *    - Üst Rakip: 180° rotasyon, kendine dönük.
- *    - 4 Kişilikte Sol Oyuncu: +90° rotasyon, masa kenarına paralel.
- *    - 4 Kişilikte Sağ Oyuncu: -90° rotasyon, masa kenarına paralel.
- * 4. TIK-TIK ÇUHA ÜZERİNDE KAYARAK DÖNEN KARTLAR:
- *    - Kapalı deste (sol), hemen yanında açık deste (sağ).
- *    - Kart kapalı destenin üstünden kalkar, çuha üzerinde yana süzülerek 180° döner ve açık desteye oturur ("tık").
- *    - Değerli sayı kartları (Karo 10, Sinek 2, As, Vale) açık desteye binmez; sağdaki "Puanlar" sırasına tek başına dizilir.
- * 5. BİTİŞ: Masa merkezinde çoğunluk rozeti (+3P) ve "Sonraki El" butonu belirir.
+ * 3. FERAH VE ORTADA MASA DÜZENİ:
+ *    - Sayım istasyonları masa kenarlarına yapışık değildir; çuhanın merkezine doğru
+ *      ferah bir mesafede (`bottom-28 sm:bottom-36` ve `top-28 sm:top-36`) toplanır.
+ * 4. DÜZ METİN VE ROZETLER (Zero Inversion):
+ *    - Tüm isim, skor, rozet ve sayaç metinleri ekrana göre %100 DÜZ (0°) okunur;
+ *      hiçbir metin ters/baş aşağı kalmaz!
+ * 5. 52 FİZİKSEL KART KORUNUMU:
+ *    - Kart silme / baştan üretme (spawn/delete) YOKTUR.
+ *    - Kapalı deste tepe kartını verir (`userIndex`), kart çuha üzerinde yana süzülerek
+ *      180° döner ve açık desteye ("tık-tık") veya Değerli Puanlar sırasına oturur.
+ * 6. BİTİŞ: Masa merkezinde çoğunluk rozeti (+3P) ve "Sonraki El" butonu belirir.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -99,8 +100,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const [oppFlippingCard, setOppFlippingCard] = useState<{ card: Card; index: number; isPoint: boolean } | null>(null);
 
   // Havuzdan istasyona fiziksel başlangıç delta koordinatları (px)
-  const [userPoolOffset, setUserPoolOffset] = useState({ x: -160, y: 60 });
-  const [oppPoolOffset, setOppPoolOffset] = useState({ x: -160, y: -60 });
+  const [userPoolOffset, setUserPoolOffset] = useState({ x: -180, y: 50 });
+  const [oppPoolOffset, setOppPoolOffset] = useState({ x: -180, y: -50 });
 
   const timerRef = useRef<number | null>(null);
   const startedRef = useRef(false);
@@ -315,13 +316,10 @@ export const CardCountingOverlay: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ── 1. RAKİBİN MASADAKİ DESTESİ (180° KENDİNE DÖNÜK, MASANIN ÇUHASINDA) ── */}
+      {/* ── 1. RAKİBİN MASADAKİ DESTESİ (MASANIN ÇUHASINDA ORTAYA YAKIN, TÜM YAZILAR DÜZ!) ── */}
       <div
         ref={oppStationRef}
-        className="absolute top-12 sm:top-16 left-1/2 -translate-x-1/2 pointer-events-none z-30"
-        style={{
-          transform: `translate(-50%, 0) rotate(180deg)`
-        }}
+        className="absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 pointer-events-none z-30"
       >
         <div
           className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl"
@@ -334,7 +332,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
         >
           {/* Rakip Kapalı Deste Kutusu */}
           <div className="relative flex flex-col items-center">
-            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+            <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
               Kalan ({oppRemainingCount})
             </span>
             <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
@@ -380,7 +378,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+            <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
               Sayılmış ({oppCountedPile.length})
             </span>
             <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
@@ -418,9 +416,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Rakip Skor Özeti Rozeti */}
-          <div className="flex flex-col items-center px-2.5 py-1 rounded-2xl bg-slate-950/80 border border-rose-400/50 shadow-lg">
-            <span className="text-[10px] text-rose-300 font-bold">{opp?.name || 'Rakip'}</span>
+          {/* Rakip Skor Özeti Rozeti (YAZILAR DÜZ 0°!) */}
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-rose-400/60 shadow-xl">
+            <span className="text-[11px] text-rose-300 font-bold">{opp?.name || 'Rakip'}</span>
             <span className="text-xl sm:text-2xl font-black font-cyber text-rose-300">+{oppTotalPts}P</span>
             {isDone && countState.oppMajority && (
               <span className="text-[9px] font-black text-amber-300">🏆 +3P Çoğunluk</span>
@@ -432,7 +430,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
       {/* ── 2. MASA MERKEZİ: ÇOĞUNLUK & SONRAKİ EL BUTONU (Doğrudan Çuhanın Üstünde) ── */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40">
         {isDone && (
-          <div className="flex flex-col items-center gap-2.5 p-3 sm:p-5 rounded-3xl bg-slate-950/90 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto">
+          <div className="flex flex-col items-center gap-2.5 p-3.5 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto">
             {/* Majority Announcement */}
             <div className="px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400 text-xs sm:text-sm font-black text-amber-300">
               {countState.userMajority
@@ -518,13 +516,10 @@ export const CardCountingOverlay: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ── 3. KULLANICININ DESTESİ (0° SANA DÖNÜK, ELİN İLERİSİNDE ÇUHANIN ÜSTÜNDE) ── */}
+      {/* ── 3. KULLANICININ DESTESİ (SANA DÖNÜK, ELİN İLERİSİNDE ÇUHANIN FERAH BÖLGESİNDE) ── */}
       <div
         ref={userStationRef}
-        className="absolute bottom-16 sm:bottom-24 left-1/2 -translate-x-1/2 pointer-events-none z-30"
-        style={{
-          transform: `translate(-50%, 0) rotate(0deg)`
-        }}
+        className="absolute bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 pointer-events-none z-30"
       >
         <div
           className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl"
@@ -537,7 +532,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
         >
           {/* Kullanıcı Kapalı Deste Kutusu */}
           <div className="relative flex flex-col items-center">
-            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+            <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
               Kalan ({userRemainingCount})
             </span>
             <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
@@ -583,7 +578,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
           {/* Kullanıcı Açılan Normal Deste */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-mono text-slate-400 mb-0.5 font-bold">
+            <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
               Sayılmış ({userCountedPile.length})
             </span>
             <div className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl border border-dashed border-white/20 flex items-center justify-center bg-black/20">
@@ -622,8 +617,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
           </div>
 
           {/* Kullanıcı Skor Özeti Rozeti */}
-          <div className="flex flex-col items-center px-2.5 py-1 rounded-2xl bg-slate-950/80 border border-emerald-400/50 shadow-lg">
-            <span className="text-[10px] text-emerald-300 font-bold">{isFourPlayers ? 'Bizim Takım' : (user?.name || 'Sen')}</span>
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-emerald-400/60 shadow-xl">
+            <span className="text-[11px] text-emerald-300 font-bold">{isFourPlayers ? 'Bizim Takım' : (user?.name || 'Sen')}</span>
             <span className="text-xl sm:text-2xl font-black font-cyber text-amber-300">+{userTotalPts}P</span>
             {isDone && countState.userMajority && (
               <span className="text-[9px] font-black text-emerald-300">🏆 +3P Çoğunluk</span>

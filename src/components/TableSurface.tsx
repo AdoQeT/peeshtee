@@ -6,6 +6,7 @@ import { Flame, Clock, Sparkles, RotateCcw, Scissors } from 'lucide-react';
 import { DetailedRoundScore } from '../core/rules';
 import { AmbientParticles } from './AmbientParticles';
 import { getAvatarPreset } from '../features/profile/profileManager';
+import { cardDomElements } from '../hooks/useCardFlightState';
 
 export interface TableDomRefs {
   deckEl: HTMLDivElement | null;
@@ -303,8 +304,6 @@ export interface SlotReadinessInfo {
   isReady: boolean;
   isAI: boolean;
 }
-
-export const cardDomElements = new Map<string, HTMLElement>();
 
 export const RoleChip: React.FC<{ role: 'dealer' | 'cutter'; className?: string }> = () => {
   return null;

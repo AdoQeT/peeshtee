@@ -17,7 +17,7 @@ import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from
 import { Card, OnTableCountState, TableTheme, Player } from '../types/game';
 import { CardFrontSurface, CardBackSurface } from './CardView';
 import { DetailedRoundScore } from '../core/rules';
-import { TableDomRefs } from './TableSurface';
+import type { TableDomRefs } from './TableSurface';
 import { sound } from '../core/audio/soundEngine';
 import confetti from 'canvas-confetti';
 import { RotateCcw, ArrowRight, Trophy } from 'lucide-react';

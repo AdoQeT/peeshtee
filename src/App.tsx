@@ -10,7 +10,10 @@ import { sound } from './core/audio/soundEngine';
 import { particleEngine } from './core/particles/particleEngine';
 import { multiplayerManager } from './features/multiplayer/peerManager';
 import { MainMenu } from './components/MainMenu';
-import { TableSurface, ActiveEmote } from './components/TableSurface';
+import type { ActiveEmote } from './components/TableSurface';
+const TableSurface = lazy(() =>
+  import('./components/TableSurface').then(m => ({ default: m.TableSurface }))
+);
 import { ScoreBoard } from './components/ScoreBoard';
 import { PistiOverlay } from './components/PistiOverlay';
 import { RulesModal } from './components/RulesModal';
@@ -695,52 +698,54 @@ export default function App() {
           />
 
           {/* Table Surface with Zero-Teleportation Cards, Pişti 90° Stack & Live On-Table Count */}
-          <TableSurface
-            theme={settings.theme}
-            cardBack={settings.cardBack}
-            tableCards={tableCards}
-            players={players}
-            currentTurn={currentTurn}
-            deckCount={deck.length}
-            dealerIndex={dealerIndex}
-            cutterIndex={(dealerIndex + 1) % settings.playerCount}
-            isBusy={isBusy}
-            isShuffling={isShuffling}
-            hiddenCardIds={hiddenCardIds}
-            recentCapture={recentCapture}
-            turnTimeRemaining={turnTimeRemaining}
-            isMultiplayer={isMultiplayerGame}
-            activeEmotes={activeEmotes}
-            onSendEmote={handleSendEmote}
-            onTableCountState={onTableCount}
-            onSkipCounting={handleSkipCounting}
-            onToggleFastCounting={handleToggleFastCounting}
-            onFinishCounting={handleFinishCounting}
-            tableRefs={tableRefs}
-            onPlayCard={(card, rect, tilt) =>
-              handlePlayCardWithAnimation(0, card, rect, tilt)
-            }
-            devSeeAllHands={devSeeAllHands && !isMultiplayerGame}
-            isGameOver={Boolean(roundScores?.isGameOver)}
-            gameOverWinner={roundScores?.winner ?? null}
-            roundScores={roundScores}
-            onNextRound={handleNextRound}
-            onRestartGame={handleRestartGame}
-            onExitToMenu={() => {
-              if (isMultiplayerGame && !roundScores?.isGameOver) {
-                setIsSurrenderModalOpen(true);
-                return;
+          <Suspense fallback={<div className="flex-1 bg-slate-950" />}>
+            <TableSurface
+              theme={settings.theme}
+              cardBack={settings.cardBack}
+              tableCards={tableCards}
+              players={players}
+              currentTurn={currentTurn}
+              deckCount={deck.length}
+              dealerIndex={dealerIndex}
+              cutterIndex={(dealerIndex + 1) % settings.playerCount}
+              isBusy={isBusy}
+              isShuffling={isShuffling}
+              hiddenCardIds={hiddenCardIds}
+              recentCapture={recentCapture}
+              turnTimeRemaining={turnTimeRemaining}
+              isMultiplayer={isMultiplayerGame}
+              activeEmotes={activeEmotes}
+              onSendEmote={handleSendEmote}
+              onTableCountState={onTableCount}
+              onSkipCounting={handleSkipCounting}
+              onToggleFastCounting={handleToggleFastCounting}
+              onFinishCounting={handleFinishCounting}
+              tableRefs={tableRefs}
+              onPlayCard={(card, rect, tilt) =>
+                handlePlayCardWithAnimation(0, card, rect, tilt)
               }
-              handleExitToMenu();
-            }}
-            isReadyForNextRound={isReadyForNextRound}
-            readySeatsCount={readySeatsCount}
-            totalHumanPlayersCount={totalHumanPlayersCount}
-            slotsReadiness={slotsReadiness}
-            onToggleReady={handleToggleReady}
-            deckCutState={deckCutState}
-            onCutDeck={handleCutDeckAndProceed}
-          />
+              devSeeAllHands={devSeeAllHands && !isMultiplayerGame}
+              isGameOver={Boolean(roundScores?.isGameOver)}
+              gameOverWinner={roundScores?.winner ?? null}
+              roundScores={roundScores}
+              onNextRound={handleNextRound}
+              onRestartGame={handleRestartGame}
+              onExitToMenu={() => {
+                if (isMultiplayerGame && !roundScores?.isGameOver) {
+                  setIsSurrenderModalOpen(true);
+                  return;
+                }
+                handleExitToMenu();
+              }}
+              isReadyForNextRound={isReadyForNextRound}
+              readySeatsCount={readySeatsCount}
+              totalHumanPlayersCount={totalHumanPlayersCount}
+              slotsReadiness={slotsReadiness}
+              onToggleReady={handleToggleReady}
+              deckCutState={deckCutState}
+              onCutDeck={handleCutDeckAndProceed}
+            />
+          </Suspense>
 
           {/* Semi-Transparent Floating In-Game Chat */}
           <InGameChat

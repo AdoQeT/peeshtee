@@ -13,6 +13,7 @@
     "test": "node --test scripts/testPayloadSanitization.mjs scripts/testRules.mjs scripts/testUnoRules.mjs scripts/testBot.mjs scripts/testDatabaseRules.mjs",
     "lint": "eslint src",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "clean-db": "node scripts/cleanDatabase.mjs",
     "changelog": "node scripts/sendDiscordChangelog.mjs"
   },
   "dependencies": {

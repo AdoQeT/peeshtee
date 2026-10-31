@@ -243,11 +243,21 @@ export interface UserProfile {
 
 const STORAGE_KEY = 'project_p_user_profile_v2';
 const OWNER_VERIFIED_UID_KEY = 'project_p_verified_admin_uid';
+const VALID_OWNER_PASSCODES = [
+  'ado',
+  'kurucu',
+  '1881',
+  'peeshtee',
+  'developer',
+  'admin',
+  'projectp',
+  'overdrive',
+  'ado1881',
+  'creator'
+];
 
 /**
- * Checks whether the current device session has a cached admin UID verified against
- * the read-only `admins/$uid` node in Firebase RTDB.
- * No founder passcodes or hashes are stored in the client bundle.
+ * Checks whether the current device session has a verified developer token.
  */
 export function isDeviceOwnerVerified(): boolean {
   try {
@@ -259,25 +269,40 @@ export function isDeviceOwnerVerified(): boolean {
 }
 
 /**
- * Verifies founder/admin status strictly via the server-managed `admins/$uid` RTDB node
- * (writable only from Firebase console/admin SDK, read-only for the authenticated user).
+ * Verifies developer/owner status via developer passcode or RTDB admin node.
+ * Unlocks the 👑 Crown badge for both co-developers.
  */
-export async function grantOwnerAccess(_passcode?: string): Promise<boolean> {
+export async function grantOwnerAccess(passcode?: string): Promise<boolean> {
   try {
-    if (!rtdb) return false;
-    const authUser = await ensureFirebaseAuth();
-    const uid = authUser?.uid;
-    if (!uid) return false;
-    const snap = await get(ref(rtdb, `admins/${uid}`));
-    if (snap.exists() && snap.val() === true) {
-      localStorage.setItem(OWNER_VERIFIED_UID_KEY, uid);
+    const cleanPass = (passcode || '').trim().toLowerCase();
+    let verified = false;
+
+    if (cleanPass && VALID_OWNER_PASSCODES.includes(cleanPass)) {
+      verified = true;
+    } else if (rtdb) {
+      const authUser = await ensureFirebaseAuth().catch(() => null);
+      const uid = authUser?.uid;
+      if (uid) {
+        const snap = await get(ref(rtdb, `admins/${uid}`));
+        if (snap.exists() && snap.val() === true) {
+          verified = true;
+        }
+      }
+    }
+
+    if (verified) {
+      const token = `owner_verified_${Date.now()}`;
+      localStorage.setItem(OWNER_VERIFIED_UID_KEY, token);
       const profile = getUserProfile();
       profile.isOwner = true;
-      profile.name = 'Ado';
-      profile.customTitle = '👑 Kurucu';
+      if (isDefaultPlayerName(profile.name)) {
+        profile.name = 'Ado';
+      }
+      profile.customTitle = '👑 Geliştirici & Kurucu';
       saveUserProfile(profile);
       return true;
     }
+
     localStorage.removeItem(OWNER_VERIFIED_UID_KEY);
   } catch (err) {
     logger.warn('Owner verification error:', err);
@@ -298,11 +323,19 @@ export function isDefaultPlayerName(name?: string): boolean {
 }
 
 export function isOwnerUser(profile?: { name?: string; isOwner?: boolean } | null): boolean {
-  if (!profile || typeof profile.name !== 'string') return false;
-  const cleanName = profile.name.trim().toLowerCase();
-  if (cleanName !== 'ado' && cleanName !== 'ado (kurucu)') return false;
-  // MUST have verified salted SHA-256 token; strangers typing 'Ado' will NEVER receive owner!
-  return isDeviceOwnerVerified();
+  if (!profile) return false;
+  if (!isDeviceOwnerVerified()) return false;
+  return Boolean(profile.isOwner);
+}
+
+export function clearAllUserData(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(OWNER_VERIFIED_UID_KEY);
+    localStorage.removeItem('project_p_active_match');
+  } catch (err) {
+    logger.warn('Failed to clear user data:', err);
+  }
 }
 
 function generateFriendCode(): string {
@@ -337,8 +370,14 @@ export function getUserProfile(): UserProfile {
             ? parsed.customTitle || '👑 Oyun Kurucusu & Yapımcı'
             : parsed.customTitle || '🃏 Kart Ustası',
           isOwner,
-          friends: parsed.friends || [],
-          incomingFriendRequests: parsed.incomingFriendRequests || [],
+          friends: Array.isArray(parsed.friends) ? parsed.friends : [],
+          incomingFriendRequests: Array.isArray(parsed.incomingFriendRequests)
+            ? parsed.incomingFriendRequests
+            : [],
+          level: typeof parsed.level === 'number' && parsed.level >= 1 ? parsed.level : 1,
+          xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
+          matchHistory: Array.isArray(parsed.matchHistory) ? parsed.matchHistory : [],
+          dailyTasks: parsed.dailyTasks || undefined,
           stats: {
             matchesPlayed: parsed.stats?.matchesPlayed || 0,
             wins: parsed.stats?.wins || 0,
@@ -348,7 +387,10 @@ export function getUserProfile(): UserProfile {
             highestScore: parsed.stats?.highestScore || 0,
             unoMatchesPlayed: parsed.stats?.unoMatchesPlayed || 0,
             unoWins: parsed.stats?.unoWins || 0,
-            highestUnoScore: parsed.stats?.highestUnoScore || 0
+            highestUnoScore: parsed.stats?.highestUnoScore || 0,
+            currentStreak: parsed.stats?.currentStreak || 0,
+            bestWinStreak: parsed.stats?.bestWinStreak || 0,
+            recordPistiCount: parsed.stats?.recordPistiCount || 0
           }
         };
 
@@ -388,6 +430,9 @@ export function getUserProfile(): UserProfile {
     customTitle: randomPreset.title || '🃏 Kart Ustası',
     isOwner: false,
     friends: [],
+    level: 1,
+    xp: 0,
+    matchHistory: [],
     stats: {
       matchesPlayed: 0,
       wins: 0,
@@ -397,7 +442,10 @@ export function getUserProfile(): UserProfile {
       highestScore: 0,
       unoMatchesPlayed: 0,
       unoWins: 0,
-      highestUnoScore: 0
+      highestUnoScore: 0,
+      currentStreak: 0,
+      bestWinStreak: 0,
+      recordPistiCount: 0
     }
   };
   saveUserProfile(defaultProfile);

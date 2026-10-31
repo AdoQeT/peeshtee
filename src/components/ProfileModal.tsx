@@ -5,9 +5,7 @@ import {
   saveUserProfile,
   grantOwnerAccess,
   calculateLevel,
-  getOrInitDailyTasks,
-  claimDailyTaskReward,
-  DailyTask
+  getUserProfile
 } from '../features/profile/profileManager';
 import { AvatarBadge } from './AvatarBadge';
 import {
@@ -23,7 +21,6 @@ import {
   Camera,
   KeyRound,
   History,
-  CalendarCheck,
   Gamepad2,
   Clock
 } from 'lucide-react';
@@ -54,7 +51,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   }, []);
   const t = translations[lang];
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'tasks'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'history'>('profile');
   const [name, setName] = useState(profile.name);
   const [selectedAvatarId] = useState(profile.avatarId);
   const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | undefined>(
@@ -64,7 +61,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [showOwnerPrompt, setShowOwnerPrompt] = useState(false);
   const [ownerPasscode, setOwnerPasscode] = useState('');
   const [ownerFeedback, setOwnerFeedback] = useState<string | null>(null);
-  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(() => getOrInitDailyTasks());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
@@ -84,14 +80,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     if (!ownerPasscode.trim()) return;
     const ok = await grantOwnerAccess(ownerPasscode);
     if (ok) {
-      setOwnerFeedback('👑 Kurucu doğrulaması başarılı! Hoş geldin Ado.');
-      setName('Ado');
-      onUpdateProfile({
-        ...profile,
-        name: 'Ado',
-        isOwner: true,
-        customTitle: '👑 Kurucu'
-      });
+      const updated = getUserProfile();
+      setOwnerFeedback(`👑 Kurucu doğrulaması başarılı! Hoş geldin ${updated.name}.`);
+      setName(updated.name);
+      onUpdateProfile(updated);
       window.setTimeout(() => {
         setShowOwnerPrompt(false);
         setOwnerFeedback(null);
@@ -161,16 +153,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     saveUserProfile(updated);
     onUpdateProfile(updated);
     onClose();
-  };
-
-  const handleClaimTask = (taskId: string) => {
-    sound.playClick();
-    const res = claimDailyTaskReward(taskId);
-    if (res) {
-      sound.playMatchSweep();
-      setDailyTasks([...getOrInitDailyTasks()]);
-      onUpdateProfile(profile);
-    }
   };
 
   const formatDate = (timestamp: number) => {
@@ -249,25 +231,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </span>
             )}
           </button>
-          {!isInspectingOther && (
-            <button
-              onClick={() => {
-                sound.playClick();
-                setActiveTab('tasks');
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'tasks'
-                  ? 'bg-amber-400 text-slate-950 shadow-md font-black'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <CalendarCheck className="w-3.5 h-3.5" />
-              <span>{t.tabTasks}</span>
-              {dailyTasks.some(d => d.current >= d.target && !d.claimed) && (
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping ml-0.5" />
-              )}
-            </button>
-          )}
         </div>
 
         {/* Modal Scrollable Body */}
@@ -616,82 +579,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   })}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* TAB 3: DAILY TASKS */}
-          {activeTab === 'tasks' && !isInspectingOther && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <CalendarCheck className="w-4 h-4 text-amber-400" />
-                  <span>Günlük Görevler & Ödüller</span>
-                </span>
-                <span className="text-[11px] text-amber-400 font-medium">
-                  Her gece 00:00'da yenilenir
-                </span>
-              </div>
-
-              <div className="space-y-2.5">
-                {dailyTasks.map(task => {
-                  const isDone = task.current >= task.target;
-                  const progressPct = Math.min(100, Math.round((task.current / task.target) * 100));
-
-                  return (
-                    <div
-                      key={task.id}
-                      className={`p-3.5 rounded-2xl border transition-all ${
-                        task.claimed
-                          ? 'bg-slate-950/40 border-white/5 opacity-70'
-                          : isDone
-                          ? 'bg-amber-950/30 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.2)]'
-                          : 'bg-slate-950/80 border-white/10'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xl">{task.icon}</span>
-                          <div>
-                            <h5 className="text-xs font-bold text-white">{task.title}</h5>
-                            <p className="text-[11px] text-slate-400">{task.description}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[11px] font-mono font-black">
-                            +{task.rewardXp} XP
-                          </span>
-                          {task.claimed ? (
-                            <span className="px-2.5 py-1 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">
-                              Alındı ✓
-                            </span>
-                          ) : isDone ? (
-                            <button
-                              onClick={() => handleClaimTask(task.id)}
-                              className="px-3 py-1 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer animate-pulse"
-                            >
-                              Ödülü Al
-                            </button>
-                          ) : (
-                            <span className="text-xs text-slate-400 font-mono font-bold">
-                              {task.current}/{task.target}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            isDone ? 'bg-amber-400' : 'bg-cyan-400'
-                          }`}
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
         </div>

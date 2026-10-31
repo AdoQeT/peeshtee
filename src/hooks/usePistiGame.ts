@@ -841,31 +841,6 @@ export function usePistiGame({
 
       // Step 1: Splitting animation on the felt
       sound.playTripleCut();
-
-      // Check for Dead-Center (+5 Bonus Points) cut!
-      const isDeadCenter = validIndex === 26 && seedDeck.length === 52;
-      if (isDeadCenter) {
-        sound.playDeadCenterJackpot();
-        confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 } });
-        const cutterSeat =
-          deckCutState?.cutterSeat ??
-          (startingTurn - 1 + configuredSettings.playerCount) % configuredSettings.playerCount;
-        setPlayers(prev =>
-          prev.map((p, idx) => {
-            if (idx === cutterSeat) {
-              return { ...p, bonusPoints: (p.bonusPoints || 0) + 5 };
-            }
-            return p;
-          })
-        );
-        const cutterName = deckCutState?.cutterName || 'Kesen';
-        const msg =
-          getLanguage() === 'tr'
-            ? `🎯 TAM ORTADAN! ${cutterName} +5 Bonus Puan Kazandı!`
-            : `🎯 DEAD CENTER! ${cutterName} gained +5 Bonus Points!`;
-        showDevToast(msg);
-      }
-
       setDeckCutState(prev =>
         prev
           ? {

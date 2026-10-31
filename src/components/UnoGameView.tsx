@@ -24,6 +24,7 @@ import { sound } from '../core/audio/soundEngine';
 import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLayer';
 import { UnoGrandShuffleLayer } from './UnoGrandShuffleLayer';
 import { AmbientParticles } from './AmbientParticles';
+import { UnoOpponentSeat } from '../features/uno/components/UnoOpponentSeat';
 import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
 import { friendNetwork } from '../features/friends/friendNetwork';
 import {
@@ -37,7 +38,6 @@ import {
   AlertTriangle,
   Flame,
   Zap,
-  ShieldAlert,
   Hand,
   SkipForward
 } from 'lucide-react';
@@ -1724,146 +1724,25 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     const opp = players[playerIdx];
     if (!opp) return null;
 
-    const isTurn = gameState.currentTurn === playerIdx && !gameState.isRoundOver;
-    const isSkipped = skippedPlayerIdx === playerIdx;
-    const bubbleText = seatBubbles[playerIdx];
-    const visibleCardsCount = Math.min(opp.hand.length, 8);
-
     return (
-      <div
-        ref={el => {
+      <UnoOpponentSeat
+        key={opp.id}
+        playerIdx={playerIdx}
+        position={position}
+        player={opp}
+        isTurn={gameState.currentTurn === playerIdx && !gameState.isRoundOver}
+        isSkipped={skippedPlayerIdx === playerIdx}
+        bubbleText={seatBubbles[playerIdx]}
+        activeEmotes={activeEmotes}
+        handRefCallback={el => {
           playerHandRefs.current[playerIdx] = el;
         }}
-        className={`relative flex flex-col items-center transition-all duration-300 ${
-          isTurn ? 'scale-105 z-20' : 'opacity-90 z-10'
-        }`}
-      >
-        {/* Live Speech / Action Bubble */}
-        {bubbleText && (
-          <div className="absolute -top-9 z-40 px-3 py-1 rounded-2xl bg-slate-900/95 border-2 border-cyan-400 text-cyan-200 font-black text-[11px] whitespace-nowrap shadow-[0_6px_20px_rgba(0,0,0,0.75)] animate-bounce">
-            {bubbleText}
-          </div>
-        )}
-
-        {/* Floating Active Emotes for Opponent */}
-        {activeEmotes
-          ?.filter(e => e.playerIdx === playerIdx)
-          .map(e => (
-            <div
-              key={e.id}
-              style={{ animation: 'emotePop2s 2000ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards' }}
-              className="absolute -top-12 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
-            >
-              <div className="px-3.5 py-1.5 rounded-2xl bg-slate-900/95 border-2 border-amber-400 text-3xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-center animate-bounce">
-                {e.emoji}
-              </div>
-            </div>
-          ))}
-
-        {/* Active Turn Glowing Beacon */}
-        {isTurn && (
-          <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-40 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.95)] animate-bounce flex items-center gap-1 whitespace-nowrap">
-            ⚡ {t.renqYourTurnTitle ? t.renqYourTurnTitle.slice(0, 10).toUpperCase() : 'SIRADA'}
-          </div>
-        )}
-
-        {/* 1 Card Left Danger Warning Beacon */}
-        {opp.hand.length === 1 && !isTurn && (
-          <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-40 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white font-cyber text-[9px] font-black uppercase tracking-wider shadow-[0_0_20px_rgba(239,68,68,0.95)] animate-bounce flex items-center gap-1 whitespace-nowrap border border-white">
-            <Flame className="w-3 h-3 text-yellow-300 fill-yellow-300 animate-pulse" />
-            <span>
-              {lang === 'tr'
-                ? '⚠️ 1 KART KALDI!'
-                : lang === 'de'
-                ? '⚠️ NUR 1 KARTE!'
-                : lang === 'es'
-                ? '⚠️ ¡ÚLTIMA CARTA!'
-                : '⚠️ LAST CARD!'}
-            </span>
-          </div>
-        )}
-
-        {/* Skipped Laser Barrier Stamp */}
-        {isSkipped && (
-          <div className="absolute -top-3 z-30 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs border-2 border-white shadow-[0_0_25px_rgba(239,68,68,0.95)] animate-bounce flex items-center gap-1">
-            <ShieldAlert className="w-3.5 h-3.5" />
-            {t.renqPassBtn.toUpperCase()}!
-          </div>
-        )}
-
-        {/* Opponent Badge Card */}
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition-all duration-200 ${
-            isTurn
-              ? 'bg-amber-500/35 border-amber-300 ring-4 ring-amber-400/80 shadow-[0_0_35px_rgba(245,158,11,0.95)] scale-105'
-              : opp.hand.length === 1
-              ? 'bg-rose-950/70 border-rose-400 ring-4 ring-rose-500/80 shadow-[0_0_30px_rgba(244,63,94,0.9)] animate-pulse'
-              : 'bg-slate-950/80 border-white/15'
-          }`}
-        >
-          <div className="relative">
-            <AvatarBadge
-              avatarId={opp.avatarId}
-              customAvatarUrl={opp.customAvatarUrl}
-              size="sm"
-            />
-            {isTurn && (
-              <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-ping" />
-            )}
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-white max-w-[105px] truncate">
-                {opp.name}
-              </span>
-              {opp.hasCalledUno && (
-                <span className="px-1.5 py-0.5 rounded bg-gradient-to-r from-red-600 to-amber-500 text-[9px] font-black text-white animate-pulse">
-                  🔥 RENQ!
-                </span>
-              )}
-            </div>
-            <span className="text-[9px] font-bold text-amber-300/90 truncate max-w-[110px]">
-              {opp.customTitle || getAvatarPreset(opp.avatarId || 'wolf').title}
-            </span>
-            <div className="flex items-center gap-1.5 text-[10px] font-mono">
-              <span className="text-amber-300 font-bold">{opp.score}{t.renqPointSuffix}</span>
-              <span className="text-slate-400">•</span>
-              <span
-                className={`font-black ${
-                  opp.hand.length === 1 ? 'text-red-400 animate-pulse' : 'text-cyan-300'
-                }`}
-              >
-                {opp.hand.length} {t.renqCardCountSuffix}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Opponent's Fanned Card Backs */}
-        <div
-          ref={el => {
-            opponentCardRackRefs.current[playerIdx] = el;
-          }}
-          className={`flex items-center justify-center ${
-            position === 'top' ? '-space-x-8 mt-1.5 min-h-[74px]' : '-space-x-9 mt-1 min-h-[68px]'
-          }`}
-        >
-          {Array.from({ length: visibleCardsCount }).map((_, i) => {
-            const tilt = (i - (visibleCardsCount - 1) / 2) * 5;
-            return (
-              <div
-                key={i}
-                style={{
-                  transform: `rotate(${tilt}deg) translateY(${Math.abs(tilt) * 0.35}px)`
-                }}
-                className="transition-transform duration-200"
-              >
-                <UnoCardBack size="sm" />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        cardRackRefCallback={el => {
+          opponentCardRackRefs.current[playerIdx] = el;
+        }}
+        lang={lang}
+        t={t}
+      />
     );
   };
 

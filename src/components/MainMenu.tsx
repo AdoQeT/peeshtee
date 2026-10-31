@@ -21,6 +21,7 @@ import { CardView } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
 import { UserProfile } from '../features/profile/profileManager';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
+import { DailyQuestsWidget } from './DailyQuestsWidget';
 
 import { AmbientParticles } from './AmbientParticles';
 
@@ -30,6 +31,7 @@ interface MainMenuProps {
   soundEnabled: boolean;
   defaultSetup: GameSetupConfig;
   userProfile: UserProfile;
+  onUpdateProfile?: (profile: UserProfile) => void;
   onSelectTheme: (theme: TableTheme, matchingCardBack?: string) => void;
   onToggleSound: () => void;
   onQuickStartGame: (config: GameSetupConfig) => void;
@@ -61,6 +63,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   soundEnabled: _soundEnabled,
   defaultSetup,
   userProfile,
+  onUpdateProfile,
   onToggleSound: _onToggleSound,
   onQuickStartGame,
   onStartSinglePlayer: _onStartSinglePlayer,
@@ -262,8 +265,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </header>
 
-      {/* Main Hero & Clean 3-Card Mode Selector */}
-      <main className="relative z-10 w-full max-w-5xl flex flex-col items-center my-auto py-4">
+      {/* Main Hero & Clean Mode Selector with Left Quests Widget */}
+      <main className="relative z-10 w-full max-w-7xl flex flex-col items-center my-auto py-4">
         {/* Title & Emblem Header */}
         <div className="flex items-center justify-center gap-8 lg:gap-12 w-full mb-6">
           {/* Left Showcase Cards */}
@@ -322,8 +325,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
 
-        {/* 2-Column Arcade Game Hub: [1] Offline Arcade (Pişti & RENQ) | [2] Online Multiplayer Lobby */}
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Main Grid: Left Column = Daily Quests & Level | Right Column = Arcade Game Hub */}
+        <div className="w-full grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* LEFT: Daily Quests & Level Widget */}
+          <div className="xl:col-span-4 flex flex-col">
+            <DailyQuestsWidget
+              userProfile={userProfile}
+              onProfileUpdated={onUpdateProfile}
+              className="h-full"
+            />
+          </div>
+
+          {/* RIGHT: 2-Column Arcade Game Hub (Offline Arcade & Online Multiplayer Lobby) */}
+          <div className="xl:col-span-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* SECTION 1: OFFLINE ARCADE (PİŞTİ & RENQ) */}
           <div className="flex flex-col justify-between rounded-3xl bg-slate-950/85 backdrop-blur-xl border border-white/15 hover:border-amber-400/50 p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.75)] transition-all duration-300 relative overflow-hidden">
             <div className="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -529,7 +543,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </button>
           </div>
         </div>
-      </main>
+      </div>
+    </main>
 
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">

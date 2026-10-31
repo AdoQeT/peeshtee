@@ -611,6 +611,7 @@ export default function App() {
             botDifficulty: settings.aiDifficulty
           }}
           userProfile={userProfile}
+          onUpdateProfile={handleUpdateProfile}
           onSelectTheme={(newTheme, matchingBack) => {
             setSettings(prev => ({
               ...prev,

@@ -28,7 +28,7 @@ export function useCardFlightState(
 
   // Fallback target geometry if DOM node is not yet measured
   const getHandCardFallbackTarget = useCallback(
-    (playerIdx: number, cardIdx: number, totalPlayers: number) => {
+    (playerIdx: number, cardIdx: number, totalPlayers: number = 4) => {
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
       const handEl = tableRefs.current.handEls[playerIdx];

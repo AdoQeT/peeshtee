@@ -16,7 +16,7 @@ import { sound } from './core/audio/soundEngine';
 import { particleEngine } from './core/particles/particleEngine';
 import { multiplayerManager, MultiplayerEvent, LobbyPlayerSlot } from './features/multiplayer/peerManager';
 import { MainMenu } from './components/MainMenu';
-import { TableSurface, TableDomRefs, RecentCaptureFeedback, ActiveEmote, SlotReadinessInfo, cardDomElements } from './components/TableSurface';
+import { TableSurface, TableDomRefs, ActiveEmote, SlotReadinessInfo, cardDomElements } from './components/TableSurface';
 import { ScoreBoard } from './components/ScoreBoard';
 import { PistiOverlay } from './components/PistiOverlay';
 import { RulesModal } from './components/RulesModal';
@@ -43,6 +43,7 @@ import { CardCountingOverlay } from './components/CardCountingOverlay';
 import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer, FlyingCardData } from './components/CardAnimationLayer';
+import { useCardFlightState, getCenter } from './hooks/useCardFlightState';
 import confetti from 'canvas-confetti';
 import { AlertTriangle, Bell, Play, X } from 'lucide-react';
 
@@ -74,17 +75,6 @@ const getShuffleDuration = (_style: ShuffleStyle): number => {
   return 2200;
 };
 
-function getCenter(el: HTMLElement | null, fallbackX: number, fallbackY: number) {
-  if (!el) return { x: fallbackX, y: fallbackY };
-  const rect = el.getBoundingClientRect();
-  if (rect.width === 0 && rect.height === 0) {
-    return { x: fallbackX, y: fallbackY };
-  }
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2
-  };
-}
 
 function orientHandsForPerspective(
   hands: Card[][],
@@ -189,9 +179,7 @@ export default function App() {
 
   const isShufflingRef = useRef(false);
   isShufflingRef.current = isShuffling;
-  const [flyingCards, setFlyingCards] = useState<FlyingCardData[]>([]);
-  const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
-  const [recentCapture, setRecentCapture] = useState<RecentCaptureFeedback | null>(null);
+
   const [isShaking, setIsShaking] = useState(false);
   const [deckCutState, setDeckCutState] = useState<{
     isActive: boolean;
@@ -332,6 +320,17 @@ export default function App() {
   const isMultiplayerHostRef = useRef<boolean>(isMultiplayerHost);
   isMultiplayerHostRef.current = isMultiplayerHost;
   const dealTimersRef = useRef<number[]>([]);
+  const {
+    flyingCards,
+    setFlyingCards,
+    hiddenCardIds,
+    setHiddenCardIds,
+    recentCapture,
+    setRecentCapture,
+    getHandCardFallbackTarget,
+    clearFlights,
+    animateSweepToCollector
+  } = useCardFlightState(tableRefs, playersRef, dealTimersRef, setTableCards);
 
   const [currentTurn, setCurrentTurn] = useState<number>(0);
   const currentTurnRef = useRef<number>(currentTurn);
@@ -557,55 +556,6 @@ export default function App() {
     const t = window.setTimeout(() => setIsShaking(false), 450);
     dealTimersRef.current.push(t);
   }, [settings.screenShake]);
-
-  // Fallback target geometry if DOM node is not yet measured
-  const getHandCardFallbackTarget = useCallback(
-    (playerIdx: number, cardIdx: number, totalPlayers: number) => {
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      const handEl = tableRefs.current.handEls[playerIdx];
-      const base = getCenter(
-        handEl,
-        playerIdx === 0 || playerIdx === 2
-          ? centerX
-          : playerIdx === 1
-          ? window.innerWidth - 90
-          : 90,
-        playerIdx === 0
-          ? window.innerHeight - 95
-          : playerIdx === 2 || (totalPlayers === 2 && playerIdx === 1)
-          ? 110
-          : centerY
-      );
-
-      const isTopOrBottom =
-        playerIdx === 0 ||
-        (totalPlayers === 2 && playerIdx === 1) ||
-        playerIdx === 2;
-
-      if (isTopOrBottom) {
-        const spread = playerIdx === 0 ? 74 : 58;
-        const centeredIdx = cardIdx - 1.5;
-        const tilt = centeredIdx * 5;
-        return {
-          x: base.x + centeredIdx * spread,
-          y: base.y,
-          rotation: tilt,
-          size: (totalPlayers === 4 && playerIdx === 2 ? 'sm' : 'md') as 'sm' | 'md'
-        };
-      }
-
-      const centeredIdx = cardIdx - 1.5;
-      const baseRot = playerIdx === 1 ? -90 : 90;
-      return {
-        x: base.x,
-        y: base.y + centeredIdx * 34,
-        rotation: baseRot + centeredIdx * 4,
-        size: 'sm' as const
-      };
-    },
-    []
-  );
 
   /**
    * ZERO-TELEPORTATION DEAL CHOREOGRAPHY:
@@ -1611,127 +1561,6 @@ export default function App() {
     startNextRoundWithDeck
   ]);
 
-  /**
-   * 2-PHASE MAGNETIC SWEEP & PİŞTİ 90° CROSS CHOREOGRAPHY:
-   * - Phase 1 (Waypoint above Pot):
-   *   - If Pişti: Bottom card flips face-down (0°) while top card stays face-up and locks into 90° cross in mid-air!
-   *   - If Regular Sweep: Scattered pot cards magnetically gather into a tight stack above the pot.
-   * - Phase 2:
-   *   - Cards arc along a curved ribbon stream into the winner's Pişti stack or Collected stack,
-   *     triggering an elastic pile bounce and floating capture badge!
-   */
-  const animateSweepToCollector = useCallback(
-    (
-      cardsToSweep: Card[],
-      winnerIdx: number,
-      isPistiSweep: boolean,
-      captureLabel: string,
-      onSweepComplete: () => void
-    ) => {
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      const potPos = getCenter(tableRefs.current.potEl, centerX + 40, centerY);
-
-      const targetEl = isPistiSweep
-        ? tableRefs.current.pistiEls[winnerIdx] ||
-          tableRefs.current.collectedEls[winnerIdx] ||
-          tableRefs.current.handEls[winnerIdx]
-        : tableRefs.current.collectedEls[winnerIdx] ||
-          tableRefs.current.handEls[winnerIdx];
-
-      const targetPos = getCenter(
-        targetEl,
-        centerX - 180,
-        winnerIdx === 0 ? window.innerHeight - 100 : 100
-      );
-
-      sound.playSweepGather();
-      setTableCards([]);
-
-      const visibleToFly = cardsToSweep.slice(-12);
-      if (visibleToFly.length === 0) {
-        onSweepComplete();
-        return;
-      }
-
-      let finishedCount = 0;
-
-      const sweepFlying: FlyingCardData[] = visibleToFly.map((c, idx) => {
-        const ox = c.tableOffsetX ?? 0;
-        const oy = c.tableOffsetY ?? 0;
-        const rot = c.tableRotation ?? 0;
-        const flyId = `sweep-${c.id}-${idx}-${Date.now()}`;
-
-        const isTopCardOfPair = idx === visibleToFly.length - 1;
-
-        // Pişti: Top card flies face-up to pistiEls, bottom card(s) fly face-down to collectedEls
-        const actualTargetEl = isPistiSweep && isTopCardOfPair
-          ? tableRefs.current.pistiEls[winnerIdx] || targetEl
-          : tableRefs.current.collectedEls[winnerIdx] || targetEl;
-
-        const actualTargetPos = getCenter(
-          actualTargetEl,
-          targetPos.x,
-          targetPos.y
-        );
-
-        const currentPistiCount = playersRef.current[winnerIdx]?.pistiCount || 0;
-        const targetRot = isPistiSweep && isTopCardOfPair
-          ? (currentPistiCount % 2 === 0 ? 1 : -1) * (2 + Math.min(currentPistiCount * 1.5, 8))
-          : (idx % 2 === 0 ? 1 : -1) * 3;
-
-        const endFaceUp = isPistiSweep ? isTopCardOfPair : false;
-        // Keep 1:1 scale with physical table collected box (no shrinking or teleporting!)
-        const targetScale = 1;
-
-        return {
-          id: flyId,
-          card: c,
-          startX: potPos.x + ox,
-          startY: potPos.y + oy,
-          waypointX: potPos.x,
-          waypointY: potPos.y - (isPistiSweep ? 22 : 12),
-          waypointRotation: targetRot,
-          waypointScale: isPistiSweep ? 1.12 : 1.04,
-          waypointOffset: isPistiSweep ? 0.38 : 0.30,
-          targetX: actualTargetPos.x,
-          targetY: actualTargetPos.y,
-          startRotation: rot,
-          targetRotation: targetRot,
-          startFaceUp: c.faceUp,
-          endFaceUp,
-          startScale: 1,
-          targetScale,
-          duration: isPistiSweep ? 540 : 440 + idx * 22,
-          arcHeight: 78,
-          motionType: 'sweep' as const,
-          size: 'md',
-          zIndex: 75 + idx,
-          onComplete: () => {
-            setFlyingCards(prev => prev.filter(f => f.id !== flyId));
-            finishedCount++;
-            if (finishedCount >= visibleToFly.length) {
-              setRecentCapture({
-                id: `cap-${Date.now()}`,
-                playerIdx: winnerIdx,
-                isPisti: isPistiSweep,
-                label: captureLabel
-              });
-              const clearCapTimer = window.setTimeout(() => {
-                setRecentCapture(null);
-              }, 1500);
-              dealTimersRef.current.push(clearCapTimer);
-
-              onSweepComplete();
-            }
-          }
-        };
-      });
-
-      setFlyingCards(prev => [...prev, ...sweepFlying]);
-    },
-    []
-  );
 
   /**
    * Play a card from Human, Bot, or Remote Multiplayer Opponent with zero-teleportation flight
@@ -2946,8 +2775,7 @@ export default function App() {
     setMultiplayerSeedUnoDeck(null);
     clearScheduledTimers();
     sound.playClick();
-    setFlyingCards([]);
-    setHiddenCardIds(new Set());
+    clearFlights();
     setIsShuffling(false);
     setIsDealingAnimation(false);
     setIsActionLocked(false);

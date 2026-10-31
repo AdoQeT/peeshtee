@@ -493,60 +493,53 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     player: Player,
     playerIdx: number,
     labelPos: 'top' | 'bottom' = 'bottom',
-    _compact: boolean = false
+    compact: boolean = false
   ) => {
     const teamUserCounted = onTableCountState?.userCountedIndex ?? 0;
     const teamOppCounted = onTableCountState?.oppCountedIndex ?? 0;
+    const topIdx = isFourPlayers ? 2 : 1;
     const count = !isCountingActive
       ? player.collectedCards.length
-      : !isFourPlayers
-      ? Math.max(
-          0,
-          (playerIdx === 0
-            ? onTableCountState?.userTotal ?? player.collectedCards.length
-            : onTableCountState?.oppTotal ?? player.collectedCards.length) -
-            (playerIdx === 0 ? teamUserCounted : teamOppCounted)
-        )
       : playerIdx === 0
-      ? Math.max(0, player.collectedCards.length - teamUserCounted)
-      : playerIdx === 2
       ? Math.max(
           0,
-          player.collectedCards.length -
-            Math.max(0, teamUserCounted - (players[0]?.collectedCards.length ?? 0))
+          (onTableCountState?.userTotal ?? player.collectedCards.length) - teamUserCounted
         )
-      : playerIdx === 1
-      ? Math.max(0, player.collectedCards.length - teamOppCounted)
-      : Math.max(
+      : playerIdx === topIdx
+      ? Math.max(
           0,
-          player.collectedCards.length -
-            Math.max(0, teamOppCounted - (players[1]?.collectedCards.length ?? 0))
-        );
+          (onTableCountState?.oppTotal ?? player.collectedCards.length) - teamOppCounted
+        )
+      : 0;
     const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
 
     const hasCapturePulse =
       recentCapture && recentCapture.playerIdx === playerIdx && !recentCapture.isPisti;
 
-    const boxSize = 'w-[88px] h-[128px] sm:w-24 sm:h-36';
+    const isSideSeat = isFourPlayers && (playerIdx === 1 || playerIdx === 3);
+    const sideRotDeg = playerIdx === 3 ? 90 : playerIdx === 1 ? -90 : 0;
+    const boxSize = compact || isSideSeat
+      ? 'w-[70px] h-[100px] sm:w-[76px] sm:h-[110px]'
+      : 'w-[88px] h-[128px] sm:w-24 sm:h-36';
 
     return (
-      <div className="relative flex items-center gap-2.5">
+      <div className="relative flex items-center justify-center">
         <div
           ref={el => {
             tableRefs.current.collectedEls[playerIdx] = el;
           }}
-          className={`relative flex items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
-            hasCapturePulse ? 'scale-105 border-emerald-400 bg-emerald-950/40 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : ''
-          } border-dashed border-white/15 bg-black/25`}
-          title={`${player.name} Toplanan Kartlar: ${count}`}
+          className={`relative flex items-center justify-center ${boxSize} rounded-xl shrink-0 transition-transform duration-200 ${
+            hasCapturePulse
+              ? 'scale-105 ring-2 ring-emerald-400 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+              : ''
+          }`}
+          title={`${player.name} ${t.collected}: ${count}`}
         >
-          {count === 0 ? (
-            <span className="text-[11px] text-white/40 font-semibold text-center px-1 leading-tight">
-              {t.collected}
-              <br />0
-            </span>
-          ) : (
-            <div className="relative w-full h-full">
+          {count > 0 && (
+            <div
+              className="relative w-full h-full"
+              style={isSideSeat ? { transform: `rotate(${sideRotDeg}deg)` } : undefined}
+            >
               {Array.from({ length: visibleLayers }).map((_, layerIdx) => {
                 const jitterRot = ((layerIdx * 17) % 11) - 5;
                 const jitterX = ((layerIdx * 13) % 7) - 3;
@@ -569,13 +562,15 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
             </div>
           )}
 
-          <div
-            className={`absolute ${
-              labelPos === 'bottom' ? '-bottom-4' : '-top-4'
-            } bg-slate-950/95 border border-white/20 text-slate-100 text-[11px] font-black px-2 py-0.5 rounded-full shadow-md whitespace-nowrap z-20`}
-          >
-            📦 {count}
-          </div>
+          {count > 0 && (
+            <div
+              className={`absolute ${
+                labelPos === 'bottom' ? '-bottom-3.5' : '-top-3.5'
+              } bg-slate-950/95 border border-white/20 text-slate-100 text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-full shadow-md whitespace-nowrap z-20`}
+            >
+              📦 {count}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -587,37 +582,40 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     player: Player,
     playerIdx: number,
     labelPos: 'top' | 'bottom' = 'bottom',
-    _compact: boolean = false
+    compact: boolean = false
   ) => {
-    const totalPistiCount = (player.pistiCount || 0) + (player.doublePistiCount || 0);
+    const totalPistiCount = isCountingActive
+      ? 0
+      : (player.pistiCount || 0) + (player.doublePistiCount || 0);
     const pistiCount = totalPistiCount;
-    const pairs = player.pistiPairs || [];
+    const pairs = isCountingActive ? [] : player.pistiPairs || [];
     const visiblePairs = pairs.slice(-8);
     const hasPistiPulse =
       recentCapture && recentCapture.playerIdx === playerIdx && recentCapture.isPisti;
 
-    const boxSize = 'w-[88px] h-[128px] sm:w-24 sm:h-36';
+    const isSideSeat = isFourPlayers && (playerIdx === 1 || playerIdx === 3);
+    const sideRotDeg = playerIdx === 3 ? 90 : playerIdx === 1 ? -90 : 0;
+    const boxSize = compact || isSideSeat
+      ? 'w-[70px] h-[100px] sm:w-[76px] sm:h-[110px]'
+      : 'w-[88px] h-[128px] sm:w-24 sm:h-36';
 
     return (
       <div
         ref={el => {
           tableRefs.current.pistiEls[playerIdx] = el;
         }}
-        className={`relative flex flex-col items-center justify-center ${boxSize} rounded-xl border shrink-0 transition-transform duration-200 ${
-          hasPistiPulse ? 'scale-105 border-amber-300 bg-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.5)]' : ''
-        } ${
-          pistiCount > 0
-            ? 'border-amber-400/80 bg-amber-950/40 shadow-[0_0_18px_rgba(245,158,11,0.35)]'
-            : 'border-dashed border-white/10 bg-black/15'
+        className={`relative flex flex-col items-center justify-center ${boxSize} rounded-xl shrink-0 transition-transform duration-200 ${
+          hasPistiPulse
+            ? 'scale-105 ring-2 ring-amber-300 bg-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.5)]'
+            : ''
         }`}
-        title={`${player.name} Piştileri: ${pistiCount} adet (Açık ve Üst Üste Kademeli)`}
+        title={pistiCount > 0 ? `${player.name} Pişti: ${pistiCount}` : undefined}
       >
-        {pistiCount === 0 ? (
-          <div className="flex flex-col items-center justify-center opacity-25">
-            <span className="text-base select-none font-sans font-light text-amber-200">✛</span>
-          </div>
-        ) : (
-          <div className="relative w-full h-full flex items-center justify-center">
+        {pistiCount > 0 && (
+          <div
+            className="relative w-full h-full flex items-center justify-center"
+            style={isSideSeat ? { transform: `rotate(${sideRotDeg}deg)` } : undefined}
+          >
             {visiblePairs.map((pair, pairIdx) => {
               const count = visiblePairs.length;
               const offset = pairIdx - (count - 1);
@@ -643,14 +641,19 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           </div>
         )}
 
-        <div
-          className={`absolute ${
-            labelPos === 'bottom' ? '-bottom-4' : '-top-4'
-          } bg-amber-500 border border-amber-200 text-slate-950 text-[11px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
-        >
-          <Flame className="w-2.5 h-2.5 fill-slate-950" />
-          <span>{pistiCount} Pişti{player.doublePistiCount > 0 ? ` (${player.doublePistiCount} ${t.doubleLabel})` : ''}</span>
-        </div>
+        {pistiCount > 0 && (
+          <div
+            className={`absolute ${
+              labelPos === 'bottom' ? '-bottom-3.5' : '-top-3.5'
+            } bg-amber-500 border border-amber-200 text-slate-950 text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
+          >
+            <Flame className="w-2.5 h-2.5 fill-slate-950" />
+            <span>
+              {pistiCount} Pişti
+              {player.doublePistiCount > 0 ? ` (${player.doublePistiCount} ${t.doubleLabel})` : ''}
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -815,7 +818,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       <div className="relative z-10 w-full flex items-center justify-between px-1 sm:px-4 my-auto">
         {/* Left Player (Seat 3 - Muhtar in 4-Player mode) */}
         {isFourPlayers && players[3] ? (
-          <div className="flex items-center gap-2 relative">
+          <div
+            className={`flex items-center gap-3 sm:gap-5 relative transition-opacity duration-300 ${
+              isCountingActive ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+          >
             {/* Floating Active Emote for Left Player */}
             {activeEmotes
               ?.filter(e => e.playerIdx === 3)
@@ -830,28 +837,28 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   </div>
                 </div>
               ))}
-            <div className="flex flex-col items-center">
-              <span
-                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1.5 ${
-                  currentTurn === 3 && !isCountingActive
-                    ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
-                    : 'bg-slate-950/80 text-slate-300 border-white/15'
-                }`}
-              >
-                <AvatarBadge
-                  avatarId={players[3].avatarId}
-                  customAvatarUrl={players[3].customAvatarUrl}
-                  fallbackEmoji={players[3].avatar}
-                  size="xs"
-                  showBorder={false}
-                />
-                {dealerIndex === 3 && <RoleChip role="dealer" />}
-                {cutterIndex === 3 && <RoleChip role="cutter" />}
-                <span>{players[3].name}</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
-                  {players[3].customTitle || getAvatarPreset(players[3].avatarId || 'wolf').title}
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-center w-6 sm:w-7">
+                <span
+                  style={{ writingMode: 'vertical-rl' }}
+                  className={`rotate-180 text-[10px] sm:text-[11px] font-bold py-2.5 px-1 rounded-full border flex items-center gap-1.5 whitespace-nowrap ${
+                    currentTurn === 3 && !isCountingActive
+                      ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
+                      : 'bg-slate-950/80 text-slate-300 border-white/15'
+                  }`}
+                >
+                  <AvatarBadge
+                    avatarId={players[3].avatarId}
+                    customAvatarUrl={players[3].customAvatarUrl}
+                    fallbackEmoji={players[3].avatar}
+                    size="xs"
+                    showBorder={false}
+                  />
+                  {dealerIndex === 3 && <RoleChip role="dealer" />}
+                  {cutterIndex === 3 && <RoleChip role="cutter" />}
+                  <span>{players[3].name}</span>
                 </span>
-              </span>
+              </div>
               <div
                 ref={el => {
                   tableRefs.current.handEls[3] = el;
@@ -885,7 +892,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 })}
               </div>
             </div>
-            <div className="hidden sm:flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {renderCollectedPile(players[3], 3, 'bottom', true)}
               {renderPistiPile(players[3], 3, 'bottom', true)}
             </div>
@@ -1059,7 +1066,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
             <div
               className={`flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 ${
-                deckCutState?.isActive && deckCutState.step !== 'stowing'
+                (deckCutState?.isActive && deckCutState.step !== 'stowing') || isCountingActive
                   ? 'opacity-0 pointer-events-none'
                   : 'opacity-100'
               }`}
@@ -1070,7 +1077,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 ref={el => {
                   tableRefs.current.deckEl = el;
                 }}
-                className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl border border-dashed border-white/20 bg-black/25`}
+                className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-xl`}
               >
                 {deckCutState?.isActive ? (
                   <div className="flex flex-col items-center justify-center text-amber-200/40 text-[10px] font-bold text-center px-1 select-none animate-pulse">
@@ -1102,17 +1109,13 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                       )
                     )}
                   </div>
-                ) : (
-                  <span className="text-[10px] text-white/30 font-semibold text-center px-1">
-                    {t.deck}
-                    <br />
-                    {t.empty}
-                  </span>
-                )}
+                ) : null}
               </div>
-              <span className="mt-1.5 text-[10px] font-cyber text-slate-200 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-white/15 shadow-md">
-                {deckCutState?.isActive ? t.deckOnTableBadge : `${t.deck}: ${deckCount}`}
-              </span>
+              {deckCount > 0 || deckCutState?.isActive ? (
+                <span className="mt-1.5 text-[10px] font-cyber text-slate-200 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-white/15 shadow-md">
+                  {deckCutState?.isActive ? t.deckOnTableBadge : `${t.deck}: ${deckCount}`}
+                </span>
+              ) : null}
             </div>
 
             {/* Center Pot Pile (Where cards are dealt & thrown) */}
@@ -1121,19 +1124,15 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 ref={el => {
                   tableRefs.current.potEl = el;
                 }}
-                className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-2xl border-2 transition-all duration-300 ${
+                className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-2xl transition-all duration-300 ${
                   isHoveredCardCapturing
-                    ? 'border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/50 shadow-[0_0_40px_rgba(16,185,129,0.65)] scale-105'
+                    ? 'border-2 border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/50 shadow-[0_0_40px_rgba(16,185,129,0.65)] scale-105'
                     : isSingleCardPistiChance
-                    ? 'border-amber-400/80 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
-                    : 'border-dashed border-white/20 bg-black/20'
+                    ? 'border-2 border-amber-400/80 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
+                    : ''
                 }`}
               >
-                {visibleTableCards.length === 0 && tableCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center text-white/25 p-2 text-center pointer-events-none">
-                    <span className="text-xs font-semibold">{t.pot}</span>
-                  </div>
-                ) : (
+                {visibleTableCards.length === 0 && tableCards.length === 0 ? null : (
                   tableCards.slice(-14).map((card, idx) => {
                     const ox = card.tableOffsetX ?? 0;
                     const oy = card.tableOffsetY ?? 0;
@@ -1171,9 +1170,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               </div>
 
               {/* Table Card Counter Badge */}
-              <div className="mt-1.5 bg-slate-950/90 border border-white/20 text-slate-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg">
-                {t.onFloor} {visibleTableCards.length} {t.cardsUnit}
-              </div>
+              {visibleTableCards.length > 0 && (
+                <div className="mt-1.5 bg-slate-950/90 border border-white/20 text-slate-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg">
+                  {t.onFloor} {visibleTableCards.length} {t.cardsUnit}
+                </div>
+              )}
 
               {/* Instant Game Over Overlay if ended before counting */}
               {isGameOver && !isCountingActive && (
@@ -1212,7 +1213,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
         {/* Right Player (Seat 1 - Kurnaz Bot in 4-Player mode) */}
         {isFourPlayers && players[1] ? (
-          <div className="flex items-center gap-2 relative">
+          <div
+            className={`flex items-center gap-3 sm:gap-5 relative transition-opacity duration-300 ${
+              isCountingActive ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+          >
             {/* Floating Active Emote for Right Player */}
             {activeEmotes
               ?.filter(e => e.playerIdx === 1)
@@ -1227,32 +1232,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   </div>
                 </div>
               ))}
-            <div className="hidden sm:flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {renderCollectedPile(players[1], 1, 'bottom', true)}
               {renderPistiPile(players[1], 1, 'bottom', true)}
             </div>
-            <div className="flex flex-col items-center">
-              <span
-                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border mb-1 flex items-center gap-1.5 ${
-                  currentTurn === 1 && !isCountingActive
-                    ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
-                    : 'bg-slate-950/80 text-slate-300 border-white/15'
-                }`}
-              >
-                <AvatarBadge
-                  avatarId={players[1].avatarId}
-                  customAvatarUrl={players[1].customAvatarUrl}
-                  fallbackEmoji={players[1].avatar}
-                  size="xs"
-                  showBorder={false}
-                />
-                {dealerIndex === 1 && <RoleChip role="dealer" />}
-                {cutterIndex === 1 && <RoleChip role="cutter" />}
-                <span>{players[1].name}</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 truncate max-w-[110px]">
-                  {players[1].customTitle || getAvatarPreset(players[1].avatarId || 'wolf').title}
-                </span>
-              </span>
+            <div className="flex items-center gap-1.5">
               <div
                 ref={el => {
                   tableRefs.current.handEls[1] = el;
@@ -1284,6 +1268,27 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     </div>
                   );
                 })}
+              </div>
+              <div className="flex items-center justify-center w-6 sm:w-7">
+                <span
+                  style={{ writingMode: 'vertical-rl' }}
+                  className={`text-[10px] sm:text-[11px] font-bold py-2.5 px-1 rounded-full border flex items-center gap-1.5 whitespace-nowrap ${
+                    currentTurn === 1 && !isCountingActive
+                      ? 'bg-rose-950/90 text-rose-300 border-rose-400/70 shadow-[0_0_12px_rgba(251,113,133,0.4)]'
+                      : 'bg-slate-950/80 text-slate-300 border-white/15'
+                  }`}
+                >
+                  <AvatarBadge
+                    avatarId={players[1].avatarId}
+                    customAvatarUrl={players[1].customAvatarUrl}
+                    fallbackEmoji={players[1].avatar}
+                    size="xs"
+                    showBorder={false}
+                  />
+                  {dealerIndex === 1 && <RoleChip role="dealer" />}
+                  {cutterIndex === 1 && <RoleChip role="cutter" />}
+                  <span>{players[1].name}</span>
+                </span>
               </div>
             </div>
           </div>

@@ -89,6 +89,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.22.0**: Major App.tsx modular state split into dedicated custom hooks (useCardFlightState, useMultiplayerRoom, usePistiGame), reducing monolithic App.tsx from ~3,700 lines to ~1,160 lines with 100% zero-regression test and production build integrity.
 - **v1.21.1**: Upright score & name badges across all counting stations (zero inverted text), spacious centered tabletop felt positioning, zero card spawn/delete physical continuity during hand-to-count ceremony, and tactile single-card flip transition.
 - **v1.21.0**: Kinetic Pişti Slam physics (slow dramatic 160px loft rise, apex hang anticipation, explosive downward crash with table shudder impact), physical deck pool glide from collection tray to player felt stations (zero teleportation), and seat-perspective spatial counting stations (0° user front, 180° opponent top, 90°/-90° table flanks).
 - **v1.20.2**: Tabletop physical 52-card object conservation during counting (zero modal/banner, cards physically slide from corner to front, simultaneous flip opening onto adjacent open stack with tactile table tick audio), Jack Double Pişti rendering in Pişti pool with 2x golden badge, and click spam debounce lock preventing premature card bounce/teleportation during dealing.

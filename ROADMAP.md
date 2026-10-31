@@ -6,21 +6,22 @@ This document establishes the official engineering roadmap, critical architectur
 
 ## 🎯 Master Architecture & Modernization Plan
 
-### 🚨 Phase 1: Security Hardening, Anti-Cheat & Core Environment (Completed in v1.18.0)
+### 🚨 Phase 1: Security Hardening, Anti-Cheat & Core Environment
 - [x] **Repository Configuration & Rules Tracking**:
   - Add `database.rules.json` and `firebase.json` directly to the repository so security rules are versioned and verifiable.
-  - Enforce least-privilege security rules: host-only room metadata mutations, event immutability, indexed presence, and strict ownerUid-based profile/presence write access without root read/write bypasses.
+  - Enforce least-privilege security rules: host-only room metadata mutations, `senderId` bound to `presence/$instanceId/uid === auth.uid`, member-scoped room event/presence reads, recipient-bound `invites`/`requests`/`notices`, and server-managed `admins/$uid`.
 - [x] **Secret Hygiene & Webhook Hardening**:
-  - Remove hardcoded Discord Webhook URLs from `scripts/sendDiscordChangelog.mjs`.
+  - Remove hardcoded Discord Webhook URLs from `scripts/sendDiscordChangelog.mjs` and remove founder passcode hashes from client bundle (`profileManager.ts`).
   - Enforce `process.env.DISCORD_WEBHOOK_URL` and add `.env.example`.
 - [x] **Multiplayer Anti-Cheat & Packet Verification**:
-  - Verify message sender authenticity strictly via `PacketEnvelope.senderId` matching the assigned `peerId` in room slots (stop trusting arbitrary payload client claims).
-  - Seal replay attack & token filter gaps in `handleRawIncoming`: ensure `roomToken` is strictly validated and reject unauthenticated or mismatched tokens.
-  - Block spoofed card plays and turn actions across both Pişti (`App.tsx`) and RENQ/Uno (`UnoGameView.tsx`).
+  - Verify message sender authenticity strictly via `PacketEnvelope.senderId` matching the assigned `peerId` in room slots.
+  - Enforce monotonic `seq` replay protection across all packets (including `GUEST_JOINED`, `HOST_LOBBY_SYNC`, `MP_GAME_START`).
+  - Deny unverified or missing seat/peerId actions in both Pişti and RENQ/Uno (`UnoGameView.tsx`).
+- [ ] **Host-Authoritative Deck Secrecy (C2 — Planned Separate Branch)**:
+  - Stop broadcasting full `seedDeck` and `seedUnoDeck` to all clients (`App.tsx`); deliver each player's hand via a private per-player channel while keeping card identity separate from card face.
 - [x] **Single Source of Truth Versioning & Build Config Fixes**:
-  - Fix `vite.config.ts` regex defect (`pkg.version.replace(/\.0$/, '')`) which corrupted semantic versions (e.g., `1.17.0` becoming `1.17`).
-  - Wire `MainMenu.tsx` version badge dynamically from `__APP_VERSION__` instead of hardcoded strings.
-  - Declare explicit `engines` (`node: ">=20.0.0"`) in `package.json`.
+  - Fix `vite.config.ts` version string handling and wire `MainMenu.tsx` dynamically from `__APP_VERSION__`.
+  - Align `package.json` `engines` (`node: ">=24.12.0"`) and GitHub Actions CI (`node-version: 24`) with `firebase@13`.
 
 ---
 
@@ -56,17 +57,19 @@ This document establishes the official engineering roadmap, critical architectur
 
 ---
 
-### ⚡ Phase 3: Architectural Decoupling, Bundle Optimization & Deep Bot AI (Completed in v1.20.0)
+### ⚡ Phase 3: Architectural Decoupling, Bundle Optimization & Deep Bot AI
 - [x] **Large Component Modularization & Code Splitting**:
   - Implemented `React.lazy` and `Suspense` boundary for `UnoGameView`, decoupling the secondary Renq/Uno bundle from initial chunk loading.
+- [ ] **Further Hook & Bundle Decomposition (D1 & D2)**:
+  - Split `usePistiGame.ts` into smaller focused hooks (`useCountingCeremony`, dealing, cutting, bot turn, round end) and lazy-load `TableSurface`.
 - [x] **Advanced Bot AI Heuristics**:
   - Hard bot difficulty enhanced with table pot point density evaluation (`potBasePoints`), thickness thresholds, and card-counting-based safe discards on empty tables.
 - [x] **Centralized Telemetry & Error Logging**:
-  - Implemented structured `src/utils/logger.ts` utility that suppresses verbose console output in production and standardizes runtime diagnostics.
+  - Implemented structured `src/utils/logger.ts` utility and routed all `console.*` calls across `src/` through `logger`.
 - [x] **Documentation Harmonization**:
-  - Overhauled `README.md` to eliminate obsolete MQTT/WebRTC references and accurately document the pure Firebase Realtime Database and BroadcastChannel sync architecture.
+  - Updated `README.md` to eliminate obsolete MQTT/WebRTC/Vite 5 references and accurately document the Firebase Realtime Database and BroadcastChannel sync architecture.
 - [x] **Realistic Tabletop Physical Deck Counting**:
-  - Rewrote `CardCountingOverlay.tsx` to replicate authentic Pişti tabletop deck counting: closed deck in front of player flips cards one-by-one into an adjacent counted pile with tactile "tık-tık" audio, and special score cards are isolated and highlighted in real-time.
+  - Updated `TableSurface.tsx` and `CardCountingOverlay.tsx` so collected card piles do not disappear to 0 when counting starts, gliding cards directly from `tableRefs.collectedEls` into the counting piles.
 
 ---
 
@@ -89,7 +92,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
-- **v1.22.0**: Major App.tsx modular state split into dedicated custom hooks (useCardFlightState, useMultiplayerRoom, usePistiGame), reducing monolithic App.tsx from ~3,700 lines to ~1,160 lines with 100% zero-regression test and production build integrity.
+- **v1.22.0**: Extracted `useCardFlightState`, `useMultiplayerRoom`, and `usePistiGame` custom hooks from `App.tsx`, reducing `App.tsx` from ~3,700 lines to ~1,160 lines.
 - **v1.21.1**: Upright score & name badges across all counting stations (zero inverted text), spacious centered tabletop felt positioning, zero card spawn/delete physical continuity during hand-to-count ceremony, and tactile single-card flip transition.
 - **v1.21.0**: Kinetic Pişti Slam physics (slow dramatic 160px loft rise, apex hang anticipation, explosive downward crash with table shudder impact), physical deck pool glide from collection tray to player felt stations (zero teleportation), and seat-perspective spatial counting stations (0° user front, 180° opponent top, 90°/-90° table flanks).
 - **v1.20.2**: Tabletop physical 52-card object conservation during counting (zero modal/banner, cards physically slide from corner to front, simultaneous flip opening onto adjacent open stack with tactile table tick audio), Jack Double Pişti rendering in Pişti pool with 2x golden badge, and click spam debounce lock preventing premature card bounce/teleportation during dealing.

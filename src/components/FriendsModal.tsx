@@ -28,6 +28,7 @@ import {
 } from '../features/friends/friendNetwork';
 import { AvatarBadge } from './AvatarBadge';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 interface FriendsModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ interface FriendsModalProps {
     name: string;
     gameType: 'pisti' | 'uno';
   }) => void;
-  onJoinFriendRoom: (roomCode: string) => void;
+  onJoinFriendRoom: (roomCode: string, isSpectator?: boolean) => void;
   onInspectProfile?: (inspected: UserProfile) => void;
   onUpdateProfile?: (updated: UserProfile) => void;
   userProfile?: UserProfile;
@@ -54,6 +55,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   userProfile,
   hideBackdrop = false
 }) => {
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => onLanguageChange(setLang), []);
+  const t = translations[lang];
+
   const [profile, setProfile] = useState<UserProfile>(getUserProfile);
   const activeProfile = userProfile || profile;
   const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayerPresence[]>([]);
@@ -277,10 +282,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white font-cyber tracking-wide">
-                SOSYAL
+                {t.socialDrawerTitle}
               </h2>
               <p className="text-[11px] text-slate-400">
-                Arkadaşlar, İstekler & Canlı Maç Davetleri
+                {t.socialDrawerSub}
               </p>
             </div>
           </div>
@@ -361,7 +366,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>Arkadaşlarım</span>
+            <span>{t.tabFriends}</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">
               {friendsList.length}
             </span>
@@ -379,7 +384,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             }`}
           >
             <UserCheck className="w-3.5 h-3.5" />
-            <span>İstekler</span>
+            <span>{t.tabRequests}</span>
             {incomingRequests.length > 0 && (
               <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black animate-pulse">
                 {incomingRequests.length}
@@ -399,7 +404,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>Keşfet & Ekle</span>
+            <span>{t.tabExplore}</span>
           </button>
         </div>
 
@@ -411,9 +416,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               {friendsList.length === 0 ? (
                 <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-white/5 space-y-2">
                   <Users className="w-8 h-8 text-slate-600 mx-auto mb-1 animate-pulse" />
-                  <p className="text-xs font-bold text-slate-300">Henüz Arkadaşın Yok</p>
+                  <p className="text-xs font-bold text-slate-300">{t.noFriendsYet}</p>
                   <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                    "Keşfet & Ekle" sekmesinden oyunculara arkadaşlık isteği gönder veya kodunu paylaş!
+                    {t.noFriendsYetSub}
                   </p>
                 </div>
               ) : (
@@ -462,29 +467,41 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
                             <span className="text-[10px] block truncate font-medium text-amber-300/80">
                               {isInGame
-                                ? '🎮 Oyunda'
+                                ? t.statusInGame
                                 : isInLobby
-                                ? '⏳ Lobide Bekliyor'
+                                ? t.statusInLobby
                                 : isOnline
-                                ? '🟢 Çevrimiçi'
-                                : '⚪ Çevrimdışı'}
+                                ? t.statusOnline
+                                : t.statusOffline}
                             </span>
                           </div>
                         </div>
 
                         {/* Action buttons */}
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Join Room if Friend is in Lobby */}
-                          {(isInGame || isInLobby) && friend.onlinePresence?.roomCode ? (
+                          {/* Spectate Button if Friend is Playing, or Join Room if in Lobby */}
+                          {isInGame && friend.onlinePresence?.roomCode ? (
                             <button
                               onClick={() => {
                                 sound.playClick();
-                                onJoinFriendRoom(friend.onlinePresence!.roomCode!);
+                                onJoinFriendRoom(friend.onlinePresence!.roomCode!, true);
+                                onClose();
+                              }}
+                              className="px-2.5 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md cursor-pointer transition-transform active:scale-95 flex items-center gap-1"
+                              title={t.spectateBtn}
+                            >
+                              <span>{t.spectateBtn}</span>
+                            </button>
+                          ) : isInLobby && friend.onlinePresence?.roomCode ? (
+                            <button
+                              onClick={() => {
+                                sound.playClick();
+                                onJoinFriendRoom(friend.onlinePresence!.roomCode!, false);
                                 onClose();
                               }}
                               className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer transition-transform active:scale-95"
                             >
-                              Odaya Gir
+                              {t.joinRoomBtn}
                             </button>
                           ) : isOnline ? (
                             <button
@@ -500,14 +517,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               className="px-2 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
                             >
                               <Gamepad2 className="w-3.5 h-3.5" />
-                              <span>Davet</span>
+                              <span>{t.inviteBtn}</span>
                             </button>
                           ) : null}
 
                           <button
                             onClick={() => handleRemoveFriend(friend.id, friend.friendCode, friend.name)}
                             className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
-                            title="Arkadaşı Sil"
+                            title={t.removeFriendBtn}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -526,9 +543,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               {incomingRequests.length === 0 ? (
                 <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-white/5 space-y-2">
                   <UserCheck className="w-8 h-8 text-slate-600 mx-auto mb-1 animate-pulse" />
-                  <p className="text-xs font-bold text-slate-300">Bekleyen İstek Yok</p>
+                  <p className="text-xs font-bold text-slate-300">{t.noRequestsYet}</p>
                   <p className="text-[11px] text-slate-500">
-                    Sana gelen arkadaşlık istekleri burada listelenir.
+                    {t.noRequestsYetSub}
                   </p>
                 </div>
               ) : (
@@ -559,7 +576,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         className="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md cursor-pointer flex items-center gap-1"
                       >
                         <UserCheck className="w-3.5 h-3.5" />
-                        <span>Kabul Et</span>
+                        <span>{t.acceptBtn}</span>
                       </button>
                       <button
                         onClick={() => handleDeclineRequest(req.friendCode || req.id)}
@@ -584,7 +601,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="İsim veya 6 haneli kod (#123456) ara..."
+                  placeholder={t.searchFriendPlaceholder}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/15 focus:border-cyan-400 focus:outline-none text-white text-xs"
                 />
               </div>
@@ -594,7 +611,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 <div className="p-3 rounded-2xl bg-cyan-950/40 border border-cyan-400/40 flex items-center justify-between gap-2 shadow-md animate-in fade-in">
                   <div className="min-w-0">
                     <span className="text-[10px] text-cyan-300 font-bold block">
-                      #{searchQuery.trim().replace(/^#/, '')} Koduna İstek Gönder
+                      #{searchQuery.trim().replace(/^#/, '')}
                     </span>
                     <span className="text-xs text-white font-mono font-bold">
                       #{searchQuery.trim().replace(/^#/, '')}
@@ -609,7 +626,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 disabled:opacity-50 text-slate-950 font-black text-xs shadow-md cursor-pointer flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>{isSearchingCode ? 'Aranıyor...' : 'İstek Gönder'}</span>
+                    <span>{isSearchingCode ? '...' : t.sendFriendRequestBtn}</span>
                   </button>
                 </div>
               )}

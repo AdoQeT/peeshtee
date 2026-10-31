@@ -8,6 +8,7 @@ import { AmbientParticles } from './AmbientParticles';
 import { getAvatarPreset } from '../features/profile/profileManager';
 import { cardDomElements } from '../hooks/useCardFlightState';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
+import { sound } from '../core/audio/soundEngine';
 
 export interface TableDomRefs {
   deckEl: HTMLDivElement | null;
@@ -459,6 +460,22 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   const [hoveredHandCardId, setHoveredHandCardId] = React.useState<string | null>(null);
   const [hoveredCutIndex, setHoveredCutIndex] = React.useState<number | null>(null);
   const [isSpread, setIsSpread] = React.useState<boolean>(false);
+  const spreadContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const handleCutMouseMove = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!spreadContainerRef.current || deckCutState?.step !== 'waiting_cut' || !deckCutState.isHumanCutter) return;
+      const rect = spreadContainerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const targetIdx = Math.min(51, Math.max(0, Math.floor(relX * 52)));
+      if (targetIdx !== hoveredCutIndex) {
+        sound.playCardHover();
+        setHoveredCutIndex(targetIdx);
+      }
+    },
+    [deckCutState?.step, deckCutState?.isHumanCutter, hoveredCutIndex]
+  );
 
   React.useEffect(() => {
     if (deckCutState?.isActive && deckCutState.step === 'waiting_cut') {
@@ -1003,7 +1020,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 </div>
 
                 {/* FANNED / SPLIT / MERGING 52 PHYSICAL CARDS SPREAD ACROSS TABLE FELT */}
-                <div className="relative w-full h-36 sm:h-44 flex items-center justify-center">
+                <div
+                  ref={spreadContainerRef}
+                  onMouseMove={handleCutMouseMove}
+                  onMouseLeave={() => setHoveredCutIndex(null)}
+                  className="relative w-full h-36 sm:h-44 flex items-center justify-center pointer-events-auto"
+                >
                   {Array.from({ length: 52 }).map((_, idx) => {
                     const isSm = typeof window !== 'undefined' && window.innerWidth >= 640;
                     const pileOffset = isSm ? 140 : 105;
@@ -1020,15 +1042,29 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                       const maxOffset = isSm ? 44 : 38;
                       const offsetPercent = isSpread ? ((idx - 25.5) / 26) * maxOffset : 0;
                       const rotDeg = isSpread ? ((idx - 25.5) / 26) * 12 : 0;
-                      const isHovered = hoveredCutIndex === idx;
+                      
+                      // Tactile Riffle Preview Calculation: cards near the hovered cut point lift and fan outward
+                      let tactileLiftY = 0;
+                      let tactileScale = 1;
+                      let tactileRotDelta = 0;
+                      let tactileZ = idx + 1;
+
+                      if (hoveredCutIndex !== null && isSpread) {
+                        const dist = Math.abs(idx - hoveredCutIndex);
+                        if (dist <= 5) {
+                          const factor = 1 - dist / 6; // 1.0 at center, 0.16 at edges
+                          tactileLiftY = -22 * factor;
+                          tactileScale = 1 + 0.12 * factor;
+                          tactileRotDelta = (idx < hoveredCutIndex ? -5 : idx > hoveredCutIndex ? 5 : 0) * factor;
+                          tactileZ = 60 + (6 - dist);
+                        }
+                      }
 
                       cardLeft = isSpread ? `calc(50% + ${offsetPercent}%)` : `calc(50% - ${pileOffset}px)`;
-                      cardTransform = `translate(-50%, ${isHovered ? '-16px' : '0px'}) rotate(${rotDeg}deg) scale(${
-                        isHovered ? 1.08 : 1
-                      })`;
-                      cardZIndex = isHovered ? 60 : idx + 1;
+                      cardTransform = `translate(-50%, ${tactileLiftY}px) rotate(${rotDeg + tactileRotDelta}deg) scale(${tactileScale})`;
+                      cardZIndex = tactileZ;
                       cardTransition = isSpread
-                        ? 'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s ease-out'
+                        ? 'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.2, 0.9, 0.3, 1)'
                         : 'none';
                     } else if (
                       deckCutState.step === 'splitting' ||

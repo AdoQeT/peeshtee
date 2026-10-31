@@ -939,7 +939,7 @@ export default function App() {
         hideBackdrop={false}
         userProfile={userProfile}
         onUpdateProfile={updated => setUserProfile(updated)}
-        onJoinFriendRoom={(code: string) => {
+        onJoinFriendRoom={(code: string, _isSpectator?: boolean) => {
           const trimmed = code.trim().toUpperCase();
           const clean = trimmed.replace(/[^A-Z0-9]/g, '');
           let formatted: string;

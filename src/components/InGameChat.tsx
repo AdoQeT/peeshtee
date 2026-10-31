@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, ChevronDown, Sparkles } from 'lucide-react';
 import { AvatarBadge } from './AvatarBadge';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 export interface ChatMessage {
   id: string;
@@ -25,6 +26,10 @@ export const InGameChat: React.FC<InGameChatProps> = ({
   onSendMessage,
   isMultiplayer = false
 }) => {
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => onLanguageChange(setLang), []);
+  const t = translations[lang];
+
   const [isOpen, setIsOpen] = useState(true);
   const [inputText, setInputText] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
@@ -60,7 +65,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
 
     const now = Date.now();
     if (now - lastSendTimeRef.current < 1500) {
-      setSpamWarning('⚠️ Lütfen biraz bekleyin...');
+      setSpamWarning(t.chatSpamCooldown);
       window.setTimeout(() => setSpamWarning(null), 1600);
       return;
     }
@@ -83,7 +88,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
 
   return (
     <aside
-      aria-label="Oyun İçi Sohbet"
+      aria-label={t.chatAriaLabel}
       className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-40 flex flex-col items-end font-sans select-none"
     >
       {/* Minimized Toggle Pill (only if collapsed) */}
@@ -91,10 +96,10 @@ export const InGameChat: React.FC<InGameChatProps> = ({
         <button
           onClick={handleToggle}
           className="relative px-3 py-1.5 rounded-2xl bg-slate-950/60 hover:bg-slate-900/90 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white shadow-[0_8px_25px_rgba(0,0,0,0.5)] transition-all active:scale-95 flex items-center gap-2 cursor-pointer group"
-          title="Sohbeti Aç"
+          title={t.chatTitle}
         >
           <MessageSquare className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-          <span className="text-xs font-bold tracking-wide">Sohbet</span>
+          <span className="text-xs font-bold tracking-wide">{t.chatTitle}</span>
           {unreadCount > 0 && (
             <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black text-[10px] animate-pulse shadow-md">
               {unreadCount}
@@ -188,7 +193,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
               maxLength={80}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isCooldown ? "Bekleyin..." : "Mesaj yazın..."}
+              placeholder={isCooldown ? "..." : t.chatPlaceholder}
               disabled={isCooldown}
               className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/80 transition-colors disabled:opacity-50"
             />
@@ -196,7 +201,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
               onClick={handleSend}
               disabled={!inputText.trim() || isCooldown}
               className="p-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-md"
-              title="Gönder"
+              title={t.chatSendBtn}
             >
               <Send className="w-3.5 h-3.5" />
             </button>

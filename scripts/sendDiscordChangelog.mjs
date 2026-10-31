@@ -33,14 +33,16 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-reworked main menu into 2-column Arcade Hub & upgraded online lobby UI',
-  '-added full 4-language support (TR, EN, DE, ES) & localized random AI bot names',
-  '-fixed ScoreBoard turn resize jitter, removed pile flash/count badges & enabled real-time deck decrement',
-  '-oriented 4P player banners horizontally on outer table edges & moved side piles',
-  '-rebuilt radial emote wheel, removed stock avatar picker & refined 1.2x card counting without skip'
+  '-tactile deck cut riffle hover preview with friction ticks and card lift dynamics',
+  '-perimeter horizontal player profile banners facing user across RENQ stadium',
+  '-radial 8-slot emote wheel with floating reaction pops and multiplayer sync',
+  '-2 semi-transparent orbital direction felt arrows and reverse neon light sweep ring',
+  '-fiery growing combo scale animation for stacked draw penalties (+2, +4, +6, +8)',
+  '-full 4-language (TR, EN, DE, ES) localization for RENQ, Profile, Chat, and Social',
+  '-spectator mode support to watch friends ongoing matches live'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.26.0';
+const versionTitle = process.argv[2] || 'v1.27.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

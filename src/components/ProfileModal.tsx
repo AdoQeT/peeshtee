@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   UserProfile,
   getAvatarPreset,
@@ -28,6 +28,7 @@ import {
   Clock
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -46,6 +47,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 }) => {
   const isInspectingOther = Boolean(inspectedProfile && inspectedProfile.id !== profile.id);
   const activeProfile = isInspectingOther ? inspectedProfile! : profile;
+
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
 
   const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'tasks'>('profile');
   const [name, setName] = useState(profile.name);
@@ -185,12 +192,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white tracking-wide">
-                {isInspectingOther ? `${activeProfile.name} Profili` : 'OYUNCU PROFİLİ'}
+                {isInspectingOther
+                  ? t.profileInspectTitle.replace('{name}', activeProfile.name)
+                  : t.profileModalTitle}
               </h2>
               <p className="text-[11px] text-slate-400">
                 {isInspectingOther
-                  ? 'Oyuncu İstatistikleri ve Maç Geçmişi'
-                  : 'İsim, Fotoğraf ve Seviye İlerlemesi'}
+                  ? t.profileInspectSub
+                  : t.profileModalSub}
               </p>
             </div>
           </div>
@@ -219,7 +228,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Genel Bakış</span>
+            <span>{t.tabOverview}</span>
           </button>
           <button
             onClick={() => {
@@ -233,7 +242,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             }`}
           >
             <History className="w-3.5 h-3.5" />
-            <span>Maç Geçmişi</span>
+            <span>{t.tabHistory}</span>
             {activeProfile.matchHistory && activeProfile.matchHistory.length > 0 && (
               <span className="text-[10px] bg-slate-800 text-amber-300 px-1.5 py-0.2 rounded-full ml-0.5">
                 {activeProfile.matchHistory.length}
@@ -253,8 +262,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               }`}
             >
               <CalendarCheck className="w-3.5 h-3.5" />
-              <span>Günlük Görevler</span>
-              {dailyTasks.some(t => t.current >= t.target && !t.claimed) && (
+              <span>{t.tabTasks}</span>
+              {dailyTasks.some(d => d.current >= d.target && !d.claimed) && (
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping ml-0.5" />
               )}
             </button>
@@ -325,7 +334,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     <div className="flex items-center justify-between text-xs font-bold">
                       <span className="text-amber-400 flex items-center gap-1">
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>SEVİYE {lvlInfo.level}</span>
+                        <span>{t.levelLabel.toUpperCase()} {lvlInfo.level}</span>
                       </span>
                       <span className="text-slate-400 font-mono text-[11px]">
                         {lvlInfo.currentLevelXp} / {lvlInfo.xpForNextLevel} XP
@@ -380,7 +389,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                         className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>Fotoğraf Yükle</span>
+                        <span>{t.uploadPhotoBtn}</span>
                       </button>
                       {customAvatarDataUrl && (
                         <button
@@ -390,7 +399,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                           title="Yüklenen fotoğrafı kaldır, sabit karaktere dön"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Kaldır</span>
+                          <span>{t.removePhotoBtn}</span>
                         </button>
                       )}
                     </div>
@@ -400,15 +409,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 text-xs">
                     <span className="text-slate-300 flex items-center gap-1">
                       <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                      <strong className="text-white">{activeProfile.stats.wins}</strong> Galibiyet
+                      <strong className="text-white">{activeProfile.stats.wins}</strong> {t.totalMatchesLabel}
                     </span>
                     <span className="text-slate-300 flex items-center gap-1">
                       <Flame className="w-3.5 h-3.5 text-orange-400" />
-                      <strong className="text-white">{activeProfile.stats.pistiCount}</strong> Pişti
+                      <strong className="text-white">{activeProfile.stats.pistiCount}</strong> {t.totalPistisLabel}
                     </span>
                     <span className="text-slate-300 flex items-center gap-1">
                       <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                      <strong className="text-emerald-300">%{winRate}</strong> Kazanma
+                      <strong className="text-emerald-300">%{winRate}</strong> {t.winRateLabel}
                     </span>
                   </div>
                 </div>
@@ -419,7 +428,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      Oyuncu Adı (Nickname)
+                      {t.playerNameInputLabel}
                     </label>
                     <input
                       type="text"
@@ -432,7 +441,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      Özel Ünvan / Rozet (Opsiyonel)
+                      {t.playerTitleInputLabel}
                     </label>
                     <input
                       type="text"
@@ -696,7 +705,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             }}
             className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
           >
-            {isInspectingOther ? 'Kapat' : 'Vazgeç'}
+            {isInspectingOther ? t.close : 'Vazgeç'}
           </button>
           {!isInspectingOther && (
             <button
@@ -704,7 +713,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Kaydet & Kullan</span>
+              <span>{t.saveProfileBtn}</span>
             </button>
           )}
         </div>

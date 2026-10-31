@@ -59,3 +59,27 @@ test('unoRules: calculateUnoHandPoints sums card values accurately', () => {
   ];
   assert.equal(calculateUnoHandPoints(hand), 75);
 });
+
+test('tactile deck cut: riffle displacement formula lifts hovered cards smoothly', () => {
+  const hoveredCutIndex = 25;
+  const cards = Array.from({ length: 52 }, (_, i) => i);
+
+  // Exact card should have maximum lift (-22px) and scale (1.18)
+  const dist0 = Math.abs(25 - hoveredCutIndex);
+  const factor0 = 1 - dist0 / 5;
+  const lift0 = -factor0 * 22;
+  const scale0 = 1 + factor0 * 0.18;
+  assert.equal(lift0, -22);
+  assert.equal(scale0, 1.18);
+
+  // Neighbor card (dist 2) should have partial lift
+  const dist2 = Math.abs(27 - hoveredCutIndex);
+  const factor2 = 1 - dist2 / 5;
+  const lift2 = -factor2 * 22;
+  assert.equal(lift2, -13.2);
+
+  // Distant card (dist 6) should have no tactile lift
+  const dist6 = Math.abs(32 - hoveredCutIndex);
+  const factor6 = dist6 <= 4 ? 1 - dist6 / 5 : 0;
+  assert.equal(factor6, 0);
+});

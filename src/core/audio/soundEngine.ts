@@ -48,6 +48,31 @@ class SoundEngine {
     return this.enabled;
   }
 
+  /**
+   * Subtle paper friction tick when skimming/hovering over fanned cards
+   */
+  public playCardHover() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420 + Math.random() * 80, t);
+    osc.frequency.exponentialRampToValueAtTime(160, t + 0.022);
+
+    gain.gain.setValueAtTime(0.045 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.025);
+  }
+
   public getVolume(): number {
     return this.volume;
   }

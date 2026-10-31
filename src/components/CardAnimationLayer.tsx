@@ -231,7 +231,7 @@ const DynamicDeckShuffle: React.FC<{
     cardRefs.current.forEach((el, idx) => {
       if (!el) return;
 
-      let keyframes: Keyframe[] = [];
+      let keyframes: Keyframe[];
       const duration = 2200;
       const stackOffset = Math.min(idx, 4) * 0.8;
 

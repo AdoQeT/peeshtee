@@ -252,7 +252,6 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
       launchAndInvite();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, pendingFriendInvite]);
 
   useEffect(() => {

@@ -929,7 +929,7 @@ export default function App() {
         onJoinFriendRoom={(code: string) => {
           const trimmed = code.trim().toUpperCase();
           const clean = trimmed.replace(/[^A-Z0-9]/g, '');
-          let formatted = trimmed;
+          let formatted: string;
           if (clean.startsWith('UNO')) {
             formatted = `UNO-${clean.slice(3)}`;
           } else if (clean.startsWith('PST')) {

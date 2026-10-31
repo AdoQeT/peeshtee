@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, CalendarCheck, Check } from 'lucide-react';
+import { CalendarCheck, Check } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import {
   UserProfile,
-  calculateLevel,
   getOrInitDailyTasks,
   checkAndAutoClaimDailyTasks,
   DailyTask,
@@ -14,12 +13,14 @@ import { getLanguage, translations, Language } from '../utils/i18n';
 interface DailyQuestsWidgetProps {
   userProfile: UserProfile;
   onProfileUpdated?: (updated: UserProfile) => void;
+  onClose?: () => void;
   className?: string;
 }
 
 export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
   userProfile,
   onProfileUpdated,
+  onClose,
   className = ''
 }) => {
   const [tasks, setTasks] = useState<DailyTask[]>(() => getOrInitDailyTasks(userProfile));
@@ -27,8 +28,6 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
 
   const lang = getLanguage() as Language;
   const t = translations[lang] || translations.tr;
-
-  const lvlInfo = calculateLevel(userProfile.xp || 0);
 
   // Automatically claim any finished tasks on mount or when profile updates
   useEffect(() => {
@@ -43,8 +42,8 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
       }
       setAutoClaimToast(
         lang === 'en'
-          ? `🎉 Quest Complete! +${res.claimedXp} XP auto-claimed!`
-          : `🎉 Görev Tamamlandı! +${res.claimedXp} XP otomatik eklendi!`
+          ? `🎉 +${res.claimedXp} XP auto-claimed!`
+          : `🎉 +${res.claimedXp} XP otomatik eklendi!`
       );
       window.setTimeout(() => setAutoClaimToast(null), 3000);
     }
@@ -54,50 +53,38 @@ export const DailyQuestsWidget: React.FC<DailyQuestsWidgetProps> = ({
 
   return (
     <div
-      className={`rounded-3xl bg-slate-950/85 backdrop-blur-xl border border-white/15 p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${className}`}
+      className={`rounded-3xl bg-slate-950/90 backdrop-blur-xl border border-white/15 p-3.5 sm:p-4 shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${className}`}
     >
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-28 h-28 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Widget Header & Level Card */}
+      {/* Widget Header */}
       <div>
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+        <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <CalendarCheck className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs sm:text-sm font-black text-white font-cyber tracking-wider uppercase">
+            <CalendarCheck className="w-3.5 h-3.5 text-amber-400" />
+            <h3 className="text-xs font-black text-white font-cyber tracking-wider uppercase">
               {t.tabTasks || 'GÖREVLER'}
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-amber-400/90 font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-            {completedCount}/{tasks.length} {lang === 'en' ? 'Done' : 'Bitti'}
-          </span>
-        </div>
-
-        {/* Level & XP Progress Section */}
-        <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 mb-3 shadow-inner">
-          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <div className="w-5 h-5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 flex items-center justify-center font-black text-[10px]">
-                <Sparkles className="w-3 h-3" />
-              </div>
-              <span className="text-amber-300 font-cyber font-black tracking-wide">
-                {t.levelLabel ? t.levelLabel.toUpperCase() : 'SEVİYE'} {lvlInfo.level}
-              </span>
-            </div>
-            <span className="text-slate-300 font-mono text-[11px]">
-              {lvlInfo.currentLevelXp} <span className="text-slate-500">/</span> {lvlInfo.xpForNextLevel} XP
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono text-amber-400/90 font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+              {completedCount}/{tasks.length}
             </span>
-          </div>
-
-          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-white/10 relative">
-            <div
-              className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full transition-all duration-500"
-              style={{ width: `${lvlInfo.progressPercent}%` }}
-            />
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Kapat"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
         {/* Quests List */}
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {tasks.map(task => {
             const isDone = task.current >= task.target || task.claimed;
             const pct = isDone ? 100 : Math.min(100, Math.round((task.current / task.target) * 100));

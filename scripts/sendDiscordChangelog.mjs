@@ -33,15 +33,14 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-cancelled dead-center deck cut +5 bonus points rule',
-  '-fixed match history and level XP progression persistence bug',
-  '-added main menu left-side daily quests widget with automated reward claiming',
-  '-modularized monolithic code and extracted unoopponentseat to reduce token footprint',
-  '-cleaned all database collections and test profiles in realtime database',
-  '-restored secure founder crown verification with custom high-security passcodes'
+  '-restored centered 2-column arcade mode layout for singleplayer and multiplayer',
+  '-relocated daily quests to a sleek slim floating panel on the left edge',
+  '-placed micro level and xp progress bar directly underneath profile badge',
+  '-renamed offline and online modes to singleplayer and multiplayer across 4 languages',
+  '-general stability optimizations and bugfixes'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.29.0';
+const versionTitle = process.argv[2] || 'v1.29.1';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

@@ -13,13 +13,14 @@ import {
   Shield,
   Zap,
   Mic,
+  CalendarCheck,
   X
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { Card, GameSetupConfig, TableTheme } from '../types/game';
 import { CardView } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
-import { UserProfile } from '../features/profile/profileManager';
+import { UserProfile, calculateLevel } from '../features/profile/profileManager';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 import { DailyQuestsWidget } from './DailyQuestsWidget';
 
@@ -81,9 +82,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     defaultSetup.botDifficulty || 'medium'
   );
   const [isComingSoonOpen, setIsComingSoonOpen] = useState<boolean>(false);
+  const [isQuestsOpen, setIsQuestsOpen] = useState<boolean>(true);
   const [lang, setLang] = useState<Language>(getLanguage());
   const [isTransitioningLang, setIsTransitioningLang] = useState(false);
   const t = translations[lang];
+
+  const lvlInfo = calculateLevel(userProfile.xp || 0);
 
   React.useEffect(() => {
     return onLanguageChange((newLang) => {
@@ -171,33 +175,55 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Profile & Avatar Selector */}
-          <button
-            onClick={() => handleClick(onOpenProfile)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-amber-400/40 hover:border-amber-400 text-xs font-bold text-slate-200 transition-all shadow-md group cursor-pointer"
-            title={t.profile}
-          >
-            <AvatarBadge
-              avatarId={userProfile.avatarId}
-              customAvatarUrl={userProfile.customAvatarDataUrl}
-              size="xs"
-              isOwner={userProfile.isOwner}
-            />
-            <span className="text-amber-300 font-cyber font-black max-w-[70px] sm:max-w-[110px] truncate">
-              {userProfile.name}
-            </span>
-            {userProfile.isOwner && (
-              <span
-                title={t.founder}
-                className="text-amber-400 select-none text-sm drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
-              >
-                👑
+          {/* Profile & Avatar Selector with Micro Level & XP Bar directly underneath */}
+          <div className="flex flex-col items-end">
+            <button
+              onClick={() => handleClick(onOpenProfile)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-amber-400/40 hover:border-amber-400 text-xs font-bold text-slate-200 transition-all shadow-md group cursor-pointer"
+              title={t.profile}
+            >
+              <AvatarBadge
+                avatarId={userProfile.avatarId}
+                customAvatarUrl={userProfile.customAvatarDataUrl}
+                size="xs"
+                isOwner={userProfile.isOwner}
+              />
+              <span className="text-amber-300 font-cyber font-black max-w-[70px] sm:max-w-[110px] truncate">
+                {userProfile.name}
               </span>
-            )}
-            <span className="hidden sm:inline text-[10px] font-mono text-cyan-400">
-              #{userProfile.friendCode}
-            </span>
-          </button>
+              {userProfile.isOwner && (
+                <span
+                  title={t.founder}
+                  className="text-amber-400 select-none text-sm drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+                >
+                  👑
+                </span>
+              )}
+              <span className="hidden sm:inline text-[10px] font-mono text-cyan-400">
+                #{userProfile.friendCode}
+              </span>
+            </button>
+
+            {/* Micro Level & XP progress bar under profile box */}
+            <div
+              onClick={() => handleClick(onOpenProfile)}
+              className="w-full px-2 mt-1 flex items-center justify-between gap-1.5 cursor-pointer group/lvl"
+              title={`${t.levelLabel} ${lvlInfo.level}: ${lvlInfo.currentLevelXp}/${lvlInfo.xpForNextLevel} XP`}
+            >
+              <span className="text-[10px] font-mono font-black text-amber-400 tracking-wider">
+                {t.levelLabel ? t.levelLabel.slice(0, 3).toUpperCase() : 'LVL'} {lvlInfo.level}
+              </span>
+              <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden border border-white/10">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full transition-all duration-500"
+                  style={{ width: `${lvlInfo.progressPercent}%` }}
+                />
+              </div>
+              <span className="text-[9px] font-mono text-slate-400">
+                {lvlInfo.currentLevelXp}/{lvlInfo.xpForNextLevel}
+              </span>
+            </div>
+          </div>
 
           {/* Discord Community Button */}
           <a
@@ -265,8 +291,35 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </header>
 
-      {/* Main Hero & Clean Mode Selector with Left Quests Widget */}
-      <main className="relative z-10 w-full max-w-7xl flex flex-col items-center my-auto py-4">
+      {/* Sleek Floating / Docked Side Quests Panel (Left Edge) */}
+      <div className="fixed left-3 sm:left-5 top-24 z-30 transition-all duration-300">
+        {isQuestsOpen ? (
+          <div className="w-60 max-w-[85vw] shadow-[0_15px_40px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-left-4 duration-200">
+            <DailyQuestsWidget
+              userProfile={userProfile}
+              onProfileUpdated={onUpdateProfile}
+              onClose={() => setIsQuestsOpen(false)}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              setIsQuestsOpen(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-950/90 hover:bg-slate-900 border border-amber-400/40 text-xs font-cyber font-black text-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md cursor-pointer transition-all hover:scale-105 active:scale-95"
+            title={t.tabTasks || 'Görevler'}
+          >
+            <CalendarCheck className="w-4 h-4 text-amber-400" />
+            <span className="hidden sm:inline uppercase tracking-wider">{t.tabTasks || 'GÖREVLER'}</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          </button>
+        )}
+      </div>
+
+      {/* Main Hero & Clean 2-Card Arcade Mode Selector */}
+      <main className="relative z-10 w-full max-w-5xl flex flex-col items-center my-auto py-4">
         {/* Title & Emblem Header */}
         <div className="flex items-center justify-center gap-8 lg:gap-12 w-full mb-6">
           {/* Left Showcase Cards */}
@@ -325,20 +378,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
 
-        {/* Main Grid: Left Column = Daily Quests & Level | Right Column = Arcade Game Hub */}
-        <div className="w-full grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* LEFT: Daily Quests & Level Widget */}
-          <div className="xl:col-span-4 flex flex-col">
-            <DailyQuestsWidget
-              userProfile={userProfile}
-              onProfileUpdated={onUpdateProfile}
-              className="h-full"
-            />
-          </div>
-
-          {/* RIGHT: 2-Column Arcade Game Hub (Offline Arcade & Online Multiplayer Lobby) */}
-          <div className="xl:col-span-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* SECTION 1: OFFLINE ARCADE (PİŞTİ & RENQ) */}
+        {/* 2-Column Arcade Game Hub: [1] Singleplayer (Pişti & RENQ) | [2] Multiplayer Lobby */}
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* SECTION 1: SINGLEPLAYER (PİŞTİ & RENQ) */}
           <div className="flex flex-col justify-between rounded-3xl bg-slate-950/85 backdrop-blur-xl border border-white/15 hover:border-amber-400/50 p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.75)] transition-all duration-300 relative overflow-hidden">
             <div className="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -543,13 +585,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
 
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.29.0'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.29.1'}
         </span>
       </div>
 

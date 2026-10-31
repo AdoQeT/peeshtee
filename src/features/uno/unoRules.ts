@@ -1,4 +1,4 @@
-import { UnoCard, UnoColor } from './unoTypes';
+import type { UnoCard, UnoColor } from './unoTypes';
 
 /**
  * Checks whether a card is legally playable onto the current discard pile:

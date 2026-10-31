@@ -1,4 +1,4 @@
-import { Card, Player } from '../types/game';
+import type { Card, Player } from '../types/game';
 
 export interface PlayEvaluation {
   isPisti: boolean;

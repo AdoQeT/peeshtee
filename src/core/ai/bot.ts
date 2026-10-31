@@ -1,4 +1,4 @@
-import { Card, AIDifficulty } from '../../types/game';
+import type { Card, AIDifficulty } from '../../types/game';
 
 /**
  * Chooses the best card for the AI opponent based on difficulty level.

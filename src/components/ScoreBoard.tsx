@@ -97,7 +97,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-xs text-slate-100">
               {isFourPlayers
-                ? `Bizim Takım (${user.name} & ${players[2]?.name || 'Ortak'})`
+                ? `${t.ourTeam} (${user.name} & ${players[2]?.name || t.partner})`
                 : user.name}
             </span>
             <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">
@@ -127,14 +127,14 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
       {/* Center Match Stats & Quick Actions */}
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-1.5 bg-slate-950/90 border border-white/15 px-3 py-0.5 rounded-full text-[11px] font-semibold shadow-lg">
-          <span className="text-amber-400 font-cyber font-black">{lang === 'tr' ? 'EL' : 'ROUND'} {round}</span>
+          <span className="text-amber-400 font-cyber font-black">{t.roundLabel} {round}</span>
           <span className="text-slate-500">•</span>
           <span className="text-slate-200">{t.deck}: {remainingDeckCount}</span>
           {isFourPlayers && (
             <>
               <span className="text-slate-500">•</span>
               <span className="text-emerald-300 font-bold flex items-center gap-0.5 text-[10px]">
-                <Shield className="w-2.5 h-2.5" /> {lang === 'tr' ? '4 Kişilik Eşli' : '4-Player Team'}
+                <Shield className="w-2.5 h-2.5" /> {t.fourPlayerTeam}
               </span>
             </>
           )}
@@ -142,7 +142,7 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
             <>
               <span className="text-slate-500 hidden sm:inline">•</span>
               <span className="hidden sm:flex text-amber-300 font-bold items-center gap-0.5 text-[10px]">
-                <Flame className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /> {lang === 'tr' ? '5\'e Basmalı' : 'Instant-5s'}
+                <Flame className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /> {t.instantFives}
               </span>
             </>
           )}
@@ -195,8 +195,8 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
             )}
             <span className="font-bold text-xs text-slate-100">
               {isFourPlayers
-                ? `Rakip Takım (${players[1]?.name || 'Rakip'} & ${players[3]?.name || '2. Rakip'})`
-                : players[1]?.name || 'Rakip'}
+                ? `${t.rivalTeam} (${players[1]?.name || t.opponent} & ${players[3]?.name || t.opponent2})`
+                : players[1]?.name || t.opponent}
             </span>
             {players[1] && (
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">

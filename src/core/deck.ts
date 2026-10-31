@@ -106,7 +106,8 @@ export function shuffleDeck(cards: Card[]): Card[] {
 export function dealInitialGame(
   deck: Card[],
   playerCount: 2 | 4 = 2,
-  enableJackToCutterRule: boolean = true
+  enableJackToCutterRule: boolean = true,
+  firstPlayerIdx: number = 0
 ): {
   tableCards: Card[];
   playerHands: Card[][];
@@ -136,15 +137,16 @@ export function dealInitialGame(
 
   tableCards.push({ ...topTableCard, faceUp: true });
 
-  // Players get 4 cards each
-  const playerHands: Card[][] = [];
-  for (let p = 0; p < playerCount; p++) {
+  // Players get 4 cards each, starting from firstPlayerIdx in turn order
+  const playerHands: Card[][] = Array.from({ length: playerCount }, () => []);
+  for (let offset = 0; offset < playerCount; offset++) {
+    const p = ((firstPlayerIdx % playerCount) + playerCount + offset) % playerCount;
     const hand: Card[] = [];
     const isHuman = p === 0;
     for (let i = 0; i < 4; i++) {
       hand.push({ ...currentDeck.pop()!, faceUp: isHuman });
     }
-    playerHands.push(hand);
+    playerHands[p] = hand;
   }
 
   return {
@@ -158,20 +160,25 @@ export function dealInitialGame(
 /**
  * Deals 4 cards to each player in subsequent rounds of the same deal.
  */
-export function dealHand(deck: Card[], playerCount: 2 | 4 = 2): {
+export function dealHand(
+  deck: Card[],
+  playerCount: 2 | 4 = 2,
+  firstPlayerIdx: number = 0
+): {
   playerHands: Card[][];
   remainingDeck: Card[];
 } {
   const currentDeck = [...deck];
-  const playerHands: Card[][] = [];
+  const playerHands: Card[][] = Array.from({ length: playerCount }, () => []);
 
-  for (let p = 0; p < playerCount; p++) {
+  for (let offset = 0; offset < playerCount; offset++) {
+    const p = ((firstPlayerIdx % playerCount) + playerCount + offset) % playerCount;
     const hand: Card[] = [];
     const isHuman = p === 0;
     for (let i = 0; i < 4; i++) {
       hand.push({ ...currentDeck.pop()!, faceUp: isHuman });
     }
-    playerHands.push(hand);
+    playerHands[p] = hand;
   }
 
   return {

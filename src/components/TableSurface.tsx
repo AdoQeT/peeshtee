@@ -1534,7 +1534,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     if (el) cardDomElements.set(card.id, el);
                     else cardDomElements.delete(card.id);
                   }}
-                  onMouseEnter={() => setHoveredHandCardId(card.id)}
+                  onMouseEnter={() => {
+                    setHoveredHandCardId(card.id);
+                    if (isPlayerTurn && !isHidden) {
+                      sound.playCardHover();
+                    }
+                  }}
                   onMouseLeave={() => setHoveredHandCardId(null)}
                   style={{
                     transform: `translate3d(${displaceX}px, ${liftY}px, 0)`,

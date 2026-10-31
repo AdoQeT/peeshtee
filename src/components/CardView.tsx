@@ -375,6 +375,25 @@ export const CardView: React.FC<CardViewProps> = ({
   className = '',
   style
 }) => {
+  const [tilt, setTilt] = React.useState<{ x: number; y: number; glareX: number; glareY: number } | null>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPlayable || isHiddenInFlight) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setTilt({
+      x: (y - 0.5) * -22,
+      y: (x - 0.5) * 22,
+      glareX: x * 100,
+      glareY: y * 100
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt(null);
+  };
+
   const sizeClasses = CARD_DIMENSIONS[size].classes;
   const showBack = card.devForceFaceUp ? false : !card.faceUp || isOpponent;
   const origin = Math.abs(tiltAngle) >= 45 ? 'center center' : 'bottom center';
@@ -386,6 +405,8 @@ export const CardView: React.FC<CardViewProps> = ({
       tabIndex={isPlayable && !isHiddenInFlight ? 0 : undefined}
       aria-label={label}
       onClick={isPlayable && !isHiddenInFlight ? onClick : undefined}
+      onMouseMove={isPlayable && !isHiddenInFlight ? handleMouseMove : undefined}
+      onMouseLeave={isPlayable && !isHiddenInFlight ? handleMouseLeave : undefined}
       onKeyDown={
         isPlayable && !isHiddenInFlight && onClick
           ? (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -397,7 +418,9 @@ export const CardView: React.FC<CardViewProps> = ({
           : undefined
       }
       style={{
-        transform: `rotate(${tiltAngle}deg)`,
+        transform: tilt
+          ? `perspective(800px) rotate(${tiltAngle}deg) rotateX(${tilt.x.toFixed(1)}deg) rotateY(${tilt.y.toFixed(1)}deg) translateY(-14px) scale(1.08)`
+          : `perspective(800px) rotate(${tiltAngle}deg) rotateX(0deg) rotateY(0deg) translateY(0px) scale(1)`,
         transformOrigin: origin,
         ...style
       }}
@@ -407,7 +430,7 @@ export const CardView: React.FC<CardViewProps> = ({
         isHiddenInFlight
           ? 'opacity-0 pointer-events-none'
           : isPlayable
-          ? 'cursor-pointer transition-all duration-200 will-change-transform hover:-translate-y-4 hover:scale-105 hover:z-30 hover:shadow-[0_20px_35px_rgba(0,0,0,0.65)] active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.45)] focus:outline-none focus:ring-2 focus:ring-amber-400'
+          ? 'cursor-pointer transition-transform duration-150 ease-out will-change-transform hover:z-30 hover:shadow-[0_22px_40px_rgba(0,0,0,0.7)] active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.45)] focus:outline-none focus:ring-2 focus:ring-amber-400'
           : 'cursor-default shadow-[0_6px_16px_rgba(0,0,0,0.45)]'
       } ${className}`}
     >
@@ -415,6 +438,16 @@ export const CardView: React.FC<CardViewProps> = ({
         <CardBackSurface cardBack={cardBack} />
       ) : (
         <CardFrontSurface card={card} theme={theme} />
+      )}
+
+      {/* Interactive Specular Glare Layer (Reacts to cursor coordinates) */}
+      {tilt && (
+        <div
+          className="absolute inset-0 pointer-events-none rounded-[inherit] z-20 mix-blend-overlay transition-opacity duration-150"
+          style={{
+            background: `radial-gradient(circle at ${tilt.glareX.toFixed(0)}% ${tilt.glareY.toFixed(0)}%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 35%, transparent 70%)`
+          }}
+        />
       )}
       <style>{`
         @keyframes cardSpecularGlint {

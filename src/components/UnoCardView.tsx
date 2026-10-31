@@ -184,12 +184,33 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
   };
   const label = `${colorNames[card.color]} ${cornerLabel}`;
 
+  const [tilt, setTilt] = React.useState<{ x: number; y: number; glareX: number; glareY: number } | null>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPlayable) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setTilt({
+      x: (y - 0.5) * -22,
+      y: (x - 0.5) * 22,
+      glareX: x * 100,
+      glareY: y * 100
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt(null);
+  };
+
   return (
     <div
       role={isPlayable ? 'button' : undefined}
       tabIndex={isPlayable ? 0 : undefined}
       aria-label={label}
       onClick={isPlayable ? e => onClick?.(e) : undefined}
+      onMouseMove={isPlayable ? handleMouseMove : undefined}
+      onMouseLeave={isPlayable ? handleMouseLeave : undefined}
       onKeyDown={
         isPlayable && onClick
           ? (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -200,8 +221,13 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
             }
           : undefined
       }
-      style={style}
-      className={`relative select-none shrink-0 overflow-hidden rounded-[inherit] border-2 shadow-lg transition-all duration-150 ${
+      style={{
+        transform: tilt
+          ? `perspective(800px) rotateX(${tilt.x.toFixed(1)}deg) rotateY(${tilt.y.toFixed(1)}deg) translateY(-8px) scale(1.08)`
+          : undefined,
+        ...style
+      }}
+      className={`relative select-none shrink-0 overflow-hidden rounded-[inherit] border-2 shadow-lg transition-transform duration-150 ease-out ${
         theme.cardBg
       } ${theme.borderColor} ${sizeClass} ${
         isPlayable
@@ -237,8 +263,17 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         {cornerLabel}
       </div>
 
-      {/* Premium Glass Glint Highlight */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
+      {/* Interactive Specular Glare Highlight (Reacts to cursor movement) */}
+      {tilt ? (
+        <div
+          className="absolute inset-0 pointer-events-none rounded-[inherit] z-20 mix-blend-overlay transition-opacity duration-150"
+          style={{
+            background: `radial-gradient(circle at ${tilt.glareX.toFixed(0)}% ${tilt.glareY.toFixed(0)}%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 35%, transparent 70%)`
+          }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
+      )}
     </div>
   );
 };

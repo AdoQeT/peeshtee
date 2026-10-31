@@ -2612,7 +2612,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   <div
                     key={card.id}
                     id={`uno-user-card-${card.id}`}
-                    onMouseEnter={() => setHoveredCardId(card.id)}
+                    onMouseEnter={() => {
+                      setHoveredCardId(card.id);
+                      if (isPlayable && !isHidden) {
+                        sound.playCardHover();
+                      }
+                    }}
                     onMouseLeave={() => setHoveredCardId(null)}
                     style={{
                       transform: `translateX(${hoverDisplaceX}px) translateY(${finalLiftY}px) rotate(${finalRot}deg) scale(${finalScale})`,

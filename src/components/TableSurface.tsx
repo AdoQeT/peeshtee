@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, TableTheme, Player, OnTableCountState } from '../types/game';
 import { CardView, CardBackSurface, CardFrontSurface, CARD_DIMENSIONS } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
@@ -7,6 +7,7 @@ import { DetailedRoundScore } from '../core/rules';
 import { AmbientParticles } from './AmbientParticles';
 import { getAvatarPreset } from '../features/profile/profileManager';
 import { cardDomElements } from '../hooks/useCardFlightState';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 export interface TableDomRefs {
   deckEl: HTMLDivElement | null;
@@ -405,6 +406,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   deckCutState = null,
   onCutDeck
 }) => {
+  const [lang, setLang] = React.useState<Language>(getLanguage());
+  React.useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
+
   const [showEmotePicker, setShowEmotePicker] = React.useState(false);
   const [hoveredHandCardId, setHoveredHandCardId] = React.useState<string | null>(null);
   const [hoveredCutIndex, setHoveredCutIndex] = React.useState<number | null>(null);
@@ -412,8 +419,8 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
   React.useEffect(() => {
     if (deckCutState?.isActive && deckCutState.step === 'waiting_cut') {
-      const t = window.setTimeout(() => setIsSpread(true), 60);
-      return () => window.clearTimeout(t);
+      const timer = window.setTimeout(() => setIsSpread(true), 60);
+      return () => window.clearTimeout(timer);
     } else if (!deckCutState?.isActive) {
       setIsSpread(false);
     }
@@ -535,7 +542,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
         >
           {count === 0 ? (
             <span className="text-[11px] text-white/40 font-semibold text-center px-1 leading-tight">
-              Toplanan
+              {t.collected}
               <br />0
             </span>
           ) : (
@@ -642,7 +649,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           } bg-amber-500 border border-amber-200 text-slate-950 text-[11px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-0.5 whitespace-nowrap z-20`}
         >
           <Flame className="w-2.5 h-2.5 fill-slate-950" />
-          <span>{pistiCount} Pişti{player.doublePistiCount > 0 ? ` (${player.doublePistiCount} Çift)` : ''}</span>
+          <span>{pistiCount} Pişti{player.doublePistiCount > 0 ? ` (${player.doublePistiCount} ${t.doubleLabel})` : ''}</span>
         </div>
       </div>
     );
@@ -756,7 +763,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               </span>
               {isFourPlayers && (
                 <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
-                  Ortağın
+                  {t.yourPartner}
                 </span>
               )}
             </span>
@@ -899,15 +906,15 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   <span>
                     {deckCutState.step === 'waiting_cut'
                       ? deckCutState.isHumanCutter
-                        ? '✂️ DESTEYİ KES: Kartlardan birine dokunarak desteyi ikiye böl (Vale kesene yarar!)'
-                        : `✂️ ${deckCutState.cutterName} desteyi kesiyor...`
+                        ? t.cutDeckPrompt
+                        : `✂️ ${deckCutState.cutterName} ${t.cuttingDeck}`
                       : deckCutState.step === 'splitting'
-                      ? `✂️ DESTE BÖLÜNÜYOR: ${deckCutState.pileACount} & ${deckCutState.pileBCount} Kart`
+                      ? `${t.splittingDeck} ${deckCutState.pileACount} & ${deckCutState.pileBCount} ${t.cardsUnit}`
                       : deckCutState.step === 'dealing_pot'
-                      ? '🎴 ORTAYA 4 KART DAĞITILIYOR (3 Kapalı + 1 Açık)'
+                      ? t.dealingPot
                       : deckCutState.step === 'merging'
-                      ? '✨ DESTE BİRLEŞTİRİLİYOR (Kalan parça kesenin üstüne konuyor)...'
-                      : '✨ DESTE YUVAYA YERLEŞTİRİLİYOR...'}
+                      ? t.mergingDeck
+                      : t.stowingDeck}
                   </span>
                 </div>
 
@@ -1032,10 +1039,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 {(deckCutState.step === 'splitting' || deckCutState.step === 'dealing_pot') && (
                   <div className="absolute -bottom-7 sm:-bottom-8 flex items-center justify-between w-full max-w-sm px-6 animate-in fade-in duration-300">
                     <span className="text-[10px] font-cyber text-amber-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-amber-400/40 shadow-md">
-                      ✂️ Kesen: {deckCutState.pileACount}
+                      {t.cutterPile} {deckCutState.pileACount}
                     </span>
                     <span className="text-[10px] font-cyber text-cyan-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-cyan-400/40 shadow-md">
-                      📦 Kalan: {deckCutState.pileBCount}
+                      {t.remainingPile} {deckCutState.pileBCount}
                     </span>
                   </div>
                 )}
@@ -1043,7 +1050,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 {deckCutState.step === 'merging' && (
                   <div className="absolute -bottom-7 sm:-bottom-8 flex items-center justify-center animate-in fade-in duration-200">
                     <span className="text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/90 px-3 py-0.5 rounded-full border border-emerald-400/40 shadow-md">
-                      ✨ Deste Birleştirildi (52 Kart)
+                      {t.deckMerged}
                     </span>
                   </div>
                 )}
@@ -1068,12 +1075,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 {deckCutState?.isActive ? (
                   <div className="flex flex-col items-center justify-center text-amber-200/40 text-[10px] font-bold text-center px-1 select-none animate-pulse">
                     <Scissors className="w-3.5 h-3.5 mb-1 text-amber-400/60" />
-                    <span>Masada</span>
+                    <span>{t.deckOnTable}</span>
                   </div>
                 ) : isShuffling ? (
                   <div className="flex flex-col items-center justify-center text-amber-300/70 text-[10px] font-bold text-center px-2">
                     <Sparkles className="w-4 h-4 mb-1 animate-spin text-amber-400" />
-                    <span>Deste Karılıyor</span>
+                    <span>{t.shuffling}</span>
                   </div>
                 ) : deckCount > 0 ? (
                   <div className="relative w-full h-full">
@@ -1097,14 +1104,14 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   </div>
                 ) : (
                   <span className="text-[10px] text-white/30 font-semibold text-center px-1">
-                    Deste
+                    {t.deck}
                     <br />
-                    Bitti
+                    {t.empty}
                   </span>
                 )}
               </div>
               <span className="mt-1.5 text-[10px] font-cyber text-slate-200 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-white/15 shadow-md">
-                {deckCutState?.isActive ? 'Deste: Masada' : `Deste: ${deckCount}`}
+                {deckCutState?.isActive ? t.deckOnTableBadge : `${t.deck}: ${deckCount}`}
               </span>
             </div>
 
@@ -1124,7 +1131,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               >
                 {visibleTableCards.length === 0 && tableCards.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-white/25 p-2 text-center pointer-events-none">
-                    <span className="text-xs font-semibold">ORTA</span>
+                    <span className="text-xs font-semibold">{t.pot}</span>
                   </div>
                 ) : (
                   tableCards.slice(-14).map((card, idx) => {
@@ -1165,7 +1172,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
               {/* Table Card Counter Badge */}
               <div className="mt-1.5 bg-slate-950/90 border border-white/20 text-slate-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-lg">
-                Yerde: {visibleTableCards.length} Kart
+                {t.onFloor} {visibleTableCards.length} {t.cardsUnit}
               </div>
 
               {/* Instant Game Over Overlay if ended before counting */}
@@ -1174,7 +1181,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   <div className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-black text-sm shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-2 mb-3 animate-pulse">
                     <span>🏆</span>
                     <span>
-                      {gameOverWinner ? `${gameOverWinner.name.toUpperCase()} KAZANDI!` : 'MAÇ TAMAMLANDI!'}
+                      {gameOverWinner ? `${gameOverWinner.name.toUpperCase()} ${t.wonMatch}` : t.matchCompleted}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -1184,7 +1191,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                         className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg cursor-pointer transition-transform active:scale-95 flex items-center gap-1.5"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Yeni Maç</span>
+                        <span>{t.newMatchShort}</span>
                       </button>
                     )}
                     {onExitToMenu && (
@@ -1192,7 +1199,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                         onClick={onExitToMenu}
                         className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-slate-200 border border-white/20 cursor-pointer transition-all active:scale-95"
                       >
-                        Ana Menü
+                        {t.mainMenu}
                       </button>
                     )}
                   </div>
@@ -1331,11 +1338,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   {isPlayerTurn ? (
                     <span className="font-bold text-emerald-300 flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                      Senin Sıran — Kartını Seç
+                      {t.yourTurnSelect}
                     </span>
                   ) : (
                     <span className="text-slate-300 font-medium">
-                      {`${players[currentTurn]?.name || 'Rakip'} oynuyor...`}
+                      {`${players[currentTurn]?.name || t.opponent} ${t.isPlaying}`}
                     </span>
                   )}
 
@@ -1370,11 +1377,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                 {isPlayerTurn ? (
                   <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 px-3.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-400/50 shadow-md">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    Senin Sıran — Kartını Seç
+                    {t.yourTurnSelect}
                   </span>
                 ) : (
                   <span className="text-xs text-slate-300 px-3.5 py-0.5 rounded-full bg-slate-950/80 border border-white/15">
-                    {`${players[currentTurn]?.name || 'Rakip'} düşünüyor...`}
+                    {`${players[currentTurn]?.name || t.opponent} ${t.isThinking}`}
                   </span>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { CardBackSurface } from './CardView';
 import { AvatarBadge } from './AvatarBadge';
 import { TableTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 export interface MatchIntroPlayer {
   name: string;
@@ -28,28 +29,14 @@ interface MatchIntroOverlayProps {
   onDone: () => void;
 }
 
-const PISTI_TIPS = [
-  'Kartları dikkatle say, Pişti fırsatını kaçırma!',
-  'Vale, yerdeki bütün kartları süpürür. Zamanını iyi seç.',
-  'Karo 10 üç puan, Sinek 2 iki puandır.',
-  'Son eli alan, yerde kalan tüm kartları toplar.',
-  'Çoğunluk kartı toplayan 3 puan yazar.',
-  'Rakibin son kartını tahmin etmeye çalış.'
-];
-
-const UNO_TIPS = [
-  'Renk değiştirmeyi doğru zamana sakla.',
-  'Son kartından önce RenQ demeyi unutma!',
-  'Özel kartları rakibin son kartına yaklaştığında kullan.',
-  'Elindeki renk dağılımını rakibe belli etme.'
-];
-
-const PALETTES: Record<string, { glow: string; mid: string; edge: string }> = {
-  monaco_velvet: { glow: '168,85,247', mid: '#2e1065', edge: '#07030f' },
-  melbourne_red: { glow: '239,68,68', mid: '#450a0a', edge: '#0a0303' },
-  estoril_blue: { glow: '56,189,248', mid: '#082f49', edge: '#020a14' },
-  alpine_white: { glow: '226,232,240', mid: '#1e293b', edge: '#05070b' },
-  traditional: { glow: '16,185,129', mid: '#022c22', edge: '#010a07' }
+const PALETTES: Record<string, { glow: string; center: string; mid: string; edge: string }> = {
+  estoril_blue: { glow: '56,189,248', center: '#0e4277', mid: '#051d38', edge: '#010710' },
+  alpine_white: { glow: '226,232,240', center: '#333c48', mid: '#1b212b', edge: '#0b0e13' },
+  melbourne_red: { glow: '248,113,113', center: '#520912', mid: '#290408', edge: '#0d0103' },
+  monaco_velvet: { glow: '245,158,11', center: '#3b0764', mid: '#240440', edge: '#0a0114' },
+  traditional: { glow: '16,185,129', center: '#0d442f', mid: '#062a1d', edge: '#031710' },
+  sakura: { glow: '244,114,182', center: '#360c29', mid: '#1a051d', edge: '#0a010c' },
+  luxury_gold: { glow: '245,158,11', center: '#38150c', mid: '#1a090d', edge: '#070204' }
 };
 
 // Yelpaze açıları (8 kart). Dönüş merkezi kartın altında olduğu için doğal bir el yelpazesi oluşur.
@@ -85,11 +72,17 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
   onReveal,
   onDone
 }) => {
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
+
   const [isFadingOut, setIsFadingOut] = useState(false);
-  const [tip] = useState(() => {
-    const pool = gameType === 'uno' ? UNO_TIPS : PISTI_TIPS;
-    return pool[Math.floor(Math.random() * pool.length)];
-  });
+  const [tipIndex] = useState(() => Math.floor(Math.random() * 10));
+  const pool = gameType === 'uno' ? t.unoTips : t.pistiTips;
+  const tip = pool[tipIndex % pool.length];
+
   const [reduced] = useState(
     () =>
       typeof window !== 'undefined' &&
@@ -167,7 +160,9 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
           >
             {p.name}
             {p.isMe && (
-              <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#fbbf24' }}>(Sen)</span>
+              <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#fbbf24' }}>
+                {t.youSuffix}
+              </span>
             )}
           </div>
           <div
@@ -179,7 +174,7 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
               animation: anim(`mio-ready 380ms ease-out ${950 + order * 230}ms both`)
             }}
           >
-            ✓ HAZIR
+            {t.readyCheck}
           </div>
         </div>
       </div>
@@ -189,7 +184,7 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
   return (
     <div
       role="status"
-      aria-label="Maç hazırlanıyor"
+      aria-label={t.preparingMatch}
       style={{
         position: 'fixed',
         inset: 0,
@@ -201,8 +196,8 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
         justifyContent: 'space-between',
         padding: 'max(36px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom))',
         userSelect: 'none',
-        // Tamamen opak zemin: arkadaki masa görünmez.
-        background: `radial-gradient(ellipse at 50% 38%, rgba(${glow},0.28) 0%, ${pal.mid} 38%, ${pal.edge} 100%)`,
+        // Tamamen opak zemin: arkadaki masa temasıyla birebir aynı radial renk geçişi.
+        background: `radial-gradient(ellipse at 50% 42%, ${pal.center} 0%, ${pal.mid} 52%, ${pal.edge} 100%)`,
         opacity: isFadingOut ? 0 : 1,
         transform: isFadingOut ? 'scale(1.04)' : 'scale(1)',
         transition: 'opacity 450ms ease-in, transform 450ms ease-in',
@@ -264,7 +259,7 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
             animation: anim('mio-fade-up 450ms ease-out 80ms both')
           }}
         >
-          {label || (gameType === 'uno' ? 'RenQ Arenası' : 'Pişti Masası')}
+          {label || (gameType === 'uno' ? t.renqArena : t.pistiTable)}
         </div>
         <h1
           className="font-arcade"
@@ -418,7 +413,9 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, flex: 1 }}>
             {showTeams && (
-              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', color: '#94a3b8' }}>TAKIM A</span>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', color: '#94a3b8' }}>
+                {t.teamA}
+              </span>
             )}
             {left.map((p, i) => renderPlayer(p, i * 2, 'left'))}
           </div>
@@ -451,7 +448,9 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
             }}
           >
             {showTeams && (
-              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', color: '#94a3b8' }}>TAKIM B</span>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', color: '#94a3b8' }}>
+                {t.teamB}
+              </span>
             )}
             {right.map((p, i) => renderPlayer(p, i * 2 + 1, 'right'))}
           </div>

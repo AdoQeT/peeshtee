@@ -18,9 +18,8 @@ import { Card, OnTableCountState, TableTheme, Player } from '../types/game';
 import { CardFrontSurface, CardBackSurface } from './CardView';
 import { DetailedRoundScore } from '../core/rules';
 import type { TableDomRefs } from './TableSurface';
-import { sound } from '../core/audio/soundEngine';
-import confetti from 'canvas-confetti';
 import { RotateCcw, ArrowRight, Trophy } from 'lucide-react';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 interface RectBox {
   left: number;
@@ -240,9 +239,15 @@ export const CardCountingOverlay: React.FC<Props> = ({
   const userPointsBoxRef = useRef<HTMLDivElement | null>(null);
   const oppPointsBoxRef = useRef<HTMLDivElement | null>(null);
 
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
+
   const isFourPlayers = players.length === 4;
   const user = players[0];
-  const opp = isFourPlayers ? players[2] : players[1];
+  const opp = players[1];
   const isGameOver = Boolean(roundScores?.isGameOver);
 
   const userPistiPoints = countState.userPistiPoints ?? 0;
@@ -379,17 +384,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
     const maxSteps = Math.max(userCards.length, oppCards.length);
 
-    // Bir önceki adımda havalanan kart varsa ve az önce hedefe indiyse puan sesini çal
-    if (stepTick > 0) {
-      const landedIdx = stepTick - 1;
-      if (landedIdx < userCards.length) {
-        const landedUserCard = userCards[landedIdx];
-        if ((landedUserCard.basePoints || 0) > 0) {
-          sound.playPointCardChime(landedUserCard.basePoints);
-        }
-      }
-    }
-
     // Tüm kartlar hedefe indiyse sayımı bitir
     if (stepTick > maxSteps) {
       setPhase('completed');
@@ -398,13 +392,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
       setOppFlight(null);
       onCountProgress?.(userCards.length, oppCards.length);
       onCountingDone?.();
-
-      if (countState.userMajority) {
-        sound.playDoublePisti();
-        confetti({ particleCount: 90, spread: 75, origin: { y: 0.55 } });
-      } else {
-        sound.playMatchSweep();
-      }
       return;
     }
 
@@ -438,7 +425,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
           startRect,
           targetRect
         });
-        sound.playCountTick(1 + (drawIdx % 10) * 0.04);
       } else {
         setUserFlight(null);
       }
@@ -454,9 +440,6 @@ export const CardCountingOverlay: React.FC<Props> = ({
           startRect,
           targetRect
         });
-        if (drawIdx >= userCards.length) {
-          sound.playCountTick(1 + (drawIdx % 10) * 0.04);
-        }
       } else {
         setOppFlight(null);
       }
@@ -492,12 +475,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
     setOppFlight(null);
     onCountProgress?.(userCards.length, oppCards.length);
     onCountingDone?.();
-
-    if (countState.userMajority) {
-      sound.playDoublePisti();
-      confetti({ particleCount: 75, spread: 65, origin: { y: 0.55 } });
-    }
-  }, [userCards.length, oppCards.length, countState.userMajority, onCountProgress, onCountingDone]);
+  }, [userCards.length, oppCards.length, onCountProgress, onCountingDone]);
 
   if (!isActive) return null;
 
@@ -551,6 +529,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
     Math.max(oppRemainingCount > 0 ? 1 : 0, Math.ceil(oppRemainingCount / 2.2))
   );
 
+  const ourRoundScore = roundScores?.user.totalRoundPoints ?? userTotalPts;
+  const oppRoundScore = roundScores?.opp.totalRoundPoints ?? oppTotalPts;
+
   return (
     <div className="fixed inset-0 z-40 pointer-events-none select-none overflow-hidden">
       {/* ── TOP RIGHT: Minik Sayım Kontrol Butonları ── */}
@@ -559,16 +540,14 @@ export const CardCountingOverlay: React.FC<Props> = ({
           <button
             onClick={() => setIsFast(prev => !prev)}
             className="px-3 py-1 rounded-full text-xs font-bold bg-slate-950/85 text-amber-300 border border-amber-400/50 hover:bg-slate-900 transition-all cursor-pointer shadow-lg active:scale-95"
-            title="Sayım Hızını Ayarla"
           >
-            {isFast ? 'Normal ⏱️' : '2x Hızlı ⏩'}
+            {isFast ? t.normalSpeed : t.fastSpeed}
           </button>
           <button
             onClick={handleSkipAll}
             className="px-3 py-1 rounded-full text-xs font-bold bg-slate-950/85 text-slate-200 border border-white/20 hover:bg-slate-900 transition-all cursor-pointer shadow-lg active:scale-95"
-            title="Kart Sayımını Anında Tamamla"
           >
-            Anında Say ⏭️
+            {t.instantCount}
           </button>
         </div>
       )}
@@ -602,7 +581,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {isFourPlayers && (
             <div className="relative flex flex-col items-center">
               <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
-                Kalan ({oppRemainingCount})
+                {t.remainingCount} ({oppRemainingCount})
               </span>
               <div
                 ref={oppClosedPileRef}
@@ -625,7 +604,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                     ))}
                   </div>
                 ) : (
-                  <span className="text-[10px] text-white/30 font-mono">Bitti (0)</span>
+                  <span className="text-[10px] text-white/30 font-mono">{t.finishedZero}</span>
                 )}
               </div>
             </div>
@@ -634,7 +613,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
-              Sayılmış ({oppLandedCount}/{oppCards.length})
+              {t.countedLabel} ({oppLandedCount}/{oppCards.length})
             </span>
             <div
               ref={oppOpenPileRef}
@@ -660,7 +639,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                   );
                 })
               ) : (
-                <span className="text-[10px] text-white/30 font-mono">Açık Deste</span>
+                <span className="text-[10px] text-white/30 font-mono">{t.openDeck}</span>
               )}
             </div>
           </div>
@@ -668,14 +647,14 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {/* Rakip Ayıklanan Değerli Puan Kartları */}
           <div className="flex flex-col items-start pl-2 sm:pl-3 border-l border-white/15 min-w-[96px] sm:min-w-[140px]">
             <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider mb-1">
-              💎 Puanlar (+{oppCardScore}P)
+              {t.pointsLabel} (+{oppCardScore}P)
             </span>
             <div
               ref={oppPointsBoxRef}
               className="relative flex items-center -space-x-5 sm:-space-x-7 min-w-[88px] min-h-[128px] sm:min-w-24 sm:min-h-36"
             >
               {oppPointCards.length === 0 ? (
-                <span className="text-[10px] text-slate-500 italic">Henüz yok</span>
+                <span className="text-[10px] text-slate-500 italic">{t.noneYet}</span>
               ) : (
                 oppPointCards.map((pc, idx) => (
                   <div
@@ -694,16 +673,18 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
           {/* Rakip Skor Özeti Rozeti (DÜZ 0°!) */}
           <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-rose-400/60 shadow-xl">
-            <span className="text-[11px] text-rose-300 font-bold">{opp?.name || 'Rakip'}</span>
+            <span className="text-[11px] text-rose-300 font-bold">
+              {isFourPlayers ? t.rivalTeam : (opp?.name || t.opponent)}
+            </span>
             <span className="text-xl sm:text-2xl font-black font-cyber text-rose-300">+{oppTotalPts}P</span>
             {isDone && countState.oppMajority && (
-              <span className="text-[9px] font-black text-amber-300">🏆 +3P Çoğunluk</span>
+              <span className="text-[9px] font-black text-amber-300">{t.majorityBadge}</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── 2. MASA MERKEZİ: ATLA DÜĞMESİ VEYA ÇOĞUNLUK & SONRAKİ EL BUTONU ── */}
+      {/* ── 2. MASA MERKEZİ: ATLA DÜĞMESİ VEYA EL PUANI + TOPLAM PUAN + SONRAKİ EL BUTONU ── */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40">
         {!isDone && (
           <div className="pointer-events-auto flex items-center gap-2">
@@ -711,30 +692,40 @@ export const CardCountingOverlay: React.FC<Props> = ({
               onClick={handleInstantSkip}
               className="px-4 py-1.5 rounded-full bg-slate-950/90 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-xs font-bold shadow-lg transition-all cursor-pointer"
             >
-              Sayımı Atla ⏭
+              {t.skipCounting}
             </button>
           </div>
         )}
         {isDone && (
-          <div className="flex flex-col items-center gap-2.5 p-3.5 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto">
-            {/* Majority Announcement */}
-            <div className="px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400 text-xs sm:text-sm font-black text-amber-300">
-              {countState.userMajority
-                ? `🏆 KART ÇOĞUNLUĞU (+3 PUAN) SİZİN! (${userCards.length} vs ${oppCards.length})`
-                : countState.oppMajority
-                ? `🏆 KART ÇOĞUNLUĞU (+3 PUAN) RAKİPTE (${oppCards.length} vs ${userCards.length})`
-                : 'KART ÇOĞUNLUĞU: EŞİT (26 - 26)'}
+          <div className="flex flex-col items-center gap-2 p-4 sm:p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-400/80 shadow-[0_0_40px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-200 pointer-events-auto min-w-[260px] sm:min-w-[320px]">
+            {/* 1. Bizim Puan vs Rakibin Puanı */}
+            <div className="flex items-center justify-center gap-3 text-xs sm:text-sm font-black">
+              <span className="text-emerald-300">
+                {t.ourPoints}: <span className="text-amber-300 font-cyber">+{ourRoundScore}</span>
+              </span>
+              <span className="text-slate-500">vs</span>
+              <span className="text-rose-300">
+                {t.oppPoints}: <span className="text-rose-200 font-cyber">+{oppRoundScore}</span>
+              </span>
             </div>
 
-            {/* Match Winner or Next Round Button */}
+            {/* 2. Toplam Puan */}
+            <div className="px-3.5 py-1 rounded-full bg-white/5 border border-white/15 text-xs font-bold text-slate-200">
+              {t.totalScoreLabel}:{' '}
+              <span className="text-amber-300 font-cyber font-black">{user?.score ?? 0}</span>
+              <span className="mx-1.5 text-slate-500">-</span>
+              <span className="text-rose-300 font-cyber font-black">{opp?.score ?? 0}</span>
+            </div>
+
+            {/* 3. Sonraki El veya Maç Sonu Butonu */}
             {isGameOver ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="px-5 py-2 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-black text-sm shadow-xl flex items-center gap-2 animate-bounce">
+              <div className="flex flex-col items-center gap-2 mt-1">
+                <div className="px-4 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border border-amber-400 text-amber-200 font-black text-xs sm:text-sm shadow-xl flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-amber-400" />
                   <span>
                     {roundScores?.winner
-                      ? `${roundScores.winner.name.toUpperCase()} KAZANDI!`
-                      : 'MAÇ TAMAMLANDI!'}
+                      ? `${roundScores.winner.name.toUpperCase()} ${t.wonMatch}`
+                      : t.matchCompleted}
                   </span>
                 </div>
                 {onRestartGame && (
@@ -743,12 +734,12 @@ export const CardCountingOverlay: React.FC<Props> = ({
                     className="px-8 py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    <span>Yeni Maç Başlat</span>
+                    <span>{t.newMatch}</span>
                   </button>
                 )}
               </div>
             ) : isMultiplayer ? (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-2 mt-1">
                 {slotsReadiness.length > 0 && (
                   <div className="flex flex-wrap justify-center gap-1.5">
                     {slotsReadiness.map(slot => (
@@ -776,14 +767,14 @@ export const CardCountingOverlay: React.FC<Props> = ({
                 >
                   {isReadyForNextRound ? (
                     <>
-                      <span>✅ HAZIRSIN</span>
+                      <span>✅ {t.ready}</span>
                       <span className="text-emerald-100 font-mono text-xs">
-                        ({readySeatsCount}/{totalHumanPlayersCount} Hazır)
+                        ({readySeatsCount}/{totalHumanPlayersCount} {t.readyRatio})
                       </span>
                     </>
                   ) : (
                     <>
-                      <span>🔥 SONRAKİ EL (HAZIRIM)</span>
+                      <span>{t.startNextRoundReady}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -792,9 +783,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
             ) : (
               <button
                 onClick={onNextRound}
-                className="px-8 py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+                className="mt-1 px-8 py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
               >
-                <span>Sonraki Eli Başlat</span>
+                <span>{t.startNextRoundBtn}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -809,7 +800,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {isFourPlayers && (
             <div className="relative flex flex-col items-center">
               <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
-                Kalan ({userRemainingCount})
+                {t.remainingCount} ({userRemainingCount})
               </span>
               <div
                 ref={userClosedPileRef}
@@ -832,7 +823,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                     ))}
                   </div>
                 ) : (
-                  <span className="text-[10px] text-white/30 font-mono">Bitti (0)</span>
+                  <span className="text-[10px] text-white/30 font-mono">{t.finishedZero}</span>
                 )}
               </div>
             </div>
@@ -841,7 +832,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {/* Kullanıcı Açılan Normal Deste */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
-              Sayılmış ({userLandedCount}/{userCards.length})
+              {t.countedLabel} ({userLandedCount}/{userCards.length})
             </span>
             <div
               ref={userOpenPileRef}
@@ -867,7 +858,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
                   );
                 })
               ) : (
-                <span className="text-[10px] text-white/30 font-mono">Açık Deste</span>
+                <span className="text-[10px] text-white/30 font-mono">{t.openDeck}</span>
               )}
             </div>
           </div>
@@ -875,14 +866,14 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {/* Kullanıcı Ayıklanan Değerli Puan Kartları */}
           <div className="flex flex-col items-start pl-2 sm:pl-3 border-l border-white/15 min-w-[96px] sm:min-w-[140px]">
             <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider mb-1">
-              💎 Puanlar (+{userCardScore}P)
+              {t.pointsLabel} (+{userCardScore}P)
             </span>
             <div
               ref={userPointsBoxRef}
               className="relative flex items-center -space-x-5 sm:-space-x-7 min-w-[88px] min-h-[128px] sm:min-w-24 sm:min-h-36"
             >
               {userPointCards.length === 0 ? (
-                <span className="text-[10px] text-slate-500 italic">Henüz yok</span>
+                <span className="text-[10px] text-slate-500 italic">{t.noneYet}</span>
               ) : (
                 userPointCards.map((pc, idx) => (
                   <div
@@ -902,11 +893,11 @@ export const CardCountingOverlay: React.FC<Props> = ({
           {/* Kullanıcı Skor Özeti Rozeti */}
           <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-emerald-400/60 shadow-xl">
             <span className="text-[11px] text-emerald-300 font-bold">
-              {isFourPlayers ? 'Bizim Takım' : (user?.name || 'Sen')}
+              {isFourPlayers ? t.ourTeam : (user?.name || t.youLabel)}
             </span>
             <span className="text-xl sm:text-2xl font-black font-cyber text-amber-300">+{userTotalPts}P</span>
             {isDone && countState.userMajority && (
-              <span className="text-[9px] font-black text-emerald-300">🏆 +3P Çoğunluk</span>
+              <span className="text-[9px] font-black text-emerald-300">{t.majorityBadge}</span>
             )}
           </div>
         </div>

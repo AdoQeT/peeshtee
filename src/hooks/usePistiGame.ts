@@ -159,7 +159,6 @@ export function usePistiGame({
   const [deckCutState, setDeckCutState] = useState<DeckCutState | null>(null);
   const [pendingDealContext, setPendingDealContext] = useState<PendingDealContext | null>(null);
   const pendingDealContextRef = useRef<PendingDealContext | null>(null);
-  pendingDealContextRef.current = pendingDealContext;
 
   // Turn Timer (Used strictly in multiplayer mode)
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(15);
@@ -509,6 +508,7 @@ export function usePistiGame({
         setFlyingCards([]);
         setHiddenCardIds(new Set());
         setDeck(finalRemainingDeck);
+        setCurrentTurn(firstPlayerIdx);
         setIsDealingAnimation(false);
         setIsActionLocked(false);
       };
@@ -574,11 +574,13 @@ export function usePistiGame({
             let targetX = fallback.x;
             let targetY = fallback.y;
 
-            const handEl = tableRefs.current.handEls[pIdx];
-            if (handEl) {
-              const handCenter = getCenter(handEl, fallback.x, fallback.y);
-              targetX = handCenter.x;
-              targetY = handCenter.y;
+            const cardEl = cardDomElements.get(step.card.id);
+            if (cardEl) {
+              const rect = cardEl.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                targetX = rect.left + rect.width / 2;
+                targetY = rect.top + rect.height / 2;
+              }
             }
 
             const flyId = `fly-hand-deal-${step.card.id}-${Date.now()}`;
@@ -838,7 +840,14 @@ export function usePistiGame({
       const timerPot = window.setTimeout(() => {
         setDeckCutState(prev => (prev ? { ...prev, step: 'dealing_pot' } : null));
 
-        const initialDeal = dealInitialGame(cutDeck, configuredSettings.playerCount, true);
+        const N = configuredSettings.playerCount;
+        const absStartingTurn = isMp ? (startingTurn + mySeat) % N : startingTurn;
+        const initialDeal = dealInitialGame(
+          cutDeck,
+          configuredSettings.playerCount,
+          true,
+          absStartingTurn
+        );
         const orientedHands = orientHandsForPerspective(
           initialDeal.playerHands,
           isMp ? mySeat : 0
@@ -1024,19 +1033,15 @@ export function usePistiGame({
 
             const timerComplete = window.setTimeout(() => {
               setDeckCutState(null);
+              pendingDealContextRef.current = null;
               setPendingDealContext(null);
-
-              const N = configuredSettings.playerCount;
-              const startingSeat = pendingDealContext?.startingTurn ?? 0;
-              const mySeat = pendingDealContext?.mySeat ?? 0;
-              const guestDealTurn = isMp ? (startingSeat - mySeat + N) % N : startingSeat;
 
               runDealChoreography(
                 [],
                 orientedHands,
                 initialDeal.remainingDeck,
                 configuredSettings.playerCount,
-                guestDealTurn
+                startingTurn
               );
             }, 550);
             dealTimersRef.current.push(timerComplete);
@@ -1700,9 +1705,6 @@ export function usePistiGame({
         if (xpRes.leveledUp) {
           showDevToast(`🎉 SEVİYE ATLADIN! Yeni Seviye: Level ${xpRes.newLevel} (+${xpRes.xpEarned} XP)`);
         }
-        if (newUserScore > newOppScore) {
-          confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 } });
-        }
       }
 
       setRoundScores({
@@ -1885,20 +1887,24 @@ export function usePistiGame({
 
     if (deck.length > 0) {
       const timer = window.setTimeout(() => {
-        const nextDeal = dealHand(deck, settings.playerCount);
+        const N = settings.playerCount;
+        const roundStarterLocal = (dealerIndex + 1) % N;
+        const absStarter = isMultiplayerGame
+          ? (roundStarterLocal + myMultiplayerSeatRef.current) % N
+          : roundStarterLocal;
+        const nextDeal = dealHand(deck, settings.playerCount, absStarter);
         const orientedHands = orientHandsForPerspective(
           nextDeal.playerHands,
           isMultiplayerGame ? myMultiplayerSeatRef.current : 0
         );
         setSeenCards(prev => [...prev, ...orientedHands[0]]);
 
-        const nextStarter = currentTurnRef.current;
         runDealChoreography(
           [],
           orientedHands,
           nextDeal.remainingDeck,
           settings.playerCount,
-          nextStarter
+          roundStarterLocal
         );
       }, 280);
       return () => window.clearTimeout(timer);
@@ -1935,6 +1941,7 @@ export function usePistiGame({
     screen,
     tableCards,
     lastCollectorIndex,
+    dealerIndex,
     settings.playerCount,
     isMultiplayerGame,
     isDealingAnimation,

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Users, Target, Flame, Play, Bot } from 'lucide-react';
 import { GameSettings, AIDifficulty } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
+import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
 interface GameSetupModalProps {
   isOpen: boolean;
@@ -16,6 +17,12 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
   onStartGame,
   onClose
 }) => {
+  const [lang, setLang] = useState<Language>(getLanguage());
+  useEffect(() => {
+    return onLanguageChange(setLang);
+  }, []);
+  const t = translations[lang];
+
   const [playerCount, setPlayerCount] = useState<2 | 4>(initialSettings.playerCount || 2);
   const [targetScore, setTargetScore] = useState<number>(initialSettings.targetScore || 101);
   const [fiveRuleEnabled, setFiveRuleEnabled] = useState<boolean>(
@@ -58,8 +65,8 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
             <Play className="w-4 h-4 fill-amber-400" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">MASA KURULUMU</h2>
-            <p className="text-[11px] text-slate-400">Oyun Modu ve Kural Tercihleri</p>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">{t.setupTitle}</h2>
+            <p className="text-[11px] text-slate-400">{t.setupSubtitle}</p>
           </div>
         </div>
 
@@ -68,7 +75,7 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
           <div>
             <label className="font-bold text-slate-300 mb-2 flex items-center gap-1.5 text-xs">
               <Users className="w-3.5 h-3.5 text-cyan-400" />
-              Oyuncu Sayısı
+              {t.playerCountLabel}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -83,8 +90,8 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
                     : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="font-bold text-xs">1v1 Düello</span>
-                <span className="text-[10px] opacity-75">Sen vs Kurnaz Bot</span>
+                <span className="font-bold text-xs">{t.duel1v1Label}</span>
+                <span className="text-[10px] opacity-75">{t.duel1v1Sub}</span>
               </button>
 
               <button
@@ -99,8 +106,8 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
                     : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="font-bold text-xs">4 Kişilik Eşli</span>
-                <span className="text-[10px] opacity-75">Dayı & Muhtar Masası</span>
+                <span className="font-bold text-xs">{t.team4Label}</span>
+                <span className="text-[10px] opacity-75">{t.team4Sub}</span>
               </button>
             </div>
           </div>
@@ -109,7 +116,7 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
           <div>
             <label className="font-bold text-slate-300 mb-2 flex items-center gap-1.5 text-xs">
               <Target className="w-3.5 h-3.5 text-amber-400" />
-              Hedef Puan
+              {t.targetScoreLabel}
             </label>
             <div className="grid grid-cols-4 gap-1.5">
               {[51, 101, 151, 201].map(pts => (
@@ -136,13 +143,13 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
           <div>
             <label className="font-bold text-slate-300 mb-2 flex items-center gap-1.5 text-xs">
               <Bot className="w-3.5 h-3.5 text-emerald-400" />
-              Bot Zekası
+              {t.botIntelligence}
             </label>
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { id: 'easy', label: 'Rahat' },
-                { id: 'medium', label: 'Normal' },
-                { id: 'hard', label: 'Usta' }
+                { id: 'easy', label: t.aiEasy },
+                { id: 'medium', label: t.aiMedium },
+                { id: 'hard', label: t.aiHard }
               ].map(d => (
                 <button
                   key={d.id}
@@ -168,10 +175,10 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
             <div>
               <span className="font-bold text-white text-xs flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 text-amber-400" />
-                5'e Basmalı Özel Kuralı
+                {t.fiveRuleSpecial}
               </span>
               <span className="text-[10px] text-slate-400 block mt-0.5">
-                Yerde tek 5 varken 5 basılırsa Pişti & anında galibiyet (50 Puan). Yerde kart varken +5 ek puan.
+                {t.fiveRuleSpecialDesc}
               </span>
             </div>
             <button
@@ -199,7 +206,7 @@ export const GameSetupModal: React.FC<GameSetupModalProps> = ({
             onClick={handleStart}
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:opacity-95 text-slate-950 font-bold text-xs font-cyber tracking-wider transition-all shadow-md cursor-pointer"
           >
-            OYUNU BAŞLAT
+            {t.startGameBtn}
           </button>
         </div>
       </div>

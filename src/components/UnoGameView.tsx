@@ -1767,6 +1767,22 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           </div>
         )}
 
+        {/* 1 Card Left Danger Warning Beacon */}
+        {opp.hand.length === 1 && !isTurn && (
+          <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-40 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white font-cyber text-[9px] font-black uppercase tracking-wider shadow-[0_0_20px_rgba(239,68,68,0.95)] animate-bounce flex items-center gap-1 whitespace-nowrap border border-white">
+            <Flame className="w-3 h-3 text-yellow-300 fill-yellow-300 animate-pulse" />
+            <span>
+              {lang === 'tr'
+                ? '⚠️ 1 KART KALDI!'
+                : lang === 'de'
+                ? '⚠️ NUR 1 KARTE!'
+                : lang === 'es'
+                ? '⚠️ ¡ÚLTIMA CARTA!'
+                : '⚠️ LAST CARD!'}
+            </span>
+          </div>
+        )}
+
         {/* Skipped Laser Barrier Stamp */}
         {isSkipped && (
           <div className="absolute -top-3 z-30 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs border-2 border-white shadow-[0_0_25px_rgba(239,68,68,0.95)] animate-bounce flex items-center gap-1">
@@ -1780,6 +1796,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition-all duration-200 ${
             isTurn
               ? 'bg-amber-500/35 border-amber-300 ring-4 ring-amber-400/80 shadow-[0_0_35px_rgba(245,158,11,0.95)] scale-105'
+              : opp.hand.length === 1
+              ? 'bg-rose-950/70 border-rose-400 ring-4 ring-rose-500/80 shadow-[0_0_30px_rgba(244,63,94,0.9)] animate-pulse'
               : 'bg-slate-950/80 border-white/15'
           }`}
         >

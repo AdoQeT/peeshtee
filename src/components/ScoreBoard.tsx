@@ -61,6 +61,10 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
   const isUserTeamTurn = currentTurn === 0 || (isFourPlayers && currentTurn === 2);
   const isRivalTeamTurn = currentTurn === 1 || (isFourPlayers && currentTurn === 3);
 
+  const isMatchPoint =
+    targetScore > 10 &&
+    (userTeamScore >= targetScore - 5 || rivalTeamScore >= targetScore - 5);
+
   return (
     <header className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-1.5 min-h-[64px] flex items-center justify-between z-20 gap-2 shrink-0">
       {/* Left Side: User / User Team Status Card */}
@@ -152,6 +156,22 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
             </>
           )}
         </div>
+
+        {/* High-Stakes Match Point Alarm Banner */}
+        {isMatchPoint && (
+          <div className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white font-cyber text-[10px] font-black border border-white/80 shadow-[0_0_20px_rgba(239,68,68,0.85)] animate-pulse flex items-center gap-1 uppercase tracking-wider">
+            <Flame className="w-3 h-3 fill-yellow-300 text-yellow-300 animate-bounce" />
+            <span>
+              {lang === 'tr'
+                ? '⚡ MAÇ SAYISI'
+                : lang === 'de'
+                ? '⚡ MATCHBALL'
+                : lang === 'es'
+                ? '⚡ PUNTO DE PARTIDO'
+                : '⚡ MATCH POINT'}
+            </span>
+          </div>
+        )}
 
         <div className="flex items-center gap-1.5">
           <button

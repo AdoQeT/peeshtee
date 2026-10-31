@@ -988,6 +988,59 @@ class SoundEngine {
     osc.start(t);
     osc.stop(t + 0.32);
   }
+
+  /**
+   * Dead Center Deck Cut (+5 Puan) Jackpot Fanfare Chime
+   */
+  public playDeadCenterJackpot() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+
+      gain.gain.setValueAtTime(0, t + idx * 0.08);
+      gain.gain.linearRampToValueAtTime(0.3 * this.volume, t + idx * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.45);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(t + idx * 0.08);
+      osc.stop(t + idx * 0.08 + 0.5);
+    });
+  }
+
+  /**
+   * Match Point / High Stakes Pulse Sting
+   */
+  public playMatchPointSting() {
+    if (!this.enabled) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(85, t);
+    osc.frequency.exponentialRampToValueAtTime(55, t + 0.35);
+
+    gain.gain.setValueAtTime(0.35 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.42);
+  }
 }
 
 export const sound = new SoundEngine();

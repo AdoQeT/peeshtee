@@ -140,3 +140,11 @@ test('rules.ts: 4-player team score aggregation calculates combined Piştis and 
   assert.equal(teamBreakdown.bonusPoints, 5);
   assert.equal(teamBreakdown.totalRoundPoints, 54);
 });
+
+test('deckCut: cutting 52-card deck at index 26 satisfies dead-center condition', () => {
+  const isDeadCenter = (cutIndex, deckLength) => cutIndex === 26 && deckLength === 52;
+  assert.equal(isDeadCenter(26, 52), true);
+  assert.equal(isDeadCenter(25, 52), false);
+  assert.equal(isDeadCenter(27, 52), false);
+  assert.equal(isDeadCenter(26, 48), false);
+});

@@ -1010,7 +1010,9 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                         ? t.cutDeckPrompt
                         : `✂️ ${deckCutState.cutterName} ${t.cuttingDeck}`
                       : deckCutState.step === 'splitting'
-                      ? `${t.splittingDeck} ${deckCutState.pileACount} & ${deckCutState.pileBCount} ${t.cardsUnit}`
+                      ? (deckCutState.pileACount === 26 && deckCutState.pileBCount === 26)
+                        ? `🎯 ${lang === 'tr' ? 'TAM ORTADAN! (+5 BONUS)' : lang === 'de' ? 'GENAU DIE MITTE! (+5 BONUS)' : lang === 'es' ? '¡EN EL CENTRO! (+5 BONUS)' : 'DEAD CENTER! (+5 BONUS)'} 26 & 26`
+                        : `${t.splittingDeck} ${deckCutState.pileACount} & ${deckCutState.pileBCount} ${t.cardsUnit}`
                       : deckCutState.step === 'dealing_pot'
                       ? t.dealingPot
                       : deckCutState.step === 'merging'

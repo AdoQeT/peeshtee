@@ -71,6 +71,12 @@
           ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid', 'type']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && (newData.child('type').val() === 'accept' || newData.child('type').val() === 'remove')"
         }
       }
+    },
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && $uid === auth.uid",
+        ".write": false
+      }
     }
   }
 }

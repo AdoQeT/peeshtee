@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node --test scripts/testPayloadSanitization.mjs scripts/testRules.mjs scripts/testUnoRules.mjs scripts/testBot.mjs",
+    "test": "node --test scripts/testPayloadSanitization.mjs scripts/testRules.mjs scripts/testUnoRules.mjs scripts/testBot.mjs scripts/testDatabaseRules.mjs",
     "changelog": "node scripts/sendDiscordChangelog.mjs"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.13.4",
     "@types/react": "^18.3.18",

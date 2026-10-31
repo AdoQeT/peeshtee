@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { GameSettings, TableTheme, AIDifficulty, getCardBackForTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
-import { getLanguage, setLanguage, Language } from '../utils/i18n';
+import { getLanguage, setLanguage, Language, translations } from '../utils/i18n';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -31,6 +31,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'themes' | 'audio' | 'rules'>('themes');
   const [lang, setLang] = useState<Language>(getLanguage());
+  const t = translations[lang];
 
   if (!isOpen) return null;
 
@@ -115,8 +116,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <Sliders className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">AYARLAR</h2>
-            <p className="text-[11px] text-slate-400">Masa Teması, Ses, Dil ve Oyun Tercihleri</p>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">{t.settingsTitle}</h2>
+            <p className="text-[11px] text-slate-400">{t.settingsSubtitle}</p>
           </div>
         </div>
 
@@ -132,7 +133,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
-            <span>Masa & Kart</span>
+            <span>{t.tabThemes}</span>
           </button>
 
           <button
@@ -145,7 +146,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Volume2 className="w-3.5 h-3.5" />
-            <span>Ses & Dil</span>
+            <span>{t.tabAudio}</span>
           </button>
 
           <button
@@ -158,7 +159,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
-            <span>Kurallar & FX</span>
+            <span>{t.tabRules}</span>
           </button>
         </div>
 
@@ -282,8 +283,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <VolumeX className="w-5 h-5 text-rose-400" />
                     )}
                     <div>
-                      <span className="font-bold text-xs sm:text-sm block text-white">Oyun Ses Efektleri</span>
-                      <span className="text-[11px] text-slate-400">Kart atma, süpürme ve pişti sesleri</span>
+                      <span className="font-bold text-xs sm:text-sm block text-white">{t.sfxTitle}</span>
+                      <span className="text-[11px] text-slate-400">{t.sfxDesc}</span>
                     </div>
                   </div>
                   <button
@@ -309,7 +310,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {settings.soundEnabled && (
                   <div className="space-y-1.5 pt-2 border-t border-white/10">
                     <div className="flex justify-between text-xs text-slate-300">
-                      <span className="font-medium">Ses Düzeyi</span>
+                      <span className="font-medium">{t.sfxVolume}</span>
                       <span className="font-mono font-bold text-emerald-300">{Math.round(settings.sfxVolume * 100)}%</span>
                     </div>
                     <input
@@ -333,8 +334,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-xs sm:text-sm text-white block">Arka Plan Ambiyansı</span>
-                    <span className="text-[11px] text-slate-400">Ortam arka plan sesleri</span>
+                    <span className="font-bold text-xs sm:text-sm text-white block">{t.ambienceTitle}</span>
+                    <span className="text-[11px] text-slate-400">{t.ambienceDesc}</span>
                   </div>
                   <span className="text-xs text-purple-300 font-mono font-bold">
                     {settings.ambience === 'cafe'
@@ -376,7 +377,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {settings.ambience !== 'none' && (
                   <div className="space-y-1 pt-2 border-t border-white/10">
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>Ambiyans Düzeyi</span>
+                      <span>{t.ambienceVolume}</span>
                       <span className="font-mono font-bold text-purple-300">
                         {Math.round((settings.ambienceVolume ?? 0.25) * 100)}%
                       </span>
@@ -408,10 +409,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
                     <Trophy className="w-4 h-4 text-amber-400" />
-                    Varsayılan Hedef Puan
+                    {t.targetScoreTitle}
                   </span>
                   <span className="text-xs font-mono text-amber-300 font-bold">
-                    {settings.targetScore} Puan
+                    {settings.targetScore}
                   </span>
                 </div>
                 <div className="grid grid-cols-4 gap-2 pt-1">
@@ -439,22 +440,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
                     <Bot className="w-4 h-4 text-cyan-400" />
-                    Bot Yapay Zeka Düzeyi
+                    {t.aiDifficultyTitle}
                   </span>
                   <span className="text-xs text-cyan-300 font-bold">
                     {settings.aiDifficulty === 'hard'
-                      ? 'Usta'
+                      ? t.aiHard
                       : settings.aiDifficulty === 'medium'
-                      ? 'Normal'
-                      : 'Rahat'}
+                      ? t.aiMedium
+                      : t.aiEasy}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   {(
                     [
-                      { id: 'easy', label: 'Rahat' },
-                      { id: 'medium', label: 'Normal' },
-                      { id: 'hard', label: 'Usta' }
+                      { id: 'easy', label: t.aiEasy },
+                      { id: 'medium', label: t.aiMedium },
+                      { id: 'hard', label: t.aiHard }
                     ] as const
                   ).map(b => (
                     <button
@@ -482,10 +483,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Flame className="w-4 h-4 text-amber-400" />
-                      5'e Basmalı Kuralı
+                      {t.fiveRule}
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Yerde tek 5 varken 5 atılırsa Pişti & anında maç kazanılır (+50 Puan).
+                      {t.fiveRuleDesc}
                     </span>
                   </div>
                   <button
@@ -509,23 +510,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Sparkles className="w-4 h-4 text-amber-400" />
-                      Dağıtım Temposu
+                      {t.dealTempo}
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Kartların masaya ve ellere uçuş hızı
+                      {t.dealTempoDesc}
                     </span>
                   </div>
                   <div className="flex bg-slate-950 border border-white/15 p-1 rounded-xl gap-1 shrink-0">
                     {[
-                      { id: 'fast', label: 'Hızlı' },
-                      { id: 'normal', label: 'Normal' },
-                      { id: 'cinematic', label: 'Sinematik' }
+                      { id: 'fast', label: t.dealFast },
+                      { id: 'normal', label: t.dealNormal },
+                      { id: 'cinematic', label: t.dealCinematic }
                     ].map(speed => (
                       <button
                         key={speed.id}
                         onClick={() => {
                           sound.playClick();
-                          onUpdateSettings({ dealSpeed: speed.id as any });
+                          onUpdateSettings({ dealSpeed: speed.id as GameSettings['dealSpeed'] });
                         }}
                         className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           (settings.dealSpeed || 'normal') === speed.id
@@ -543,10 +544,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Activity className="w-4 h-4 text-pink-400" />
-                      Ekran Sarsıntısı
+                      {t.screenShake}
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Pişti anında masa sarsıntı efekti
+                      {t.screenShakeDesc}
                     </span>
                   </div>
                   <button
@@ -570,10 +571,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
                       <Sparkles className="w-4 h-4 text-emerald-400" />
-                      Görsel Parçacık Efektleri
+                      {t.particleEffects}
                     </span>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Masa ve kart animasyon efektleri
+                      {t.particleEffectsDesc}
                     </span>
                   </div>
                   <button
@@ -603,7 +604,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={handleClose}
             className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white font-bold text-xs transition-colors cursor-pointer"
           >
-            Tamam, Ayarları Kaydet
+            {t.saveSettings}
           </button>
         </div>
       </div>

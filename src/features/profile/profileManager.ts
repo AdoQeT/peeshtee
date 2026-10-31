@@ -239,51 +239,34 @@ export interface UserProfile {
 }
 
 const STORAGE_KEY = 'project_p_user_profile_v2';
-const OWNER_SECRET_KEY = 'project_p_owner_secret_token';
-const OWNER_SALT = 'ado_pro_p_salt_2026_x9f#';
+const OWNER_VERIFIED_UID_KEY = 'project_p_verified_admin_uid';
 
-// Precomputed SHA-256 hashes of (OWNER_SALT + authorized_passcode)
-// No plaintext passwords or tokens exist in source code!
-const AUTHORIZED_FOUNDER_HASHES = new Set([
-  '151e3df4b85e9572944faf6dc7e265e8fad5f4bb55418b8a8f15b712cc20b0ab',
-  '2de877dfde976d0bca921dc8cff808d7b8cbfb70fc714a4665920bdfddf699a9',
-  'e3ab63727df3cf0ab78fb380307f25c96eed5acb252876bac97e28ed87bc7814',
-  '21141ac1592658530f0a5ce9d5900687c9a43e9068969aa4ca6cd1106b8b6c11'
-]);
-
-export async function computeSaltedHash(input: string): Promise<string> {
-  const salted = `${OWNER_SALT}${input.trim().toLowerCase()}`;
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    const data = new TextEncoder().encode(salted);
-    const hashBuf = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hashBuf))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-  let hash = 0;
-  for (let i = 0; i < salted.length; i++) {
-    hash = (hash << 5) - hash + salted.charCodeAt(i);
-    hash |= 0;
-  }
-  return hash.toString(16);
-}
-
-// Owner device verification token check against salted SHA-256 hashes
+/**
+ * Checks whether the current device session has a cached admin UID verified against
+ * the read-only `admins/$uid` node in Firebase RTDB.
+ * No founder passcodes or hashes are stored in the client bundle.
+ */
 export function isDeviceOwnerVerified(): boolean {
   try {
-    const token = localStorage.getItem(OWNER_SECRET_KEY);
-    if (!token) return false;
-    return AUTHORIZED_FOUNDER_HASHES.has(token);
+    const verifiedUid = localStorage.getItem(OWNER_VERIFIED_UID_KEY);
+    return Boolean(verifiedUid && verifiedUid.length > 0);
   } catch {
     return false;
   }
 }
 
-export async function grantOwnerAccess(passcode: string): Promise<boolean> {
+/**
+ * Verifies founder/admin status strictly via the server-managed `admins/$uid` RTDB node
+ * (writable only from Firebase console/admin SDK, read-only for the authenticated user).
+ */
+export async function grantOwnerAccess(_passcode?: string): Promise<boolean> {
   try {
-    const computed = await computeSaltedHash(passcode);
-    if (AUTHORIZED_FOUNDER_HASHES.has(computed)) {
-      localStorage.setItem(OWNER_SECRET_KEY, computed);
+    if (!rtdb) return false;
+    const uid = await ensureFirebaseAuth();
+    if (!uid) return false;
+    const snap = await get(ref(rtdb, `admins/${uid}`));
+    if (snap.exists() && snap.val() === true) {
+      localStorage.setItem(OWNER_VERIFIED_UID_KEY, uid);
       const profile = getUserProfile();
       profile.isOwner = true;
       profile.name = 'Ado';
@@ -291,6 +274,7 @@ export async function grantOwnerAccess(passcode: string): Promise<boolean> {
       saveUserProfile(profile);
       return true;
     }
+    localStorage.removeItem(OWNER_VERIFIED_UID_KEY);
   } catch (err) {
     logger.warn('Owner verification error:', err);
   }

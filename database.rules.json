@@ -47,27 +47,27 @@
     },
     "invites": {
       "$friendCode": {
-        ".read": "auth != null && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid",
+        ".read": "auth != null && (root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid || root.child('presence/' + $friendCode + '/ownerUid').val() === auth.uid)",
         "$id": {
-          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid) || (!newData.exists() && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid))",
-          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid', 'roomCode', 'timestamp']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && newData.child('roomCode').isString() && newData.child('roomCode').val().length <= 12"
+          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && (root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid || root.child('presence/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid)) || (!newData.exists() && (root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid || root.child('presence/' + $friendCode + '/ownerUid').val() === auth.uid)))",
+          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid', 'roomCode', 'timestamp']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && newData.child('roomCode').isString() && newData.child('roomCode').val().length <= 16"
         }
       }
     },
     "requests": {
       "$friendCode": {
-        ".read": "auth != null && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid",
+        ".read": "auth != null && (root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid || root.child('presence/' + $friendCode + '/ownerUid').val() === auth.uid)",
         "$id": {
-          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid) || (!newData.exists() && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid))",
+          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && (root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid || root.child('presence/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid)) || (!newData.exists() && (root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid || root.child('presence/' + $friendCode + '/ownerUid').val() === auth.uid)))",
           ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && (!newData.child('fromName').exists() || (newData.child('fromName').isString() && newData.child('fromName').val().length <= 40))"
         }
       }
     },
     "notices": {
       "$friendCode": {
-        ".read": "auth != null && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid",
+        ".read": "auth != null && (root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid || root.child('presence/' + $friendCode + '/ownerUid').val() === auth.uid)",
         "$id": {
-          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid) || (!newData.exists() && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid))",
+          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && (root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid || root.child('presence/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid)) || (!newData.exists() && (root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid || root.child('presence/' + $friendCode + '/ownerUid').val() === auth.uid)))",
           ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid', 'type']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && (newData.child('type').val() === 'accept' || newData.child('type').val() === 'remove')"
         }
       }

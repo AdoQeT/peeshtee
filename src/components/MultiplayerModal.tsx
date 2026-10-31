@@ -712,11 +712,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  const handleQuickPingFriend = (friend: { friendCode?: string; name: string }) => {
+  const handleQuickPingFriend = async (friend: { friendCode?: string; name: string }) => {
     if (!createdRoomCode) return;
     sound.playClick();
-    friendNetwork.sendGameInvite(friend, createdRoomCode, gameType);
-    setInviteSentBanner(`📨 ${friend.name} oyuncusuna canlı oda daveti gönderildi!`);
+    const success = await friendNetwork.sendGameInvite(friend, createdRoomCode, gameType);
+    if (success) {
+      setInviteSentBanner(`📨 ${friend.name} oyuncusuna canlı oda daveti gönderildi!`);
+    } else {
+      setInviteSentBanner(`⚠️ ${friend.name} oyuncusuna davet ulaştırılamadı.`);
+    }
     window.setTimeout(() => setInviteSentBanner(null), 4000);
   };
 

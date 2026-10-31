@@ -136,10 +136,12 @@ export class FriendNetwork {
       logger.warn('Connected listener warning:', e);
     }
 
-    if (myCode) {
+    const cleanMyCode = myCode?.replace(/[^0-9A-Za-z]/g, '') || myCode;
+
+    if (cleanMyCode) {
       // 1. Firebase Cloud: Listen for Incoming Game Invites
       try {
-        this.invitesRef = ref(rtdb, `invites/${myCode}`);
+        this.invitesRef = ref(rtdb, `invites/${cleanMyCode}`);
         onChildAdded(this.invitesRef, async (snapshot: any) => {
           const inv = snapshot.val() as IncomingGameInvite;
           if (!inv) return;
@@ -156,13 +158,16 @@ export class FriendNetwork {
           // Check 2: Active room verification before presenting to user
           if (inv.roomCode) {
             try {
-              const metaSnap = await get(ref(rtdb, `rooms/${inv.roomCode}/meta`));
-              if (!metaSnap.exists() || metaSnap.val()?.active === false) {
+              const rawRoom = inv.roomCode.trim();
+              const numericRoom = rawRoom.replace(/\D/g, '').slice(-6);
+              const roomKey = numericRoom.length === 6 ? numericRoom : rawRoom;
+              const metaSnap = await get(ref(rtdb, `rooms/${roomKey}/meta`));
+              if (metaSnap.exists() && metaSnap.val()?.active === false) {
                 remove(snapshot.ref).catch(() => {});
                 return;
               }
             } catch {
-              // Network fallback
+              // Network fallback - let invite pass if meta lookup temporarily fails
             }
           }
 
@@ -184,7 +189,7 @@ export class FriendNetwork {
 
       // 2. Firebase Cloud: Listen for Incoming Friend Requests
       try {
-        this.requestsRef = ref(rtdb, `requests/${myCode}`);
+        this.requestsRef = ref(rtdb, `requests/${cleanMyCode}`);
         onChildAdded(this.requestsRef, (snapshot: any) => {
           const req = snapshot.val();
           if (!req || req.fromId === getUserProfile().id) return;
@@ -224,7 +229,7 @@ export class FriendNetwork {
 
       // 3. Firebase Cloud: Listen for Social Notices (Accept / Remove)
       try {
-        this.noticesRef = ref(rtdb, `notices/${myCode}`);
+        this.noticesRef = ref(rtdb, `notices/${cleanMyCode}`);
         onChildAdded(this.noticesRef, (snapshot: any) => {
           const notice = snapshot.val();
           if (!notice) return;

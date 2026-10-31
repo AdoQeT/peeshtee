@@ -440,18 +440,16 @@ export function useMultiplayerEvents({
         const N = settingsRef.current.playerCount;
         const targetLocalIdx = (msg.seatIndex - myMultiplayerSeatRef.current + N) % N;
 
-        if (currentTurnRef.current !== targetLocalIdx) {
-          logger.warn(
-            `Out-of-turn card play attempt: seat ${msg.seatIndex} played but turn is ${currentTurnRef.current}!`
-          );
-          return;
-        }
-
         const targetPlayer = playersRef.current[targetLocalIdx];
         if (!targetPlayer) return;
 
         const foundCard = targetPlayer.hand.find((c: Card) => c.id === msg.cardId);
         if (foundCard) {
+          if (currentTurnRef.current !== targetLocalIdx) {
+            logger.warn(
+              `Turn auto-alignment: seat ${msg.seatIndex} played valid card ${msg.cardId} while local turn was ${currentTurnRef.current}. Syncing turn.`
+            );
+          }
           onPlayRemoteCard(targetLocalIdx, foundCard);
         } else {
           logger.warn(

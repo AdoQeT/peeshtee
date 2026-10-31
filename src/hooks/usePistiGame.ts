@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
@@ -2154,7 +2155,7 @@ export function usePistiGame({
         });
         multiplayerManager.leaveRoom();
       } catch (e) {
-        console.warn(e);
+        logger.warn(e);
       }
       setIsMultiplayerGame(false);
       setMyMultiplayerSeat(0);

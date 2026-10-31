@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
 import {
@@ -51,7 +52,7 @@ export function ensureFirebaseAuth(): Promise<User | null> {
         signInAnonymously(auth)
           .then((cred) => resolve(cred.user))
           .catch((err) => {
-            console.warn('Firebase anonymous auth warning:', err);
+            logger.warn('Firebase anonymous auth warning:', err);
             resolve(null);
           });
       }
@@ -63,7 +64,7 @@ export function ensureFirebaseAuth(): Promise<User | null> {
 // Auto-trigger anonymous auth in browser environments
 if (typeof window !== 'undefined') {
   ensureFirebaseAuth().catch((err) => {
-    console.error('Firebase auto auth error:', err);
+    logger.error('Firebase auto auth error:', err);
   });
 }
 

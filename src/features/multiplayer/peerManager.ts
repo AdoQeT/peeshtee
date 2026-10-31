@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 /**
  * Project Pişti - Pure Firebase Realtime Database Multiplayer Engine
  * All matchmaking, lobbies, player slots, card events, and match transitions
@@ -290,7 +291,7 @@ export class MultiplayerManager {
       if (currentUid) {
         this.firebaseMemberRef = ref(rtdb, `rooms/${code}/members/${currentUid}`);
         await set(this.firebaseMemberRef, true).catch(err => {
-          console.error('Firebase set member error:', err);
+          logger.error('Firebase set member error:', err);
         });
         try {
           onDisconnect(this.firebaseMemberRef).remove();
@@ -305,12 +306,12 @@ export class MultiplayerManager {
         role: this.isHost ? 'host' : 'guest',
         lastSeen: serverTimestamp()
       })).catch(err => {
-        console.error('Firebase set presence error:', err);
+        logger.error('Firebase set presence error:', err);
       });
       try {
         onDisconnect(this.firebasePresenceRef).remove();
       } catch (err) {
-        console.error('Firebase onDisconnect presence error:', err);
+        logger.error('Firebase onDisconnect presence error:', err);
       }
 
       this.firebaseEventsRef = ref(rtdb, `rooms/${code}/events`);
@@ -323,7 +324,7 @@ export class MultiplayerManager {
           }
         },
         (error: any) => {
-          console.error('Firebase onChildAdded error on room events:', error);
+          logger.error('Firebase onChildAdded error on room events:', error);
           const userMsg =
             error?.code === 'PERMISSION_DENIED'
               ? 'Veritabanı erişim izni reddedildi (PERMISSION_DENIED).'
@@ -351,7 +352,7 @@ export class MultiplayerManager {
         }
       });
     } catch (err) {
-      console.warn('Firebase RTDB room listener error:', err);
+      logger.warn('Firebase RTDB room listener error:', err);
     }
   }
 
@@ -433,7 +434,7 @@ export class MultiplayerManager {
         }
         break;
       } catch (err) {
-        console.warn('Room check warning:', err);
+        logger.warn('Room check warning:', err);
         break;
       }
     }
@@ -460,7 +461,7 @@ export class MultiplayerManager {
         onDisconnect(roomRef).remove();
       } catch {}
     } catch (e: any) {
-      console.error('Host room registration error:', e);
+      logger.error('Host room registration error:', e);
       let errorMsg = 'Oda kurulamadı. Lütfen tekrar deneyin.';
       if (e?.message === 'TIMEOUT') {
         errorMsg = 'Sunucu yanıt vermedi (Zaman aşımı - 8s). İnternet bağlantınızı kontrol edin.';
@@ -510,7 +511,7 @@ export class MultiplayerManager {
         this.roomToken = meta.roomToken;
       }
     } catch (err: any) {
-      console.error('Room verification error on join:', err);
+      logger.error('Room verification error on join:', err);
       if (err?.message === 'TIMEOUT') {
         return { success: false, error: 'Sunucu yanıt vermedi (5s zaman aşımı). Lütfen bağlantınızı kontrol edin.' };
       }
@@ -589,7 +590,7 @@ export class MultiplayerManager {
           role: this.isHost ? 'host' : 'guest',
           lastSeen: serverTimestamp()
         })).catch((err: any) => {
-          console.error('Firebase heartbeat presence error:', err?.code, err);
+          logger.error('Firebase heartbeat presence error:', err?.code, err);
         });
 
         if (this.isConnected) {
@@ -616,7 +617,7 @@ export class MultiplayerManager {
     // Strict roomToken check: If local manager has a roomToken, incoming envelope MUST have matching roomToken
     if (this.roomToken) {
       if (!envelope.roomToken || envelope.roomToken !== this.roomToken) {
-        console.warn(`[Anti-Cheat] Dropped packet with invalid/missing roomToken from ${envelope.senderId}`);
+        logger.warn(`[Anti-Cheat] Dropped packet with invalid/missing roomToken from ${envelope.senderId}`);
         return;
       }
     }
@@ -678,7 +679,7 @@ export class MultiplayerManager {
       const findUndef = (obj: any, path = ''): void => {
         if (obj && typeof obj === 'object') {
           Object.entries(obj).forEach(([k, v]) => {
-            if (v === undefined) console.error(`[RTDB-undefined] ${path}.${k} is undefined – fix the payload!`);
+            if (v === undefined) logger.error(`[RTDB-undefined] ${path}.${k} is undefined – fix the payload!`);
             else findUndef(v, `${path}.${k}`);
           });
         }
@@ -690,10 +691,10 @@ export class MultiplayerManager {
     if (this.firebaseEventsRef) {
       try {
         push(this.firebaseEventsRef, cleanForRtdb(envelope)).catch((err: any) => {
-          console.error('Firebase push error:', err?.code, err?.message, err);
+          logger.error('Firebase push error:', err?.code, err?.message, err);
         });
       } catch (err) {
-        console.error('Firebase push exception:', err);
+        logger.error('Firebase push exception:', err);
       }
     }
 
@@ -790,7 +791,7 @@ export class MultiplayerManager {
       try {
         cb(event);
       } catch (err) {
-        console.error('Error in multiplayer event listener:', err);
+        logger.error('Error in multiplayer event listener:', err);
       }
     });
   }

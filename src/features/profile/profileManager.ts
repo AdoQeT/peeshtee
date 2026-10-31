@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb, runTransaction } from '../../core/firebase';
 
 export interface AvatarPreset {
@@ -291,7 +292,7 @@ export async function grantOwnerAccess(passcode: string): Promise<boolean> {
       return true;
     }
   } catch (err) {
-    console.warn('Owner verification error:', err);
+    logger.warn('Owner verification error:', err);
   }
   return false;
 }
@@ -385,7 +386,7 @@ export function getUserProfile(): UserProfile {
       }
     }
   } catch (e) {
-    console.warn('Profile read error:', e);
+    logger.warn('Profile read error:', e);
   }
 
   // Default clean profile for normal players
@@ -523,7 +524,7 @@ export async function claimUniqueFriendCode(profile: UserProfile): Promise<strin
         return code;
       }
     } catch (e) {
-      console.warn('Friend code claim transaction warning:', e);
+      logger.warn('Friend code claim transaction warning:', e);
     }
     code = generateFriendCode();
   }
@@ -553,7 +554,7 @@ export async function syncProfileToFirebase(profile: UserProfile): Promise<void>
     remoteProfilesCache.set(profile.friendCode, dataToSync as any);
   } catch (err) {
     // Non-blocking offline fallback
-    console.warn('Firebase profile sync warning:', err);
+    logger.warn('Firebase profile sync warning:', err);
   }
 }
 
@@ -575,7 +576,7 @@ export async function fetchRemoteProfile(friendCode: string): Promise<Partial<Us
       return data;
     }
   } catch (err) {
-    console.warn('Failed to fetch remote profile from Firebase:', err);
+    logger.warn('Failed to fetch remote profile from Firebase:', err);
   }
   return null;
 }
@@ -586,7 +587,7 @@ export function saveUserProfile(profile: UserProfile): void {
     // Asynchronously push to Firebase Realtime Database
     syncProfileToFirebase(profile);
   } catch (e) {
-    console.warn('Profile save error:', e);
+    logger.warn('Profile save error:', e);
   }
 }
 

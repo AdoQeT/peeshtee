@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
@@ -266,7 +267,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     const unsubscribe = multiplayerManager.onEvent(event => {
       if (event.type === 'GUEST_JOINED') {
         if (import.meta.env.DEV) {
-          console.log('[MP] GUEST_JOINED alındı:', event.guestName, event.guestPeerId);
+          logger.log('[MP] GUEST_JOINED alındı:', event.guestName, event.guestPeerId);
         }
         if (multiplayerManager.isHost) {
           let isNewPlayer = false;
@@ -312,7 +313,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           }
 
           if (import.meta.env.DEV) {
-            console.log('[MP] HOST_LOBBY_SYNC gönderildi:', next);
+            logger.log('[MP] HOST_LOBBY_SYNC gönderildi:', next);
           }
           multiplayerManager.send({
             type: 'HOST_LOBBY_SYNC',
@@ -347,7 +348,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             setSlots(next);
 
             if (import.meta.env.DEV) {
-              console.log('[MP] HOST_LOBBY_SYNC gönderildi (seat change):', next);
+              logger.log('[MP] HOST_LOBBY_SYNC gönderildi (seat change):', next);
             }
             multiplayerManager.send({
               type: 'HOST_LOBBY_SYNC',
@@ -366,7 +367,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         }
       } else if (event.type === 'HOST_LOBBY_SYNC') {
         if (import.meta.env.DEV) {
-          console.log('[MP] HOST_LOBBY_SYNC alındı:', event.slots);
+          logger.log('[MP] HOST_LOBBY_SYNC alındı:', event.slots);
         }
         sound.playMatchSweep();
         slotsRef.current = event.slots;
@@ -413,7 +414,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           setSlots(next);
 
           if (import.meta.env.DEV) {
-            console.log('[MP] HOST_LOBBY_SYNC gönderildi (peer disconnected):', next);
+            logger.log('[MP] HOST_LOBBY_SYNC gönderildi (peer disconnected):', next);
           }
           multiplayerManager.send({
             type: 'HOST_LOBBY_SYNC',

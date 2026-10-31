@@ -1,3 +1,4 @@
+import { logger } from './utils/logger';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import {
   GameSettings,
@@ -475,7 +476,7 @@ export default function App() {
         });
         multiplayerManager.leaveRoom();
       } catch (e) {
-        console.warn(e);
+        logger.warn(e);
       }
     }
     friendNetwork.setStatus('menu', undefined);

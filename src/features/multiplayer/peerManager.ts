@@ -5,6 +5,7 @@
  */
 import { Card, GameSettings, ShuffleStyle } from '../../types/game';
 import {
+  auth,
   rtdb,
   ref,
   push,
@@ -250,6 +251,7 @@ export class MultiplayerManager {
 
   private firebaseEventsRef: any = null;
   private firebasePresenceRef: any = null;
+  private firebaseMemberRef: any = null;
   private roomPresenceRef: any = null;
 
   // Heartbeat & reconnect monitoring
@@ -279,9 +281,38 @@ export class MultiplayerManager {
     return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-6);
   }
 
-  private setupFirebaseRoom(code: string) {
+  private async setupFirebaseRoom(code: string) {
     this.cleanupFirebaseRoom();
     try {
+      const user = await ensureFirebaseAuth().catch(() => null);
+      const currentUid = user?.uid || auth.currentUser?.uid || null;
+
+      if (currentUid) {
+        this.firebaseMemberRef = ref(rtdb, `rooms/${code}/members/${currentUid}`);
+        await set(this.firebaseMemberRef, true).catch(err => {
+          console.error('Firebase set member error:', err);
+        });
+        try {
+          onDisconnect(this.firebaseMemberRef).remove();
+        } catch {}
+      }
+
+      // Track player presence in room (with uid binding for event sender verification)
+      this.firebasePresenceRef = ref(rtdb, `rooms/${code}/presence/${this.instanceId}`);
+      await set(this.firebasePresenceRef, cleanForRtdb({
+        instanceId: this.instanceId,
+        uid: currentUid,
+        role: this.isHost ? 'host' : 'guest',
+        lastSeen: serverTimestamp()
+      })).catch(err => {
+        console.error('Firebase set presence error:', err);
+      });
+      try {
+        onDisconnect(this.firebasePresenceRef).remove();
+      } catch (err) {
+        console.error('Firebase onDisconnect presence error:', err);
+      }
+
       this.firebaseEventsRef = ref(rtdb, `rooms/${code}/events`);
       onChildAdded(
         this.firebaseEventsRef,
@@ -303,21 +334,6 @@ export class MultiplayerManager {
           });
         }
       );
-
-      // Track player presence in room with onDisconnect
-      this.firebasePresenceRef = ref(rtdb, `rooms/${code}/presence/${this.instanceId}`);
-      set(this.firebasePresenceRef, cleanForRtdb({
-        instanceId: this.instanceId,
-        role: this.isHost ? 'host' : 'guest',
-        lastSeen: serverTimestamp()
-      })).catch(err => {
-        console.error('Firebase set presence error:', err);
-      });
-      try {
-        onDisconnect(this.firebasePresenceRef).remove();
-      } catch (err) {
-        console.error('Firebase onDisconnect presence error:', err);
-      }
 
       // Listen to room presences to monitor peer health directly
       this.roomPresenceRef = ref(rtdb, `rooms/${code}/presence`);
@@ -351,6 +367,12 @@ export class MultiplayerManager {
         remove(this.firebasePresenceRef).catch(() => {});
       } catch {}
       this.firebasePresenceRef = null;
+    }
+    if (this.firebaseMemberRef) {
+      try {
+        remove(this.firebaseMemberRef).catch(() => {});
+      } catch {}
+      this.firebaseMemberRef = null;
     }
     if (this.roomPresenceRef) {
       try {
@@ -450,7 +472,7 @@ export class MultiplayerManager {
     }
 
     this.setupLocalBuses(this.roomCode);
-    this.setupFirebaseRoom(this.roomCode);
+    await this.setupFirebaseRoom(this.roomCode);
     this.startHeartbeat();
     return { success: true, roomCode: this.roomCode };
   }
@@ -499,7 +521,7 @@ export class MultiplayerManager {
     }
 
     this.setupLocalBuses(this.roomCode);
-    this.setupFirebaseRoom(this.roomCode);
+    await this.setupFirebaseRoom(this.roomCode);
     this.startHeartbeat();
 
     return new Promise<{ success: boolean; error?: string }>(resolve => {
@@ -563,6 +585,7 @@ export class MultiplayerManager {
         // Direct server timestamp update to presence node without polluting event logs
         set(this.firebasePresenceRef, cleanForRtdb({
           instanceId: this.instanceId,
+          uid: auth.currentUser?.uid || null,
           role: this.isHost ? 'host' : 'guest',
           lastSeen: serverTimestamp()
         })).catch((err: any) => {

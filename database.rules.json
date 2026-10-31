@@ -2,20 +2,30 @@
   "rules": {
     "rooms": {
       "$code": {
-        ".read": "auth != null",
         ".write": "auth != null && (!data.exists() || data.child('meta/hostUid').val() === auth.uid)",
         "meta": {
-          ".validate": "newData.hasChildren(['created', 'hostUid', 'roomToken'])"
+          ".read": "auth != null",
+          ".validate": "newData.hasChildren(['created', 'hostUid', 'roomToken', 'active']) && newData.child('hostUid').val() === auth.uid && newData.child('roomToken').isString() && newData.child('roomToken').val().length <= 64"
         },
-        "events": {
-          "$id": {
-            ".write": "auth != null && !data.exists()",
-            ".validate": "newData.hasChildren(['msgId', 'senderId', 'timestamp', 'payload']) && newData.child('msgId').isString() && newData.child('msgId').val().length < 100"
+        "members": {
+          "$uid": {
+            ".read": "auth != null && $uid === auth.uid",
+            ".write": "auth != null && $uid === auth.uid && root.child('rooms/' + $code + '/meta/active').val() === true",
+            ".validate": "newData.isBoolean()"
           }
         },
         "presence": {
+          ".read": "auth != null && (root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid || root.child('rooms/' + $code + '/members/' + auth.uid).val() === true)",
           "$instanceId": {
-            ".write": "auth != null"
+            ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid) && (!newData.exists() || newData.child('uid').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['instanceId', 'uid', 'role', 'lastSeen']) && newData.child('instanceId').val() === $instanceId && newData.child('instanceId').isString() && newData.child('instanceId').val().length <= 64 && newData.child('uid').val() === auth.uid && (newData.child('role').val() === 'host' || newData.child('role').val() === 'guest')"
+          }
+        },
+        "events": {
+          ".read": "auth != null && (root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid || root.child('rooms/' + $code + '/members/' + auth.uid).val() === true)",
+          "$id": {
+            ".write": "auth != null && ((!data.exists() && root.child('rooms/' + $code + '/presence/' + newData.child('senderId').val() + '/uid').val() === auth.uid) || (!newData.exists() && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid))",
+            ".validate": "newData.hasChildren(['msgId', 'senderId', 'timestamp', 'payload']) && newData.child('msgId').isString() && newData.child('msgId').val().length < 100 && newData.child('senderId').isString() && newData.child('senderId').val().length <= 64 && root.child('rooms/' + $code + '/presence/' + newData.child('senderId').val() + '/uid').val() === auth.uid"
           }
         }
       }
@@ -24,39 +34,41 @@
       ".indexOn": ["lastSeen"],
       ".read": "auth != null",
       "$friendCode": {
-        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || data.child('lastSeen').val() < (now - 60000))"
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || data.child('lastSeen').val() < (now - 60000)) && (!newData.exists() || newData.child('ownerUid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['id', 'friendCode', 'name', 'status', 'lastSeen', 'ownerUid']) && newData.child('ownerUid').val() === auth.uid && newData.child('friendCode').val() === $friendCode && newData.child('name').isString() && newData.child('name').val().length <= 40"
       }
     },
     "profiles": {
       ".read": "auth != null",
       "$friendCode": {
-        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid)"
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid) && (!newData.exists() || newData.child('ownerUid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['ownerUid']) && newData.child('ownerUid').val() === auth.uid && (!newData.child('name').exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40)) && (!newData.child('customTitle').exists() || (newData.child('customTitle').isString() && newData.child('customTitle').val().length <= 60)) && (!newData.child('avatarThumb').exists() || (newData.child('avatarThumb').isString() && newData.child('avatarThumb').val().length <= 35000))"
       }
     },
     "invites": {
       "$friendCode": {
-        ".read": "auth != null",
+        ".read": "auth != null && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid",
         "$id": {
-          ".write": "auth != null",
-          ".validate": "newData.hasChildren(['fromId', 'roomCode', 'timestamp'])"
+          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid) || (!newData.exists() && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid', 'roomCode', 'timestamp']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && newData.child('roomCode').isString() && newData.child('roomCode').val().length <= 12"
         }
       }
     },
     "requests": {
       "$friendCode": {
-        ".read": "auth != null",
+        ".read": "auth != null && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid",
         "$id": {
-          ".write": "auth != null",
-          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode'])"
+          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid) || (!newData.exists() && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && (!newData.child('fromName').exists() || (newData.child('fromName').isString() && newData.child('fromName').val().length <= 40))"
         }
       }
     },
     "notices": {
       "$friendCode": {
-        ".read": "auth != null",
+        ".read": "auth != null && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid",
         "$id": {
-          ".write": "auth != null",
-          ".validate": "newData.hasChildren(['fromId', 'type'])"
+          ".write": "auth != null && ((!data.exists() && newData.child('senderUid').val() === auth.uid && root.child('profiles/' + newData.child('fromFriendCode').val() + '/ownerUid').val() === auth.uid) || (!newData.exists() && root.child('profiles/' + $friendCode + '/ownerUid').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['fromId', 'fromFriendCode', 'senderUid', 'type']) && newData.child('senderUid').val() === auth.uid && newData.child('fromId').isString() && newData.child('fromId').val().length <= 64 && newData.child('fromFriendCode').isString() && newData.child('fromFriendCode').val().length <= 16 && (newData.child('type').val() === 'accept' || newData.child('type').val() === 'remove')"
         }
       }
     }

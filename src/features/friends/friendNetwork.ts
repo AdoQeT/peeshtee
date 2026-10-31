@@ -26,7 +26,8 @@ import {
   addOrUpdateFriend,
   addIncomingFriendRequest,
   removeFriend,
-  calculateLevel
+  calculateLevel,
+  syncProfileToFirebase
 } from '../profile/profileManager';
 
 export interface OnlinePlayerPresence {
@@ -46,6 +47,7 @@ export interface IncomingGameInvite {
   inviteId: string;
   fromId: string;
   fromFriendCode: string;
+  senderUid?: string;
   fromName: string;
   fromAvatarId: string;
   targetFriendCode?: string;
@@ -59,6 +61,7 @@ export interface IncomingFriendNotice {
   id: string;
   fromId: string;
   fromFriendCode: string;
+  senderUid?: string;
   fromName: string;
   fromAvatarId: string;
   targetFriendCode?: string;
@@ -98,6 +101,7 @@ export class FriendNetwork {
     }
 
     const myProfile = getUserProfile();
+    await syncProfileToFirebase(myProfile);
     const myCode = myProfile.friendCode;
 
     // 0. Synchronize server time offset
@@ -417,11 +421,14 @@ export class FriendNetwork {
     const cleanTargetCode = rawCode?.replace(/[^0-9A-Za-z]/g, '');
     if (!cleanTargetCode) return false;
 
+    const user = await ensureFirebaseAuth().catch(() => null);
+
     // Notice payload: avatarId only (no heavy dataURL)
     const invite: IncomingGameInvite = {
       inviteId: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
       fromFriendCode: profile.friendCode,
+      senderUid: user?.uid,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
       targetFriendCode: cleanTargetCode,
@@ -449,10 +456,13 @@ export class FriendNetwork {
       return false;
     }
 
+    const user = await ensureFirebaseAuth().catch(() => null);
+
     const req = {
       id: `freq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
       fromFriendCode: profile.friendCode,
+      senderUid: user?.uid || null,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
       fromCustomTitle: profile.customTitle || null,
@@ -474,10 +484,13 @@ export class FriendNetwork {
     const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
     if (!cleanTargetCode) return false;
 
+    const user = await ensureFirebaseAuth().catch(() => null);
+
     const notice: IncomingFriendNotice = {
       id: `fr-acc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
       fromFriendCode: profile.friendCode,
+      senderUid: user?.uid,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
       targetFriendCode: cleanTargetCode,
@@ -529,10 +542,13 @@ export class FriendNetwork {
     const cleanTargetCode = target.friendCode?.replace(/[^0-9A-Za-z]/g, '');
     if (!cleanTargetCode) return false;
 
+    const user = await ensureFirebaseAuth().catch(() => null);
+
     const notice: IncomingFriendNotice = {
       id: `fr-rem-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fromId: profile.id,
       fromFriendCode: profile.friendCode,
+      senderUid: user?.uid,
       fromName: profile.name,
       fromAvatarId: profile.avatarId,
       targetFriendCode: cleanTargetCode,

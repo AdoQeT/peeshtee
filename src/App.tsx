@@ -229,6 +229,7 @@ export default function App() {
     startNextRoundWithDeck,
     handleNextRound,
     handlePlayCardWithAnimation,
+    handleUpdateCountingProgress,
     handleSkipCounting,
     handleToggleFastCounting,
     handleFinishCounting,
@@ -783,6 +784,7 @@ export default function App() {
         players={players}
         tableRefs={tableRefs}
         theme={settings.theme}
+        cardBack={settings.cardBack}
         targetScore={settings.targetScore}
         isMultiplayer={isMultiplayerGame}
         isReadyForNextRound={isReadyForNextRound}
@@ -792,6 +794,7 @@ export default function App() {
         onNextRound={handleNextRound}
         onRestartGame={handleRestartGame}
         onToggleReady={handleToggleReady}
+        onCountProgress={handleUpdateCountingProgress}
         onCountingDone={handleFinishCounting}
       />
 

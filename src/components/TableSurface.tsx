@@ -421,7 +421,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   }, [deckCutState?.isActive, deckCutState?.step]);
   const isFourPlayers = players.length === 4;
   const user = players[0];
-  const isCountingActive = Boolean(onTableCountState?.isActive);
+  const isCountingActive = Boolean(onTableCountState?.isActive || onTableCountState?.isDone);
   const isPlayerTurn = currentTurn === 0 && !isBusy && !isCountingActive;
 
   // Visible table cards (excluding cards currently in mid-air flight to the pot)
@@ -489,8 +489,24 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     labelPos: 'top' | 'bottom' = 'bottom',
     _compact: boolean = false
   ) => {
-    // During table counting ceremony, the cards have physically glided to the table front for counting!
-    const count = isCountingActive ? 0 : player.collectedCards.length;
+    const countedSoFar =
+      playerIdx === 0
+        ? onTableCountState?.userCountedIndex ?? 0
+        : playerIdx === 1
+        ? onTableCountState?.oppCountedIndex ?? 0
+        : 0;
+    const totalToCount =
+      playerIdx === 0
+        ? onTableCountState?.userTotal ?? player.collectedCards.length
+        : playerIdx === 1
+        ? onTableCountState?.oppTotal ?? player.collectedCards.length
+        : player.collectedCards.length;
+    const count =
+      isCountingActive && !isFourPlayers
+        ? Math.max(0, totalToCount - countedSoFar)
+        : isCountingActive
+        ? 0
+        : player.collectedCards.length;
     const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
 
     const hasCapturePulse =
@@ -1145,7 +1161,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               </div>
 
               {/* Instant Game Over Overlay if ended before counting */}
-              {isGameOver && !onTableCountState?.isActive && (
+              {isGameOver && !isCountingActive && (
                 <div className="absolute inset-0 -inset-x-8 z-30 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl p-4 shadow-2xl animate-in fade-in duration-300">
                   <div className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-500/30 border-2 border-amber-400 text-amber-200 font-black text-sm shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center gap-2 mb-3 animate-pulse">
                     <span>🏆</span>

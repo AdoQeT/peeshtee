@@ -1758,114 +1758,31 @@ export function usePistiGame({
         isFast: false
       });
 
-      let uIdx = 0;
-      let oIdx = 0;
-      const userPointList: Card[] = [];
-      const oppPointList: Card[] = [];
-      let userPts = 0;
-      let oppPts = 0;
-
       if (countTimerRef.current) {
         window.clearInterval(countTimerRef.current);
+        countTimerRef.current = null;
       }
-
-      const startCountLoop = (intervalMs: number) => {
-        if (countTimerRef.current) {
-          window.clearInterval(countTimerRef.current);
-        }
-        countTimerRef.current = window.setInterval(() => {
-          const userDone = uIdx >= userCards.length;
-          const oppDone = oIdx >= oppCards.length;
-
-          if (userDone && oppDone) {
-            if (countTimerRef.current) {
-              window.clearInterval(countTimerRef.current);
-              countTimerRef.current = null;
-            }
-            sound.playMatchSweep();
-
-            setOnTableCount(prev => ({
-              ...prev,
-              userCountedIndex: userCards.length,
-              oppCountedIndex: oppCards.length,
-              isDone: true
-            }));
-
-            if (userHasMajority) {
-              sound.playDoublePisti();
-              confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-            }
-
-            return;
-          }
-
-          if (!userDone) {
-            const c = userCards[uIdx];
-            sound.playCountTick(1 + (uIdx % 8) * 0.05);
-
-            const isSpecialCard =
-              c.value === 1 ||
-              c.value === 11 ||
-              (c.suit === 'diamonds' && c.value === 10) ||
-              (c.suit === 'clubs' && c.value === 2);
-
-            if (isSpecialCard) {
-              const pts =
-                c.suit === 'diamonds' && c.value === 10
-                  ? 3
-                  : c.suit === 'clubs' && c.value === 2
-                  ? 2
-                  : 1;
-              sound.playPointCardChime(pts);
-              userPointList.push(c);
-              userPts += pts;
-            }
-
-            uIdx++;
-          }
-
-          if (!oppDone) {
-            const c = oppCards[oIdx];
-            if (userDone) {
-              sound.playCountTick(1 + (oIdx % 8) * 0.05);
-            }
-            const isSpecialCard =
-              c.value === 1 ||
-              c.value === 11 ||
-              (c.suit === 'diamonds' && c.value === 10) ||
-              (c.suit === 'clubs' && c.value === 2);
-
-            if (isSpecialCard) {
-              const pts =
-                c.suit === 'diamonds' && c.value === 10
-                  ? 3
-                  : c.suit === 'clubs' && c.value === 2
-                  ? 2
-                  : 1;
-              oppPointList.push(c);
-              oppPts += pts;
-            }
-
-            oIdx++;
-          }
-
-          setOnTableCount(prev => ({
-            ...prev,
-            userCountedIndex: uIdx,
-            oppCountedIndex: oIdx,
-            userCurrentCard: userCards[Math.min(uIdx, Math.max(0, userCards.length - 1))],
-            oppCurrentCard: oppCards[Math.min(oIdx, Math.max(0, oppCards.length - 1))],
-            userPointCards: [...userPointList],
-            oppPointCards: [...oppPointList],
-            userCardPoints: userPts,
-            oppCardPoints: oppPts
-          }));
-        }, intervalMs);
-      };
-
-      startCountLoop(175);
     },
     [settingsRef, setUserProfile, showDevToast]
+  );
+
+  const handleUpdateCountingProgress = useCallback(
+    (userCountedIndex: number, oppCountedIndex: number) => {
+      setOnTableCount(prev => {
+        if (
+          prev.userCountedIndex === userCountedIndex &&
+          prev.oppCountedIndex === oppCountedIndex
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          userCountedIndex,
+          oppCountedIndex
+        };
+      });
+    },
+    []
   );
 
   const handleSkipCounting = useCallback(() => {
@@ -1892,7 +1809,13 @@ export function usePistiGame({
       window.clearInterval(countTimerRef.current);
       countTimerRef.current = null;
     }
-    setOnTableCount(prev => ({ ...prev, isActive: false, isDone: true }));
+    setOnTableCount(prev => ({
+      ...prev,
+      userCountedIndex: prev.userTotal,
+      oppCountedIndex: prev.oppTotal,
+      isActive: false,
+      isDone: true
+    }));
   }, []);
 
   // Turn Countdown Timer: ONLY active in Multiplayer mode!
@@ -2320,6 +2243,7 @@ export function usePistiGame({
     handleNextRound,
     handlePlayCardWithAnimation,
     startOnTableCounting,
+    handleUpdateCountingProgress,
     handleSkipCounting,
     handleToggleFastCounting,
     handleFinishCounting,

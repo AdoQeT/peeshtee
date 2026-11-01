@@ -21,6 +21,7 @@ import { DetailedRoundScore } from '../core/rules';
 import type { TableDomRefs } from './TableSurface';
 import { RotateCcw, ArrowRight, Trophy } from 'lucide-react';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
+import { sound } from '../core/audio/soundEngine';
 
 interface RectBox {
   left: number;
@@ -582,6 +583,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
       setIsDone(true);
       setUserFlight(null);
       setOppFlight(null);
+      sound.playMatchPointSting();
       onCountProgress?.(userCards.length, oppCards.length);
       onCountingDone?.();
       return;
@@ -606,14 +608,25 @@ export const CardCountingOverlay: React.FC<Props> = ({
         .slice(0, drawIdx)
         .filter(c => (c.basePoints || 0) > 0).length;
 
-      if (drawIdx < userCards.length) {
-        const uCard = userCards[drawIdx];
-        const isPoint = (uCard.basePoints || 0) > 0;
-        const { startRect, targetRect } = measureFlightRects(true, isPoint, userLandedPointsCount);
+      const uCard = drawIdx < userCards.length ? userCards[drawIdx] : null;
+      const oCard = drawIdx < oppCards.length ? oppCards[drawIdx] : null;
+      const isUPoint = uCard ? (uCard.basePoints || 0) > 0 : false;
+      const isOPoint = oCard ? (oCard.basePoints || 0) > 0 : false;
+
+      // Snappy rhythmic counting audio:
+      if (isUPoint || isOPoint) {
+        const maxPts = Math.max(uCard?.basePoints || 0, oCard?.basePoints || 0);
+        sound.playPointCardChime(maxPts);
+      } else if (uCard || oCard) {
+        sound.playCountTick(1.0 + (drawIdx % 8) * 0.035);
+      }
+
+      if (uCard) {
+        const { startRect, targetRect } = measureFlightRects(true, isUPoint, userLandedPointsCount);
         setUserFlight({
           card: uCard,
           index: drawIdx,
-          isPoint,
+          isPoint: isUPoint,
           startRect,
           targetRect
         });
@@ -621,14 +634,12 @@ export const CardCountingOverlay: React.FC<Props> = ({
         setUserFlight(null);
       }
 
-      if (drawIdx < oppCards.length) {
-        const oCard = oppCards[drawIdx];
-        const isPoint = (oCard.basePoints || 0) > 0;
-        const { startRect, targetRect } = measureFlightRects(false, isPoint, oppLandedPointsCount);
+      if (oCard) {
+        const { startRect, targetRect } = measureFlightRects(false, isOPoint, oppLandedPointsCount);
         setOppFlight({
           card: oCard,
           index: drawIdx,
-          isPoint,
+          isPoint: isOPoint,
           startRect,
           targetRect
         });
@@ -765,7 +776,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
             : 'absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 pointer-events-none z-30'
         }
       >
-        <div className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl">
+        <div className="flex items-center gap-3 sm:gap-5 p-2.5 sm:p-3 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-rose-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(244,63,94,0.15)] ring-1 ring-white/10">
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
@@ -773,7 +784,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </span>
             <div
               ref={oppOpenPileRef}
-              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center"
+              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center border border-dashed border-white/15 bg-black/35"
             >
               {oppCountedPile.length > 0 &&
                 oppCountedPile.slice(-5).map((c, idx) => {
@@ -995,7 +1006,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
       {/* ── 3. KULLANICININ MASADAKİ SAYIM İSTASYONU ── */}
       <div className="absolute bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 pointer-events-none z-30">
-        <div className="flex items-center gap-3 sm:gap-5 p-2 rounded-2xl">
+        <div className="flex items-center gap-3 sm:gap-5 p-2.5 sm:p-3 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-amber-500/35 shadow-[0_16px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.2)] ring-1 ring-amber-400/20">
           {/* Kullanıcı Açılan Normal Deste */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
@@ -1003,7 +1014,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </span>
             <div
               ref={userOpenPileRef}
-              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center"
+              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center border border-dashed border-white/15 bg-black/35"
             >
               {userCountedPile.length > 0 &&
                 userCountedPile.slice(-5).map((c, idx) => {

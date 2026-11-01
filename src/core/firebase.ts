@@ -45,18 +45,57 @@ export function ensureFirebaseAuth(): Promise<User | null> {
   if (authInitPromise) return authInitPromise;
 
   authInitPromise = new Promise((resolve) => {
-    onAuthStateChanged(auth, (user) => {
+    // If Firebase Auth supports authStateReady (Firebase v9.14+), wait for persisted credentials
+    if (typeof (auth as any).authStateReady === 'function') {
+      (auth as any).authStateReady().then(() => {
+        if (auth.currentUser) {
+          resolve(auth.currentUser);
+        } else {
+          signInAnonymously(auth)
+            .then((cred) => resolve(cred.user))
+            .catch((err) => {
+              logger.warn('Firebase anonymous auth warning:', err);
+              resolve(null);
+            });
+        }
+      }).catch(() => {
+        if (auth.currentUser) {
+          resolve(auth.currentUser);
+        } else {
+          signInAnonymously(auth)
+            .then((cred) => resolve(cred.user))
+            .catch((err) => {
+              logger.warn('Firebase anonymous auth fallback warning:', err);
+              resolve(null);
+            });
+        }
+      });
+      return;
+    }
+
+    let resolved = false;
+    const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
+        resolved = true;
+        try { unsub(); } catch {}
         resolve(user);
-      } else {
+      }
+    });
+
+    // Fallback if no user restored within 350ms
+    setTimeout(() => {
+      if (!resolved && !auth.currentUser) {
         signInAnonymously(auth)
-          .then((cred) => resolve(cred.user))
+          .then((cred) => {
+            try { unsub(); } catch {}
+            resolve(cred.user);
+          })
           .catch((err) => {
-            logger.warn('Firebase anonymous auth warning:', err);
+            logger.warn('Firebase anonymous auth timeout warning:', err);
             resolve(null);
           });
       }
-    });
+    }, 350);
   });
   return authInitPromise;
 }

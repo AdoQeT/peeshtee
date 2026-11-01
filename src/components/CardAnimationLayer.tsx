@@ -222,7 +222,6 @@ const DynamicDeckShuffle: React.FC<{
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     const isMobile = window.innerWidth < 640;
-    const spreadSpan = isMobile ? 110 : 155;
     const easeOut = 'cubic-bezier(0.22, 1, 0.36, 1)';
     const easeInOut = 'cubic-bezier(0.45, 0, 0.25, 1)';
     const duration = 2500;
@@ -249,14 +248,14 @@ const DynamicDeckShuffle: React.FC<{
       if (style === 'riffle_bridge') {
         const isLeft = idx < totalCards / 2;
         const halfIdx = isLeft ? idx : idx - totalCards / 2;
-        const splitX = isLeft ? centerX - spreadSpan : centerX + spreadSpan;
-        const splitRotZ = isLeft ? -14 : 14;
-        const splitRotY = isLeft ? 24 : -24;
+        const splitX = isLeft ? centerX - 92 : centerX + 92;
+        const splitRotZ = isLeft ? -9 : 9;
+        const splitRotY = isLeft ? 16 : -16;
         const riffleOrder = isLeft ? halfIdx * 2 : halfIdx * 2 + 1;
-        const riffleStart = 0.17 + (riffleOrder / totalCards) * 0.26;
-        const riffleEnd = Math.min(0.54, riffleStart + 0.06);
-        const bridgeStart = 0.56 + ((totalCards - 1 - riffleOrder) / totalCards) * 0.16;
-        const bridgeDrop = Math.min(0.82, bridgeStart + 0.07);
+        const riffleStart = 0.16 + (riffleOrder / totalCards) * 0.28;
+        const riffleEnd = Math.min(0.56, riffleStart + 0.05);
+        const bridgeStart = 0.58 + ((totalCards - 1 - riffleOrder) / totalCards) * 0.15;
+        const bridgeDrop = Math.min(0.80, bridgeStart + 0.06);
 
         keyframes = [
           // 0: Initial 3D stacked deck
@@ -265,111 +264,102 @@ const DynamicDeckShuffle: React.FC<{
             offset: 0,
             easing: easeOut
           },
-          // 1: 3D Lift & Split into two angled dealer packets
+          // 1: Authentic table split into Left and Right dealer packets resting on felt
           {
-            transform: `perspective(1100px) translate3d(${splitX}px, ${centerY - 18 - halfIdx * 0.85}px, 0) translate(-50%, -50%) rotateX(16deg) rotateY(${splitRotY}deg) rotateZ(${splitRotZ}deg) scale(1.06)`,
-            offset: 0.16,
+            transform: `perspective(1100px) translate3d(${splitX}px, ${centerY - halfIdx * 0.5}px, 0) translate(-50%, -50%) rotateX(12deg) rotateY(${splitRotY}deg) rotateZ(${splitRotZ}deg) scale(1.02)`,
+            offset: 0.14,
             easing: easeInOut
           },
-          // 2: Hold packet tension until card's riffle turn
+          // 2: Hold packet position until individual card's interleaving turn
           {
-            transform: `perspective(1100px) translate3d(${splitX}px, ${centerY - 18 - halfIdx * 0.85}px, 0) translate(-50%, -50%) rotateX(16deg) rotateY(${splitRotY}deg) rotateZ(${splitRotZ}deg) scale(1.06)`,
+            transform: `perspective(1100px) translate3d(${splitX}px, ${centerY - halfIdx * 0.5}px, 0) translate(-50%, -50%) rotateX(12deg) rotateY(${splitRotY}deg) rotateZ(${splitRotZ}deg) scale(1.02)`,
             offset: riffleStart,
             easing: easeOut
           },
-          // 3: High-speed alternating Riffle Interleave
+          // 3: Tight alternating card-by-card weave (interleaving directly into center stack)
           {
-            transform: `perspective(1100px) translate3d(${centerX + (isLeft ? -22 : 22)}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(8deg) rotateY(${isLeft ? 8 : -8}deg) rotateZ(${isLeft ? -4 : 4}deg) scale(1.02)`,
+            transform: `perspective(1100px) translate3d(${centerX + (isLeft ? -12 : 12)}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(6deg) rotateY(${isLeft ? 4 : -4}deg) rotateZ(${isLeft ? -2 : 2}deg) scale(1.01)`,
             offset: riffleEnd,
             easing: easeInOut
           },
-          // 4: High 3D Parabolic Waterfall Bridge Arch
+          // 4: Natural physical bridge flex (thumbs bend the interleaved cards upward)
           {
-            transform: `perspective(1100px) translate3d(${centerX + (isLeft ? -8 : 8)}px, ${centerY - 78 - Math.sin((riffleOrder / totalCards) * Math.PI) * 28}px, 0) translate(-50%, -50%) rotateX(34deg) rotateY(${isLeft ? -14 : 14}deg) rotateZ(${isLeft ? 10 : -10}deg) scale(1.12)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - 46 - Math.sin((riffleOrder / totalCards) * Math.PI) * 22}px, 0) translate(-50%, -50%) rotateX(24deg) rotateY(0deg) rotateZ(${isLeft ? 4 : -4}deg) scale(1.06)`,
             offset: bridgeStart,
             easing: easeInOut
           },
-          // 5: Cascade Waterfall Drop into center stack
+          // 5: Cascade waterfall snap flat onto the table felt
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.03)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.01)`,
             offset: bridgeDrop,
             easing: easeOut
           },
-          // 6: Dealer Strip-Cut & Square-Up Pulse
+          // 6: Final dealer side tap & square-up
           {
-            transform: `perspective(1100px) translate3d(${centerX + (idx % 2 === 0 ? -4 : 4)}px, ${centerY - stackOffset - 10}px, 0) translate(-50%, -50%) rotateX(6deg) rotateY(0deg) rotateZ(0deg) scale(1.05)`,
-            offset: 0.90,
+            transform: `perspective(1100px) translate3d(${centerX + (idx % 2 === 0 ? -2 : 2)}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(2deg) rotateY(0deg) rotateZ(0deg) scale(1.02)`,
+            offset: 0.92,
             easing: easeInOut
           },
-          // 7: Final Crisp Squared Stack at Center Stage (ready for 0-jump Cut Fan-Out)
+          // 7: Perfectly squared, genuinely mixed deck
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - riffleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
             offset: 1
           }
         ];
       } else if (style === 'table_wash') {
-        // Casino Dual-Ring Vortex Scramble + Riffle Snap
-        const isInnerRing = idx % 2 === 0;
-        const ringIdx = Math.floor(idx / 2);
-        const ringCount = totalCards / 2;
-        const baseAngle = (ringIdx / ringCount) * Math.PI * 2;
-        const dir = isInnerRing ? 1 : -1;
-        const r1 = isInnerRing ? (isMobile ? 70 : 95) : (isMobile ? 120 : 165);
-        const r2 = isInnerRing ? (isMobile ? 110 : 150) : (isMobile ? 75 : 105);
+        // Authentic Table Baize Scramble & Sweep (Smooth Flat Slide on Felt)
+        const seedAngle = (idx / totalCards) * Math.PI * 2;
+        const scatterDist = (isMobile ? 80 : 130) * (0.45 + (idx % 7) * 0.09);
+        const scatterX = Math.cos(seedAngle * 1.8) * scatterDist;
+        const scatterY = Math.sin(seedAngle * 1.8) * (scatterDist * 0.52);
+        const scatterRot = ((idx * 31) % 70) - 35;
 
-        const x1 = centerX + Math.cos(baseAngle + dir * 1.1) * r1;
-        const y1 = centerY + Math.sin(baseAngle + dir * 1.1) * (r1 * 0.58);
-        const x2 = centerX + Math.cos(baseAngle + dir * 2.6) * r2;
-        const y2 = centerY + Math.sin(baseAngle + dir * 2.6) * (r2 * 0.55);
-        const x3 = centerX + Math.cos(baseAngle + dir * 4.2) * (r1 * 0.7);
-        const y3 = centerY + Math.sin(baseAngle + dir * 4.2) * (r1 * 0.42);
+        // Circular wash motion across table felt
+        const washAngle = seedAngle + Math.PI * 1.2;
+        const washX = Math.cos(washAngle) * (scatterDist * 0.85);
+        const washY = Math.sin(washAngle) * (scatterDist * 0.44);
+        const washRot = ((idx * 47) % 60) - 30;
 
-        const rot1 = ((idx * 37) % 90) - 45;
-        const rot2 = ((idx * 61) % 110) - 55;
-        const rot3 = ((idx * 29) % 50) - 25;
+        const gatherOrder = (idx * 17) % totalCards;
 
         keyframes = [
+          // 0: Initial stacked deck
           {
             transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(0deg) rotateZ(0deg) scale(1)`,
             offset: 0,
             easing: easeOut
           },
+          // 1: Scramble across the green felt (flat on table, realistic friction)
           {
-            transform: `perspective(1100px) translate3d(${x1}px, ${y1}px, 0) translate(-50%, -50%) rotateX(18deg) rotateY(${dir * 14}deg) rotateZ(${rot1}deg) scale(1.04)`,
-            offset: 0.22,
+            transform: `perspective(1100px) translate3d(${centerX + scatterX}px, ${centerY + scatterY}px, 0) translate(-50%, -50%) rotateX(6deg) rotateZ(${scatterRot}deg) scale(1.01)`,
+            offset: 0.28,
             easing: easeInOut
           },
+          // 2: Swirling washing motion intermixing the cards on the baize
           {
-            transform: `perspective(1100px) translate3d(${x2}px, ${y2}px, 0) translate(-50%, -50%) rotateX(22deg) rotateY(${-dir * 16}deg) rotateZ(${rot2}deg) scale(1.06)`,
-            offset: 0.48,
+            transform: `perspective(1100px) translate3d(${centerX + washX}px, ${centerY + washY}px, 0) translate(-50%, -50%) rotateX(8deg) rotateZ(${washRot}deg) scale(1.02)`,
+            offset: 0.58,
             easing: easeInOut
           },
+          // 3: Hands sweep inward, gathering scattered cards from edges toward center
           {
-            transform: `perspective(1100px) translate3d(${x3}px, ${y3}px, 0) translate(-50%, -50%) rotateX(14deg) rotateY(${dir * 8}deg) rotateZ(${rot3}deg) scale(1.03)`,
-            offset: 0.72,
-            easing: easeInOut
-          },
-          {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset - 16}px, 0) translate(-50%, -50%) rotateX(10deg) rotateZ(0deg) scale(1.06)`,
-            offset: 0.88,
+            transform: `perspective(1100px) translate3d(${centerX + (scatterX * 0.22)}px, ${centerY + (scatterY * 0.22)}px, 0) translate(-50%, -50%) rotateX(4deg) rotateZ(${scatterRot * 0.3}deg) scale(1.01)`,
+            offset: 0.82,
             easing: easeOut
           },
+          // 4: Dealer square-up and tap onto felt
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(0deg) rotateZ(0deg) scale(1)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - gatherOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateZ(0deg) scale(1)`,
             offset: 1
           }
         ];
       } else if (style === 'farot_wave') {
-        // 3D Helical Faro Cascade Wave & Zipper Snap
-        const norm = (idx - (totalCards - 1) / 2) / (totalCards / 2);
-        const waveX1 = centerX + norm * (isMobile ? 130 : 185);
-        const waveY1 = centerY + Math.sin(norm * Math.PI * 1.5) * 42;
-        const waveRot1 = Math.cos(norm * Math.PI * 1.5) * 24;
-
-        const waveX2 = centerX + norm * (isMobile ? 115 : 160);
-        const waveY2 = centerY - Math.sin(norm * Math.PI * 1.5) * 42;
-        const waveRot2 = -Math.cos(norm * Math.PI * 1.5) * 24;
-        const zipOffset = 0.62 + (idx / totalCards) * 0.24;
+        // Faro Interleave: Precision alternating packet zip
+        const isLeft = idx % 2 === 0;
+        const fIdx = Math.floor(idx / 2);
+        const splitX = isLeft ? centerX - 80 : centerX + 80;
+        const zipStart = 0.22 + (fIdx / (totalCards / 2)) * 0.38;
+        const zipEnd = Math.min(0.72, zipStart + 0.08);
 
         keyframes = [
           {
@@ -378,31 +368,32 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${waveX1}px, ${waveY1}px, 0) translate(-50%, -50%) rotateX(20deg) rotateY(${norm * 28}deg) rotateZ(${waveRot1}deg) scale(1.06)`,
-            offset: 0.26,
+            transform: `perspective(1100px) translate3d(${splitX}px, ${centerY - fIdx * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(${isLeft ? 14 : -14}deg) rotateZ(${isLeft ? -6 : 6}deg) scale(1.02)`,
+            offset: 0.18,
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${waveX2}px, ${waveY2}px, 0) translate(-50%, -50%) rotateX(24deg) rotateY(${-norm * 28}deg) rotateZ(${waveRot2}deg) scale(1.08)`,
-            offset: 0.54,
-            easing: easeInOut
-          },
-          {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - 35 - idx * 0.7}px, 0) translate(-50%, -50%) rotateX(15deg) rotateY(0deg) rotateZ(0deg) scale(1.05)`,
-            offset: zipOffset,
+            transform: `perspective(1100px) translate3d(${splitX}px, ${centerY - fIdx * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(${isLeft ? 14 : -14}deg) rotateZ(${isLeft ? -6 : 6}deg) scale(1.02)`,
+            offset: zipStart,
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - idx * 0.45}px, 0) translate(-50%, -50%) rotateX(4deg) rotateY(0deg) rotateZ(0deg) scale(1.02)`,
+            offset: zipEnd,
+            easing: easeInOut
+          },
+          {
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - idx * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
             offset: 1
           }
         ];
       } else if (style === 'hindu_slide') {
-        // Rapid 6-Packet 3D Hindu Peel & Bridge Finish
-        const packetIdx = Math.floor(idx / 5);
-        const packetStartTime = 0.14 + packetIdx * 0.095;
-        const peelLift = Math.min(0.76, packetStartTime + 0.05);
-        const peelLand = Math.min(0.84, packetStartTime + 0.11);
+        // Authentic Overhand/Hindu Packet Peel
+        const packetIdx = Math.floor(idx / 4);
+        const packetStartTime = 0.14 + packetIdx * 0.09;
+        const peelLift = Math.min(0.74, packetStartTime + 0.05);
+        const peelLand = Math.min(0.82, packetStartTime + 0.10);
+        const finalHinduOrder = totalCards - 1 - idx;
 
         keyframes = [
           {
@@ -411,37 +402,38 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX + 110}px, ${centerY - 12}px, 0) translate(-50%, -50%) rotateX(14deg) rotateY(-18deg) rotateZ(10deg) scale(1.04)`,
-            offset: 0.13,
+            transform: `perspective(1100px) translate3d(${centerX + 85}px, ${centerY - (idx % 4) * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(-12deg) rotateZ(6deg) scale(1.02)`,
+            offset: 0.12,
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX + 110}px, ${centerY - 12}px, 0) translate(-50%, -50%) rotateX(14deg) rotateY(-18deg) rotateZ(10deg) scale(1.04)`,
+            transform: `perspective(1100px) translate3d(${centerX + 85}px, ${centerY - (idx % 4) * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(-12deg) rotateZ(6deg) scale(1.02)`,
             offset: packetStartTime,
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX + 15}px, ${centerY - 68}px, 0) translate(-50%, -50%) rotateX(28deg) rotateY(0deg) rotateZ(-4deg) scale(1.12)`,
+            transform: `perspective(1100px) translate3d(${centerX - 10}px, ${centerY - 45}px, 0) translate(-50%, -50%) rotateX(16deg) rotateY(0deg) rotateZ(-3deg) scale(1.05)`,
             offset: peelLift,
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX - 95}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(8deg) rotateY(12deg) rotateZ(-6deg) scale(1.02)`,
+            transform: `perspective(1100px) translate3d(${centerX - 75}px, ${centerY - (totalCards - 1 - idx) * 0.45}px, 0) translate(-50%, -50%) rotateX(6deg) rotateY(8deg) rotateZ(-4deg) scale(1.01)`,
             offset: peelLand,
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - finalHinduOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
             offset: 1
           }
         ];
       } else {
-        // Triple Cut: 3-Stack Cross Leapfrog + Riffle Slap
+        // Triple Cut: 3-Stack Table Shift & Interleave Slap
         const stackNum = idx < 11 ? 0 : idx < 22 ? 1 : 2;
-        const stackX = stackNum === 0 ? centerX - spreadSpan : stackNum === 1 ? centerX : centerX + spreadSpan;
-        const stackRot = stackNum === 0 ? -10 : stackNum === 1 ? 0 : 10;
-        const swapX = stackNum === 0 ? centerX + spreadSpan : stackNum === 2 ? centerX - spreadSpan : centerX;
-        const swapLiftY = stackNum === 0 ? -65 : stackNum === 2 ? -45 : 15;
+        const stackX = stackNum === 0 ? centerX - 95 : stackNum === 1 ? centerX : centerX + 95;
+        const stackRot = stackNum === 0 ? -6 : stackNum === 1 ? 0 : 6;
+        const swapX = stackNum === 0 ? centerX + 95 : stackNum === 2 ? centerX - 95 : centerX;
+        const swapLiftY = stackNum === 0 ? -38 : stackNum === 2 ? -28 : 10;
+        const finalTripleOrder = stackNum === 0 ? (idx % 11) + 21 : stackNum === 1 ? (idx % 11) : (idx % 11) + 11;
 
         keyframes = [
           {
@@ -450,22 +442,22 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${stackX}px, ${centerY - (idx % 11) * 0.8}px, 0) translate(-50%, -50%) rotateX(16deg) rotateY(${stackNum === 0 ? 18 : stackNum === 2 ? -18 : 0}deg) rotateZ(${stackRot}deg) scale(1.05)`,
-            offset: 0.24,
+            transform: `perspective(1100px) translate3d(${stackX}px, ${centerY - (idx % 11) * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(${stackNum === 0 ? 12 : stackNum === 2 ? -12 : 0}deg) rotateZ(${stackRot}deg) scale(1.02)`,
+            offset: 0.22,
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${swapX}px, ${centerY + swapLiftY}px, 0) translate(-50%, -50%) rotateX(26deg) rotateY(0deg) rotateZ(${-stackRot}deg) scale(1.1)`,
+            transform: `perspective(1100px) translate3d(${swapX}px, ${centerY + swapLiftY}px, 0) translate(-50%, -50%) rotateX(16deg) rotateY(0deg) rotateZ(${-stackRot}deg) scale(1.06)`,
             offset: 0.52,
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - 42 - stackOffset}px, 0) translate(-50%, -50%) rotateX(22deg) rotateY(0deg) rotateZ(0deg) scale(1.08)`,
-            offset: 0.78,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - 24 - (idx % 11) * 0.45}px, 0) translate(-50%, -50%) rotateX(12deg) rotateY(0deg) rotateZ(0deg) scale(1.04)`,
+            offset: 0.76,
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - stackOffset}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - finalTripleOrder * 0.45}px, 0) translate(-50%, -50%) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`,
             offset: 1
           }
         ];

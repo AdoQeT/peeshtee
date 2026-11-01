@@ -1,5 +1,5 @@
 import { logger } from '../../utils/logger';
-import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb, runTransaction } from '../../core/firebase';
+import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb } from '../../core/firebase';
 
 export interface AvatarPreset {
   id: string;
@@ -537,28 +537,43 @@ export async function claimUniqueFriendCode(profile: UserProfile): Promise<strin
   const user = await ensureFirebaseAuth().catch(() => null);
   if (!user) return profile.friendCode;
 
-  let code = profile.friendCode;
+  // Verify whether the existing code in localStorage is already assigned to this profile
+  try {
+    const existingRef = ref(rtdb, `profiles/${profile.friendCode}`);
+    const snap = await get(existingRef);
+    if (!snap.exists()) {
+      // Free slot! Claim it with syncProfileToFirebase
+      await syncProfileToFirebase(profile);
+      return profile.friendCode;
+    }
+    const val = snap.val();
+    if (val && (val.id === profile.id || val.ownerUid === user.uid)) {
+      // Exactly this user's profile! Keep existing friendCode permanently without re-rolling.
+      await syncProfileToFirebase(profile);
+      return profile.friendCode;
+    }
+    // If it exists but belongs to a different profile ID, then search for an unassigned code
+  } catch (err) {
+    logger.warn('Friend code pre-check warning:', err);
+    return profile.friendCode;
+  }
+
+  // True collision with another player: pick a guaranteed unique 6-digit code
+  let code = generateFriendCode();
   let attempts = 0;
   while (attempts < 10) {
     attempts++;
-    const codeOwnerRef = ref(rtdb, `profiles/${code}/ownerUid`);
     try {
-      const result = await runTransaction(codeOwnerRef, (currentOwner) => {
-        if (currentOwner === null || currentOwner === undefined || currentOwner === user.uid) {
-          return user.uid;
-        }
-        return undefined; // Abort transaction if occupied by another user
-      });
-
-      if (result.committed) {
-        if (profile.friendCode !== code) {
-          profile.friendCode = code;
-          saveUserProfile(profile);
-        }
+      const candidateRef = ref(rtdb, `profiles/${code}`);
+      const snap = await get(candidateRef);
+      if (!snap.exists()) {
+        profile.friendCode = code;
+        saveUserProfile(profile);
+        await syncProfileToFirebase(profile);
         return code;
       }
     } catch (e) {
-      logger.warn('Friend code claim transaction warning:', e);
+      logger.warn('Friend code claim loop warning:', e);
     }
     code = generateFriendCode();
   }

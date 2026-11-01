@@ -460,7 +460,16 @@ export function usePistiGame({
       // Collect all card IDs that will be dealt in this batch and hide them in DOM slots initially
       const idsToHide = new Set<string>();
       preparedTableCards.forEach(c => idsToHide.add(c.id));
-      handsToDeal.forEach(h => h.forEach(c => idsToHide.add(c.id)));
+
+      // Cards already held in players' hands (e.g. Jack awarded from cut ritual) must not be hidden or re-flown
+      const existingHandCardIds = playersRef.current.map(p => new Set(p.hand.map(c => c.id)));
+      handsToDeal.forEach((h, pIdx) => {
+        h.forEach(c => {
+          if (!existingHandCardIds[pIdx]?.has(c.id)) {
+            idsToHide.add(c.id);
+          }
+        });
+      });
 
       setHiddenCardIds(idsToHide);
       if (preparedTableCards.length > 0) {
@@ -503,11 +512,15 @@ export function usePistiGame({
         currentDelay += playerPauseInterval;
       }
 
-      // 2. Player hands dealt sequentially in 4-card packets round-robin
+      // 2. Player hands dealt sequentially in packets round-robin
       for (let offset = 0; offset < totalPlayers; offset++) {
         const pIdx = (firstPlayerIdx + offset) % totalPlayers;
         const playerHand = handsToDeal[pIdx] || [];
         playerHand.forEach((c, cIdx) => {
+          // If this card is already sitting in the cutter's hand from the cut ritual, skip flight
+          if (existingHandCardIds[pIdx]?.has(c.id)) {
+            return;
+          }
           const isLast = cIdx === playerHand.length - 1;
           steps.push({
             kind: 'hand',
@@ -897,7 +910,8 @@ export function usePistiGame({
           cutDeck,
           configuredSettings.playerCount,
           true,
-          absStartingTurn
+          absStartingTurn,
+          startingTurn
         );
         const orientedHands = orientHandsForPerspective(
           initialDeal.playerHands,
@@ -1027,57 +1041,64 @@ export function usePistiGame({
                         : null
                     );
 
-                    // After 720ms showcase on the center pot, swoop the Jack to the Cutter's Collected Pile!
+                    // After 720ms showcase on the center pot, smoothly glide the Jack to the Cutter's Hand!
                     const tJackSwoop = window.setTimeout(() => {
                       setTableCards(prev => prev.filter(c => c.id !== pStep.card.id));
-                      sound.playJackSweep();
+                      sound.playCardDeal();
 
-                      const cutterEl =
-                        tableRefs.current.collectedEls[startingTurn] ||
-                        tableRefs.current.handEls[startingTurn];
+                      const cutterHandEl = tableRefs.current.handEls[startingTurn];
                       let cutterPos = { x: centerX, y: window.innerHeight - 80 };
-                      if (cutterEl) {
-                        const r = cutterEl.getBoundingClientRect();
+                      if (cutterHandEl) {
+                        const r = cutterHandEl.getBoundingClientRect();
                         if (r.width > 0 && r.height > 0) {
                           cutterPos = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
                         }
-                      } else if (startingTurn !== 0) {
+                      } else if (startingTurn === 1 && configuredSettings.playerCount === 2) {
                         cutterPos = { x: centerX, y: 80 };
                       }
 
-                      const flyToCutterId = `jack-sweep-${Date.now()}`;
+                      const targetRot =
+                        startingTurn === 0
+                          ? 0
+                          : startingTurn === 1 && configuredSettings.playerCount === 2
+                          ? 180
+                          : startingTurn === 1
+                          ? 90
+                          : startingTurn === 3
+                          ? -90
+                          : 180;
+
+                      const flyToHandId = `jack-hand-${Date.now()}`;
                       setFlyingCards(prev => [
                         ...prev,
                         {
-                          id: flyToCutterId,
+                          id: flyToHandId,
                           card: pStep.card,
                           startX: potPos.x,
                           startY: potPos.y,
                           targetX: cutterPos.x,
                           targetY: cutterPos.y,
-                          waypointX: potPos.x + (cutterPos.x - potPos.x) * 0.35,
-                          waypointY: Math.min(potPos.y, cutterPos.y) - 68,
-                          waypointScale: 1.28,
-                          waypointOffset: 0.36,
                           startRotation: 2,
-                          targetRotation: 360,
+                          targetRotation: targetRot,
                           startFaceUp: true,
-                          endFaceUp: true,
-                          duration: 740,
-                          arcHeight: 145,
-                          motionType: 'jack',
+                          endFaceUp: startingTurn === 0,
+                          duration: 540,
+                          arcHeight: 75,
+                          motionType: 'deal',
                           size: 'md',
                           zIndex: 95,
                           onComplete: () => {
-                            setFlyingCards(prev => prev.filter(f => f.id !== flyToCutterId));
-                            particleEngine.emitBurst(cutterPos.x, cutterPos.y, '#fbbf24', 20);
+                            setFlyingCards(prev => prev.filter(f => f.id !== flyToHandId));
+                            particleEngine.emitBurst(cutterPos.x, cutterPos.y, '#fbbf24', 16);
                             setPlayers(prev =>
                               prev.map((p, idx) => {
                                 if (idx === startingTurn) {
                                   return {
                                     ...p,
-                                    collectedCards: [...p.collectedCards, pStep.card],
-                                    bonusPoints: (p.bonusPoints || 0) + 1
+                                    hand: [
+                                      ...p.hand,
+                                      { ...pStep.card, faceUp: startingTurn === 0 }
+                                    ]
                                   };
                                 }
                                 return p;

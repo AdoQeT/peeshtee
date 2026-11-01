@@ -471,7 +471,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       const rect = spreadContainerRef.current.getBoundingClientRect();
       if (rect.width <= 0) return;
       const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const targetIdx = Math.min(44, Math.max(8, Math.floor(relX * 52)));
+      const targetIdx = Math.min(51, Math.max(1, Math.floor(relX * 52)));
       if (targetIdx !== hoveredCutIndex) {
         sound.playCardHover();
         setHoveredCutIndex(targetIdx);
@@ -488,7 +488,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       const rect = spreadContainerRef.current.getBoundingClientRect();
       if (rect.width <= 0) return;
       const relX = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
-      const targetIdx = Math.min(44, Math.max(8, Math.floor(relX * 52)));
+      const targetIdx = Math.min(51, Math.max(1, Math.floor(relX * 52)));
       if (targetIdx !== hoveredCutIndex) {
         sound.playCardHover();
         setHoveredCutIndex(targetIdx);

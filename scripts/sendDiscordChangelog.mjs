@@ -33,15 +33,14 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-32-card 3d casino shuffling with waterfall bridge cascades',
-  '-tactile deck cut with curved arch spread and live v-seam parting',
-  '-3d 2-pile split with glowing felt halos and live peel counters',
-  '-jack cut ritual where revealed jacks fly to cutter and next card is drawn',
-  '-high-arc deck merge slam and seamless dual-glide stowing before deal',
-  '-upgraded initial discard reveal in renq with 3d close-up arc'
+  '-fixed multi-tab hashtag regeneration preserving permanent identity and stopping db bloat',
+  '-revealed jack from cut now flies directly to cutter hand without spin or sweep rotation',
+  '-removed 8-card boundary on deck cut allowing free cuts from card 1 to 51',
+  '-overhauled deck shuffle animations with authentic table baize interleaving and packet reorder',
+  '-tactile end-of-round card counting with rhythmic dealer ticks, point chimes and velvet mats'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.30.1';
+const versionTitle = process.argv[2] || 'v1.30.2';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

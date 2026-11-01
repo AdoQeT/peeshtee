@@ -107,7 +107,8 @@ export function dealInitialGame(
   deck: Card[],
   playerCount: 2 | 4 = 2,
   enableJackToCutterRule: boolean = true,
-  firstPlayerIdx: number = 0
+  firstPlayerIdx: number = 0,
+  cutterIdx?: number
 ): {
   tableCards: Card[];
   playerHands: Card[][];
@@ -127,7 +128,7 @@ export function dealInitialGame(
   const jacksAwardedToCutter: Card[] = [];
 
   // Geleneksel "Vale Kesene Yarar" kuralı:
-  // Eğer açılan 4. kart Vale ise, kesene verilir ve sıradaki kart açılır!
+  // Eğer açılan 4. kart Vale ise, kesen oyuncunun eline verilir ve sıradaki kart açılır!
   if (enableJackToCutterRule) {
     while (topTableCard && topTableCard.value === 11 && currentDeck.length > 0) {
       jacksAwardedToCutter.push({ ...topTableCard, faceUp: true });
@@ -137,15 +138,33 @@ export function dealInitialGame(
 
   tableCards.push({ ...topTableCard, faceUp: true });
 
-  // Players get 4 cards each, starting from firstPlayerIdx in turn order
+  // Players get cards starting from firstPlayerIdx in turn order.
+  // If the cutter received Jack(s) into hand from the cut ritual, their hand is topped up to 4 cards.
   const playerHands: Card[][] = Array.from({ length: playerCount }, () => []);
   for (let offset = 0; offset < playerCount; offset++) {
     const p = ((firstPlayerIdx % playerCount) + playerCount + offset) % playerCount;
     const hand: Card[] = [];
     const isHuman = p === 0;
-    for (let i = 0; i < 4; i++) {
-      hand.push({ ...currentDeck.pop()!, faceUp: isHuman });
+
+    if (cutterIdx !== undefined && p === cutterIdx && jacksAwardedToCutter.length > 0) {
+      // Cutter already holds the peeled Jack(s) in hand
+      jacksAwardedToCutter.forEach(j => {
+        hand.push({ ...j, faceUp: isHuman });
+      });
+      const cardsNeeded = Math.max(0, 4 - hand.length);
+      for (let i = 0; i < cardsNeeded; i++) {
+        if (currentDeck.length > 0) {
+          hand.push({ ...currentDeck.pop()!, faceUp: isHuman });
+        }
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        if (currentDeck.length > 0) {
+          hand.push({ ...currentDeck.pop()!, faceUp: isHuman });
+        }
+      }
     }
+
     playerHands[p] = hand;
   }
 

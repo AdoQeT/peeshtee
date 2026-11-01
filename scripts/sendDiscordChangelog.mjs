@@ -33,14 +33,15 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-fixed multi-tab hashtag regeneration preserving permanent identity and stopping db bloat',
-  '-revealed jack from cut now flies directly to cutter hand without spin or sweep rotation',
-  '-removed 8-card boundary on deck cut allowing free cuts from card 1 to 51',
-  '-overhauled deck shuffle animations with authentic table baize interleaving and packet reorder',
-  '-tactile end-of-round card counting with rhythmic dealer ticks, point chimes and velvet mats'
+  '-removed deck cut jack test button from cutting view',
+  '-strictly enforced 3-closed 1-open table card count after jack cut deal',
+  '-felt-native card counting without modal window containers',
+  '-seat-oriented counting angle for 4-player side players with zero teleportation',
+  '-cleaned mock bots and filtered test/bot accounts from global leaderboard',
+  '-added live client update detection banner notifying users without manual f5'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.30.2';
+const versionTitle = process.argv[2] || 'v1.30.3';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

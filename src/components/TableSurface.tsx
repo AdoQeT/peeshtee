@@ -412,7 +412,7 @@ interface TableSurfaceProps {
     activeJackCard?: Card | null;
     revealedTopCard?: Card | null;
   } | null;
-  onCutDeck?: (cutIndex: number, guaranteeJackReveal?: boolean) => void;
+  onCutDeck?: (cutIndex: number) => void;
 }
 
 export const TableSurface: React.FC<TableSurfaceProps> = ({
@@ -1235,13 +1235,13 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     return (
                       <div
                         key={idx}
-                        onClick={e => {
+                        onClick={() => {
                           if (
                             deckCutState.step === 'waiting_cut' &&
                             deckCutState.isHumanCutter &&
                             onCutDeck
                           ) {
-                            onCutDeck(idx, e.shiftKey);
+                            onCutDeck(idx);
                           }
                         }}
                         onMouseEnter={() =>
@@ -1268,24 +1268,6 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     );
                   })}
                 </div>
-
-                {/* Singleplayer Optional Showcase Button: Cut with Guaranteed Jack (Vale) Reveal */}
-                {deckCutState.step === 'waiting_cut' &&
-                  deckCutState.isHumanCutter &&
-                  !isMultiplayer &&
-                  onCutDeck && (
-                    <div className="absolute -bottom-8 sm:-bottom-9 flex items-center justify-center gap-2 z-50 pointer-events-auto animate-in fade-in duration-300">
-                      <button
-                        type="button"
-                        onClick={() => onCutDeck(hoveredCutIndex ?? 26, true)}
-                        className="px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/25 via-yellow-500/30 to-amber-500/25 hover:from-amber-500/45 hover:to-yellow-500/45 border border-amber-400/80 text-amber-200 hover:text-white font-cyber text-[10px] sm:text-xs font-black tracking-wide shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_28px_rgba(245,158,11,0.8)] transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                        title="Kesilen desteden ortaya Vale (J) çıkmasını, kesene gitmesini ve yeni kart açılmasını canlı izle!"
-                      >
-                        <span>🃏</span>
-                        <span>Vale (J) Çıkışlı Kesim Göster</span>
-                      </button>
-                    </div>
-                  )}
 
                 {/* Pile Badges under the piles during splitting & dealing */}
                 {(deckCutState.step === 'splitting' ||

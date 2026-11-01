@@ -24,6 +24,7 @@ import { UserProfile, calculateLevel } from '../features/profile/profileManager'
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 import { DailyQuestsWidget } from './DailyQuestsWidget';
 import { LeaderboardModal } from './LeaderboardModal';
+import { useVersionChecker } from '../hooks/useVersionChecker';
 
 import { AmbientParticles } from './AmbientParticles';
 
@@ -88,6 +89,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const [lang, setLang] = useState<Language>(getLanguage());
   const [isTransitioningLang, setIsTransitioningLang] = useState(false);
   const t = translations[lang];
+
+  const { hasUpdate, latestVersion, reloadToUpdate } = useVersionChecker();
 
   const lvlInfo = calculateLevel(userProfile.xp || 0);
 
@@ -159,6 +162,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         <div className="w-[680px] h-[680px] rounded-full border-2 border-white" />
         <div className="absolute w-[500px] h-[500px] rounded-full border border-dashed border-white" />
       </div>
+
+      {/* Live Client Update Notification Pill */}
+      {hasUpdate && (
+        <div className="relative z-30 w-full max-w-xl mx-auto mb-2 animate-bounce">
+          <div className="flex items-center justify-between gap-3 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/25 via-emerald-500/20 to-cyan-500/25 border-2 border-emerald-400/80 shadow-[0_0_30px_rgba(16,185,129,0.35)] backdrop-blur-xl">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-emerald-200">
+              <span className="text-base animate-pulse">🚀</span>
+              <span>Yeni Güncelleme Yayında {latestVersion ? `(v${latestVersion})` : ''}!</span>
+            </div>
+            <button
+              onClick={reloadToUpdate}
+              className="px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black text-xs font-cyber tracking-wider hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer shrink-0"
+            >
+              ŞİMDİ YENİLE
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Clean Top Navigation Bar */}
       <header className="relative z-20 w-full max-w-6xl flex items-center justify-between gap-3 px-2 py-1">
@@ -602,7 +623,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.30.2'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.30.3'}
         </span>
       </div>
 

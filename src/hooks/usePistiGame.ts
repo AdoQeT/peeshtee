@@ -838,25 +838,14 @@ export function usePistiGame({
   );
 
   const handleCutDeckAndProceed = useCallback(
-    (cutIndex: number, guaranteeJackReveal: boolean = false) => {
+    (cutIndex: number) => {
       const activeCtx = pendingDealContextRef.current || pendingDealContext;
       if (!activeCtx) return;
       const { seedDeck, configuredSettings, isMp, mySeat, startingTurn } = activeCtx;
 
-      // Slices and cuts the deck at the chosen position!
-      const validIndex = Math.max(8, Math.min(cutIndex, seedDeck.length - 8));
+      // Slices and cuts the deck freely at the chosen position (1 to 51)!
+      const validIndex = Math.max(1, Math.min(cutIndex, seedDeck.length - 1));
       const cutDeck = [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
-
-      // Optional singleplayer showcase trigger: guarantees the 4th card opened in center is a Jack (Vale)!
-      if (guaranteeJackReveal && !isMp && cutDeck.length >= 12) {
-        const fourthFromTopIdx = cutDeck.length - 4;
-        const jackIdx = cutDeck.findIndex((c, idx) => c.value === 11 && idx < cutDeck.length - 6);
-        if (jackIdx !== -1) {
-          const temp = cutDeck[fourthFromTopIdx];
-          cutDeck[fourthFromTopIdx] = cutDeck[jackIdx];
-          cutDeck[jackIdx] = temp;
-        }
-      }
 
       // In Multiplayer: If local cutter clicked or host acting for AI, broadcast MP_DECK_CUT to peers!
       if (isMp && multiplayerManager.isConnected && (deckCutState?.isHumanCutter || multiplayerManager.isHost)) {
@@ -870,6 +859,7 @@ export function usePistiGame({
 
       // Step 1: 3D Splitting animation on the felt (Left: Pile A, Right: Pile B, Center: Open Stage)
       sound.playTripleCut();
+      setTableCards([]);
       setDeckCutState(prev =>
         prev
           ? {

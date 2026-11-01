@@ -1,5 +1,6 @@
 import { rtdb, ref, get, query, limitToLast } from '../../core/firebase';
 import { logger } from '../../utils/logger';
+import { getUserProfile } from '../profile/profileManager';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -40,23 +41,36 @@ export async function fetchLeaderboard(
 
       Object.keys(raw).forEach(key => {
         const p = raw[key];
-        if (p && typeof p.name === 'string') {
-          entries.push({
-            rank: 0,
-            id: p.id || key,
-            friendCode: p.friendCode || key,
-            name: p.name,
-            avatarId: p.avatarId || 'wolf',
-            avatarThumb: p.avatarThumb || undefined,
-            customTitle: p.customTitle || undefined,
-            isOwner: Boolean(p.isOwner),
-            level: typeof p.level === 'number' ? p.level : 1,
-            xp: typeof p.xp === 'number' ? p.xp : 0,
-            wins: p.stats?.wins || 0,
-            pistiCount: p.stats?.pistiCount || 0,
-            unoWins: p.stats?.unoWins || 0
-          });
+        if (!p || typeof p.name !== 'string') return;
+
+        // Gerçek kullanıcı filtreleme: Bot ve test hesaplarını kesinlikle hariç tut
+        const lowerName = p.name.toLowerCase();
+        const pid = String(p.id || key).toLowerCase();
+        if (
+          p.isBot ||
+          pid.startsWith('bot-') ||
+          key.startsWith('bot-') ||
+          lowerName.includes('bot') ||
+          lowerName.startsWith('test')
+        ) {
+          return;
         }
+
+        entries.push({
+          rank: 0,
+          id: p.id || key,
+          friendCode: p.friendCode || key,
+          name: p.name,
+          avatarId: p.avatarId || 'wolf',
+          avatarThumb: p.avatarThumb || undefined,
+          customTitle: p.customTitle || undefined,
+          isOwner: Boolean(p.isOwner),
+          level: typeof p.level === 'number' ? p.level : 1,
+          xp: typeof p.xp === 'number' ? p.xp : 0,
+          wins: p.stats?.wins || 0,
+          pistiCount: p.stats?.pistiCount || 0,
+          unoWins: p.stats?.unoWins || 0
+        });
       });
 
       cachedLeaderboard = { timestamp: now, data: entries };
@@ -90,50 +104,26 @@ function sortLeaderboardEntries(
 }
 
 function getFallbackLeaderboard(category: 'xp' | 'wins' | 'pistis'): LeaderboardEntry[] {
-  const sample: LeaderboardEntry[] = [
-    {
-      rank: 1,
-      id: 'bot-1',
-      friendCode: '772190',
-      name: 'Ado',
-      avatarId: 'wolf',
-      customTitle: '👑 Geliştirici & Kurucu',
-      isOwner: true,
-      level: 6,
-      xp: 2450,
-      wins: 28,
-      pistiCount: 42,
-      unoWins: 14
-    },
-    {
-      rank: 2,
-      id: 'bot-2',
-      friendCode: '581290',
-      name: 'Gölge Şampiyon',
-      avatarId: 'cyber_samurai',
-      customTitle: '🃏 Kart Cambazı',
-      isOwner: false,
-      level: 4,
-      xp: 1420,
-      wins: 19,
-      pistiCount: 26,
-      unoWins: 8
-    },
-    {
-      rank: 3,
-      id: 'bot-3',
-      friendCode: '319082',
-      name: 'Kıraathane Reisi',
-      avatarId: 'dayi',
-      customTitle: 'Batak & Pişti Pirî',
-      isOwner: false,
-      level: 3,
-      xp: 980,
-      wins: 12,
-      pistiCount: 19,
-      unoWins: 5
-    }
-  ];
+  // Mock bot hesapları tamamen temizlendi — sadece aktif gerçek kullanıcı varsa onu göster
+  const myProfile = getUserProfile();
+  if (myProfile && myProfile.name && !myProfile.name.toLowerCase().includes('bot')) {
+    return sortLeaderboardEntries([
+      {
+        rank: 1,
+        id: myProfile.id,
+        friendCode: myProfile.friendCode,
+        name: myProfile.name,
+        avatarId: myProfile.avatarId || 'wolf',
+        customTitle: myProfile.customTitle || undefined,
+        isOwner: Boolean(myProfile.isOwner),
+        level: myProfile.level || 1,
+        xp: myProfile.xp || 0,
+        wins: myProfile.stats?.wins || 0,
+        pistiCount: myProfile.stats?.pistiCount || 0,
+        unoWins: myProfile.stats?.unoWins || 0
+      }
+    ], category);
+  }
 
-  return sortLeaderboardEntries(sample, category);
+  return [];
 }

@@ -36,6 +36,7 @@ interface FlippingCardFlight {
   isPoint: boolean;
   startRect: RectBox;
   targetRect: RectBox;
+  targetRotation?: number;
 }
 
 interface FlyingCountCardProps {
@@ -63,15 +64,16 @@ const FlyingCountCard: React.FC<FlyingCountCardProps> = ({
 
     const dx = flight.targetRect.left - flight.startRect.left;
     const dy = flight.targetRect.top - flight.startRect.top;
+    const targetRot = flight.targetRotation || 0;
 
     const outerAnim = outerEl.animate(
       [
-        { transform: 'translate3d(0px, 0px, 0px) scale(1)' },
+        { transform: 'translate3d(0px, 0px, 0px) scale(1) rotate(0deg)' },
         {
-          transform: `translate3d(${dx * 0.52}px, ${dy * 0.52 - 16}px, 0px) scale(1.06)`,
+          transform: `translate3d(${dx * 0.52}px, ${dy * 0.52 - 18}px, 0px) scale(1.08) rotate(${targetRot * 0.5}deg)`,
           offset: 0.45
         },
-        { transform: `translate3d(${dx}px, ${dy}px, 0px) scale(1)` }
+        { transform: `translate3d(${dx}px, ${dy}px, 0px) scale(1) rotate(${targetRot}deg)` }
       ],
       {
         duration: durationMs,
@@ -641,7 +643,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
           index: drawIdx,
           isPoint: isOPoint,
           startRect,
-          targetRect
+          targetRect,
+          targetRotation: isFourPlayers ? -90 : 0
         });
       } else {
         setOppFlight(null);
@@ -768,23 +771,28 @@ export const CardCountingOverlay: React.FC<Props> = ({
         />
       )}
 
-      {/* ── 1. RAKİBİN MASADAKİ SAYIM İSTASYONU (4 kişilikte sağ rakibin önünde, 2 kişilikte üst rakibin önünde) ── */}
+      {/* ── 1. RAKİBİN MASADAKİ SAYIM İSTASYONU (Pencere/Kutu Yok — Doğrudan Çuha Üzerinde) ── */}
       <div
         className={
           isFourPlayers
-            ? 'absolute right-6 sm:right-20 top-1/2 -translate-y-1/2 pointer-events-none z-30'
-            : 'absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 pointer-events-none z-30'
+            ? 'absolute right-8 sm:right-24 top-1/2 pointer-events-none z-30 origin-center'
+            : 'absolute top-20 sm:top-28 left-1/2 pointer-events-none z-30 origin-center'
         }
+        style={{
+          transform: isFourPlayers
+            ? 'translateY(-50%) rotate(-90deg)'
+            : 'translateX(-50%)'
+        }}
       >
-        <div className="flex items-center gap-3 sm:gap-5 p-2.5 sm:p-3 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-rose-500/30 shadow-[0_16px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(244,63,94,0.15)] ring-1 ring-white/10">
+        <div className="flex items-center gap-3 sm:gap-4 p-1">
           {/* Rakip Açılan Normal Deste */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
+            <span className="text-[10px] font-mono text-slate-200 mb-1 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
               {t.countedLabel} ({oppLandedCount}/{oppCards.length})
             </span>
             <div
               ref={oppOpenPileRef}
-              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center border border-dashed border-white/15 bg-black/35"
+              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center border border-dashed border-white/25 bg-black/20"
             >
               {oppCountedPile.length > 0 &&
                 oppCountedPile.slice(-5).map((c, idx) => {
@@ -809,8 +817,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
           </div>
 
           {/* Rakip Ayıklanan Değerli Puan Kartları */}
-          <div className="flex flex-col items-start pl-2 sm:pl-3 border-l border-white/15 min-w-[96px] sm:min-w-[140px]">
-            <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider mb-1">
+          <div className="flex flex-col items-start pl-1 sm:pl-2 min-w-[96px] sm:min-w-[140px]">
+            <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider mb-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
               {t.pointsLabel} (+{oppCardScore}P)
             </span>
             <div
@@ -831,8 +839,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Rakip Skor Özeti Rozeti (Deste Puanı, Çoğunluk, Pişti) */}
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-rose-400/60 shadow-xl min-w-[90px]">
+          {/* Rakip Skor Özeti Rozeti (Zarif Masa Üstü Rozeti) */}
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-black/55 backdrop-blur-md border border-rose-400/50 shadow-xl min-w-[90px]">
             <span className="text-[11px] text-rose-300 font-bold truncate max-w-[120px]">
               {isFourPlayers ? t.rivalTeam : (opp?.name || t.opponent)}
             </span>
@@ -1004,17 +1012,17 @@ export const CardCountingOverlay: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ── 3. KULLANICININ MASADAKİ SAYIM İSTASYONU ── */}
-      <div className="absolute bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 pointer-events-none z-30">
-        <div className="flex items-center gap-3 sm:gap-5 p-2.5 sm:p-3 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-amber-500/35 shadow-[0_16px_40px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.2)] ring-1 ring-amber-400/20">
+      {/* ── 3. KULLANICININ MASADAKİ SAYIM İSTASYONU (Pencere/Kutu Yok — Doğrudan Çuha Üzerinde) ── */}
+      <div className="absolute bottom-20 sm:bottom-28 left-1/2 -translate-x-1/2 pointer-events-none z-30">
+        <div className="flex items-center gap-3 sm:gap-4 p-1">
           {/* Kullanıcı Açılan Normal Deste */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-mono text-slate-300 mb-0.5 font-bold">
+            <span className="text-[10px] font-mono text-slate-200 mb-1 font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
               {t.countedLabel} ({userLandedCount}/{userCards.length})
             </span>
             <div
               ref={userOpenPileRef}
-              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center border border-dashed border-white/15 bg-black/35"
+              className="relative w-[88px] h-[128px] sm:w-24 sm:h-36 rounded-xl flex items-center justify-center border border-dashed border-white/25 bg-black/20"
             >
               {userCountedPile.length > 0 &&
                 userCountedPile.slice(-5).map((c, idx) => {
@@ -1039,8 +1047,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
           </div>
 
           {/* Kullanıcı Ayıklanan Değerli Puan Kartları */}
-          <div className="flex flex-col items-start pl-2 sm:pl-3 border-l border-white/15 min-w-[96px] sm:min-w-[140px]">
-            <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+          <div className="flex flex-col items-start pl-1 sm:pl-2 min-w-[96px] sm:min-w-[140px]">
+            <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider mb-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
               {t.pointsLabel} (+{userCardScore}P)
             </span>
             <div
@@ -1061,8 +1069,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Kullanıcı Skor Özeti Rozeti (Deste Puanı, Çoğunluk, Pişti) */}
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-slate-950/90 border border-emerald-400/60 shadow-xl min-w-[90px]">
+          {/* Kullanıcı Skor Özeti Rozeti (Zarif Masa Üstü Rozeti) */}
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-2xl bg-black/55 backdrop-blur-md border border-emerald-400/50 shadow-xl min-w-[90px]">
             <span className="text-[11px] text-emerald-300 font-bold truncate max-w-[120px]">
               {isFourPlayers ? t.ourTeam : (user?.name || t.youLabel)}
             </span>

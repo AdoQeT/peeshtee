@@ -15,8 +15,8 @@ export interface CardFlightParams {
   waypointRotation?: number;
   waypointScale?: number;
   waypointOffset?: number;
-  /** Kart türü: 'deal' = dağıtım, 'play' = oynama, 'sweep' = toplama, 'jack' = vale süpürme */
-  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
+  /** Kart türü: 'deal' = dağıtım, 'play' = oynama, 'sweep' = toplama, 'jack' = vale süpürme, 'center_reveal' = ortaya açılan kart */
+  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam' | 'center_reveal';
 }
 
 export interface GeneratedFlightPlan {
@@ -75,9 +75,11 @@ class CardPhysicsEngine {
     if (motionType === 'sweep') durationBias = -50;      // toplama hızlı ve kararlı
     if (motionType === 'jack') durationBias = 20;        // vale süpürme biraz daha dramatik
     if (motionType === 'pisti_slam') durationBias = 140; // Pişti vururken havada yükselme & taakkk iniş
+    if (motionType === 'center_reveal') durationBias = 190; // Ortaya açılan 4. kart veya Vale şov dönüşü
 
+    const maxAllowedDur = motionType === 'center_reveal' ? 720 : 580;
     const adaptiveDuration = Math.round(
-      Math.min(580, Math.max(380, baseDurationMs + flightDist * 0.12 + durationBias))
+      Math.min(maxAllowedDur, Math.max(380, baseDurationMs + flightDist * 0.12 + durationBias))
     );
 
     // Normal vector perpendicular to flight direction for natural wrist banking
@@ -213,6 +215,64 @@ class CardPhysicsEngine {
           filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
         });
       }
+    } else if (motionType === 'center_reveal') {
+      // Sinematik Ortaya Kart Açılışı:
+      // 1. Kart sol desteden yükselerek kameraya doğru (1.42x) büyür ve havada 180° döner (%0 -> %52)
+      // 2. Zirvede kısa süre asılı kalarak kart yüzünü net şekilde sergiler (%52 -> %74)
+      // 3. Kararlı ve tok bir vuruşla orta destenin üstüne oturur (%74 -> %100)
+      const steps = 24;
+      const revealLiftY = Math.max(98, arcHeight);
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        let curX: number, curY: number, curRot: number, curScale: number;
+        let shadowY: number, shadowBlur: number, shadowAlpha: string;
+        let pitchX: number, pitchZ: number;
+
+        if (t <= 0.52) {
+          const subT = t / 0.52;
+          const easeOut = Math.sin(subT * Math.PI * 0.5);
+          curX = startX + dx * 0.88 * easeOut;
+          curY = startY + dy * 0.88 * easeOut - revealLiftY * easeOut;
+          curRot = startRotation + (targetRotation - startRotation) * (0.6 * easeOut);
+          curScale = startScale + 0.42 * easeOut;
+          pitchX = Math.round(24 * Math.sin(subT * Math.PI));
+          pitchZ = Math.round(-6 * (1 - easeOut));
+          shadowY = Math.round(6 + 48 * easeOut);
+          shadowBlur = Math.round(8 + 52 * easeOut);
+          shadowAlpha = (0.65 - 0.30 * easeOut).toFixed(2);
+        } else if (t <= 0.74) {
+          const subT = (t - 0.52) / 0.22;
+          curX = startX + dx * (0.88 + 0.10 * subT);
+          curY = startY + dy * (0.88 + 0.10 * subT) - revealLiftY * (1 - 0.08 * subT);
+          curRot = startRotation + (targetRotation - startRotation) * (0.6 + 0.25 * subT);
+          curScale = startScale + 0.42 - 0.04 * subT;
+          pitchX = Math.round(10 * (1 - subT));
+          pitchZ = 0;
+          shadowY = 52;
+          shadowBlur = 56;
+          shadowAlpha = '0.35';
+        } else {
+          const subT = (t - 0.74) / 0.26;
+          const slam = subT * subT * (3 - 2 * subT);
+          const apexX = startX + dx * 0.98;
+          const apexY = startY + dy * 0.98 - revealLiftY * 0.92;
+          curX = apexX + (targetX - apexX) * slam;
+          curY = apexY + (targetY - apexY) * slam;
+          curRot = startRotation + (targetRotation - startRotation) * (0.85 + 0.15 * slam);
+          curScale = (startScale + 0.38) - (startScale + 0.38 - targetScale) * slam;
+          pitchX = Math.round(-8 * Math.sin(subT * Math.PI));
+          pitchZ = 0;
+          shadowY = Math.round(52 * (1 - slam) + 4 * slam);
+          shadowBlur = Math.round(56 * (1 - slam) + 6 * slam);
+          shadowAlpha = (0.35 + 0.45 * slam).toFixed(2);
+        }
+
+        keyframes.push({
+          offset: t,
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
+          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
+        });
+      }
     } else {
       // 2-Point Parabolic Arc with Bold 3D Wrist Whip & Deep Floating Shadow
       // Side-curve offset to prevent perfectly vertical/horizontal straight lines
@@ -273,15 +333,25 @@ class CardPhysicsEngine {
     // 3D Flip Keyframes if card turns face-up or face-down mid-flight
     let flipKeyframes: Keyframe[] | null = null;
     if (startFaceUp !== endFaceUp) {
-      // Flip happens closer to the apex (feels like the card reveals itself at peak height)
-      const flipOffset = motionType === 'deal' ? 0.52 : 0.5;
       const startRotY = startFaceUp ? 0 : 180;
       const endRotY = endFaceUp ? 0 : 180;
-      flipKeyframes = [
-        { transform: `rotateY(${startRotY}deg)`, offset: 0 },
-        { transform: `rotateY(${(startRotY + endRotY) / 2}deg)`, offset: flipOffset },
-        { transform: `rotateY(${endRotY}deg)`, offset: 1 }
-      ];
+      if (motionType === 'center_reveal') {
+        flipKeyframes = [
+          { transform: `rotateY(${startRotY}deg)`, offset: 0 },
+          { transform: `rotateY(${startRotY}deg)`, offset: 0.14 },
+          { transform: `rotateY(${(startRotY + endRotY) / 2}deg)`, offset: 0.34 },
+          { transform: `rotateY(${endRotY}deg)`, offset: 0.52 },
+          { transform: `rotateY(${endRotY}deg)`, offset: 1 }
+        ];
+      } else {
+        // Flip happens closer to the apex (feels like the card reveals itself at peak height)
+        const flipOffset = motionType === 'deal' ? 0.52 : 0.5;
+        flipKeyframes = [
+          { transform: `rotateY(${startRotY}deg)`, offset: 0 },
+          { transform: `rotateY(${(startRotY + endRotY) / 2}deg)`, offset: flipOffset },
+          { transform: `rotateY(${endRotY}deg)`, offset: 1 }
+        ];
+      }
     }
 
     return {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluatePlay, calculateRoundBreakdown } from '../src/core/rules.ts';
+import { dealInitialGame } from '../src/core/deck.ts';
 
 test('rules.ts: evaluatePlay on empty table places card', () => {
   const card = { id: 'c1', suit: 'hearts', value: 7, isSpecial: false, basePoints: 0, faceUp: false };
@@ -139,4 +140,44 @@ test('rules.ts: 4-player team score aggregation calculates combined Piştis and 
   assert.equal(teamBreakdown.specialCardPoints, 6);
   assert.equal(teamBreakdown.bonusPoints, 5);
   assert.equal(teamBreakdown.totalRoundPoints, 54);
+});
+
+test('deck.ts: dealInitialGame awards consecutive Jacks revealed at position 4 to cutter and re-reveals next card', () => {
+  // Mock deck where:
+  // table gets first 3 cards face down (deck.pop()), then 4th card is a Jack, 5th card is also a Jack, 6th is a 7 of Hearts
+  const customDeck = [];
+  for (let i = 0; i < 40; i++) {
+    customDeck.push({ id: `c-${i}`, suit: 'spades', value: 2, isSpecial: false, basePoints: 0, faceUp: false });
+  }
+  // The deck pops from the end:
+  // pop #1 (table 1): 2
+  // pop #2 (table 2): 2
+  // pop #3 (table 3): 2
+  // pop #4 (revealed): Jack of Hearts
+  // pop #5 (revealed): Jack of Spades
+  // pop #6 (revealed): 7 of Hearts (final top table card)
+  customDeck.push({ id: 'card-next', suit: 'hearts', value: 7, isSpecial: false, basePoints: 0, faceUp: false });
+  customDeck.push({ id: 'jack-2', suit: 'spades', value: 11, isSpecial: true, basePoints: 1, faceUp: false });
+  customDeck.push({ id: 'jack-1', suit: 'hearts', value: 11, isSpecial: true, basePoints: 1, faceUp: false });
+  customDeck.push({ id: 'down-3', suit: 'diamonds', value: 3, isSpecial: false, basePoints: 0, faceUp: false });
+  customDeck.push({ id: 'down-2', suit: 'diamonds', value: 4, isSpecial: false, basePoints: 0, faceUp: false });
+  customDeck.push({ id: 'down-1', suit: 'diamonds', value: 5, isSpecial: false, basePoints: 0, faceUp: false });
+
+  const result = dealInitialGame(customDeck, 2, true, 0);
+
+  // Both jacks should have been awarded to cutter
+  assert.equal(result.jacksAwardedToCutter.length, 2);
+  assert.equal(result.jacksAwardedToCutter[0].id, 'jack-1');
+  assert.equal(result.jacksAwardedToCutter[0].faceUp, true);
+  assert.equal(result.jacksAwardedToCutter[1].id, 'jack-2');
+  assert.equal(result.jacksAwardedToCutter[1].faceUp, true);
+
+  // Table must have 4 cards: 3 down, 1 face-up (which is card-next: value 7)
+  assert.equal(result.tableCards.length, 4);
+  assert.equal(result.tableCards[0].faceUp, false);
+  assert.equal(result.tableCards[1].faceUp, false);
+  assert.equal(result.tableCards[2].faceUp, false);
+  assert.equal(result.tableCards[3].id, 'card-next');
+  assert.equal(result.tableCards[3].value, 7);
+  assert.equal(result.tableCards[3].faceUp, true);
 });

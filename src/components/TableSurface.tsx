@@ -403,13 +403,16 @@ interface TableSurfaceProps {
     cutterSeat: number;
     cutterName: string;
     isHumanCutter: boolean;
-    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging' | 'stowing';
+    step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'jack_reveal' | 'merging' | 'stowing';
     cutIndex?: number;
+    initialPileACount?: number;
     pileACount: number;
     pileBCount: number;
     revealedJackCards?: Card[];
+    activeJackCard?: Card | null;
+    revealedTopCard?: Card | null;
   } | null;
-  onCutDeck?: (cutIndex: number) => void;
+  onCutDeck?: (cutIndex: number, guaranteeJackReveal?: boolean) => void;
 }
 
 export const TableSurface: React.FC<TableSurfaceProps> = ({
@@ -468,7 +471,24 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       const rect = spreadContainerRef.current.getBoundingClientRect();
       if (rect.width <= 0) return;
       const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const targetIdx = Math.min(51, Math.max(0, Math.floor(relX * 52)));
+      const targetIdx = Math.min(44, Math.max(8, Math.floor(relX * 52)));
+      if (targetIdx !== hoveredCutIndex) {
+        sound.playCardHover();
+        setHoveredCutIndex(targetIdx);
+      }
+    },
+    [deckCutState?.step, deckCutState?.isHumanCutter, hoveredCutIndex]
+  );
+
+  const handleCutTouchMove = React.useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if (!spreadContainerRef.current || deckCutState?.step !== 'waiting_cut' || !deckCutState.isHumanCutter) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const rect = spreadContainerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const relX = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+      const targetIdx = Math.min(44, Math.max(8, Math.floor(relX * 52)));
       if (targetIdx !== hoveredCutIndex) {
         sound.playCardHover();
         setHoveredCutIndex(targetIdx);
@@ -479,12 +499,30 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
   React.useEffect(() => {
     if (deckCutState?.isActive && deckCutState.step === 'waiting_cut') {
-      const timer = window.setTimeout(() => setIsSpread(true), 60);
+      const timer = window.setTimeout(() => setIsSpread(true), 50);
       return () => window.clearTimeout(timer);
     } else if (!deckCutState?.isActive) {
       setIsSpread(false);
+      setHoveredCutIndex(null);
     }
   }, [deckCutState?.isActive, deckCutState?.step]);
+
+  // Automated Bot Virtual Riffle Sweep when AI/Opponent is cutting the deck
+  React.useEffect(() => {
+    if (!deckCutState?.isActive || deckCutState.step !== 'waiting_cut' || deckCutState.isHumanCutter) {
+      return;
+    }
+    const waypoints = [12, 18, 25, 32, 37, 30, 24];
+    let stepIdx = 0;
+    const interval = window.setInterval(() => {
+      if (stepIdx < waypoints.length) {
+        sound.playCardHover();
+        setHoveredCutIndex(waypoints[stepIdx]);
+        stepIdx++;
+      }
+    }, 140);
+    return () => window.clearInterval(interval);
+  }, [deckCutState?.isActive, deckCutState?.step, deckCutState?.isHumanCutter]);
   const isFourPlayers = players.length === 4;
   const user = players[0];
   const isCountingActive = Boolean(onTableCountState?.isActive || onTableCountState?.isDone);
@@ -998,12 +1036,20 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
         {/* CENTER TABLE: Deck + Pot (counting overlay handled by CardCountingOverlay in App.tsx) */}
         {(
           <div className="relative w-full flex flex-col items-center justify-center min-h-[170px] sm:min-h-[200px]">
-            {/* IN-TABLE PHYSICAL DECK CUT VIEW (MASADA YAYILAN FİZİKİ DESTE KESME) */}
+            {/* IN-TABLE PHYSICAL DECK CUT VIEW (MASADA YAYILAN FİZİKİ DESTE KESME, 2'YE AYRILMA, VALE ŞOVU & BİRLEŞME) */}
             {deckCutState?.isActive && (
               <div className="absolute inset-0 flex flex-col items-center justify-center select-none z-30 pointer-events-none">
-                {/* Instruction Banner on table felt */}
-                <div className="absolute -top-7 sm:-top-9 px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wide flex items-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.6)] z-40 animate-pulse pointer-events-auto">
-                  <Scissors className="w-4 h-4 text-amber-400 animate-bounce" />
+                {/* Dynamic Stage Instruction Banner on table felt */}
+                <div
+                  className={`absolute -top-8 sm:-top-10 px-4 py-1.5 rounded-full font-cyber text-xs font-black tracking-wide flex items-center gap-2 z-50 transition-all duration-300 pointer-events-auto ${
+                    deckCutState.step === 'jack_reveal'
+                      ? 'bg-amber-950/95 border-2 border-yellow-300 text-yellow-200 shadow-[0_0_35px_rgba(250,204,21,0.9)] scale-105 animate-bounce'
+                      : deckCutState.revealedTopCard
+                      ? 'bg-emerald-950/95 border-2 border-emerald-400 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.75)]'
+                      : 'bg-slate-950/95 border-2 border-amber-400 text-amber-300 shadow-[0_0_25px_rgba(245,158,11,0.6)] animate-pulse'
+                  }`}
+                >
+                  <Scissors className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
                   <span>
                     {deckCutState.step === 'waiting_cut'
                       ? deckCutState.isHumanCutter
@@ -1011,6 +1057,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                         : `✂️ ${deckCutState.cutterName} ${t.cuttingDeck}`
                       : deckCutState.step === 'splitting'
                       ? `${t.splittingDeck} ${deckCutState.pileACount} & ${deckCutState.pileBCount} ${t.cardsUnit}`
+                      : deckCutState.step === 'jack_reveal' && deckCutState.activeJackCard
+                      ? `👑 VALE ÇIKTI (${deckCutState.activeJackCard.symbol})! ${deckCutState.cutterName} ALIYOR & YENİ KART AÇILIYOR!`
+                      : deckCutState.revealedTopCard
+                      ? `✨ ORTAYA AÇILAN KART: ${deckCutState.revealedTopCard.symbol} • DESTELER BİRLEŞİYOR`
                       : deckCutState.step === 'dealing_pot'
                       ? t.dealingPot
                       : deckCutState.step === 'merging'
@@ -1019,111 +1069,179 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   </span>
                 </div>
 
+                {/* Ambient Glowing Felt Pads under Left Pile, Center Stage & Right Pile during Split/Deal */}
+                {(deckCutState.step === 'splitting' ||
+                  deckCutState.step === 'dealing_pot' ||
+                  deckCutState.step === 'jack_reveal') && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    {/* Left Pile A Halo */}
+                    <div
+                      style={{
+                        transform: `translateX(-${typeof window !== 'undefined' && window.innerWidth >= 640 ? 165 : 115}px)`
+                      }}
+                      className="absolute w-24 h-32 sm:w-28 sm:h-40 rounded-2xl border-2 border-amber-400/40 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.25)] transition-all duration-500"
+                    />
+                    {/* Center Reveal Stage Halo */}
+                    <div
+                      className={`absolute w-24 h-32 sm:w-28 sm:h-40 rounded-2xl border-2 transition-all duration-300 ${
+                        deckCutState.step === 'jack_reveal'
+                          ? 'border-yellow-300 bg-amber-400/25 ring-4 ring-yellow-300/50 shadow-[0_0_55px_rgba(250,204,21,0.85)] scale-110'
+                          : deckCutState.revealedTopCard
+                          ? 'border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/40 shadow-[0_0_45px_rgba(16,185,129,0.65)] scale-105'
+                          : 'border-white/25 bg-white/5 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]'
+                      }`}
+                    />
+                    {/* Right Pile B Halo */}
+                    <div
+                      style={{
+                        transform: `translateX(${typeof window !== 'undefined' && window.innerWidth >= 640 ? 165 : 115}px)`
+                      }}
+                      className="absolute w-24 h-32 sm:w-28 sm:h-40 rounded-2xl border-2 border-cyan-400/40 bg-cyan-500/10 shadow-[0_0_30px_rgba(6,182,212,0.25)] transition-all duration-500"
+                    />
+                  </div>
+                )}
+
                 {/* FANNED / SPLIT / MERGING 52 PHYSICAL CARDS SPREAD ACROSS TABLE FELT */}
                 <div
                   ref={spreadContainerRef}
                   onMouseMove={handleCutMouseMove}
-                  onMouseLeave={() => setHoveredCutIndex(null)}
+                  onTouchMove={handleCutTouchMove}
+                  onMouseLeave={() => deckCutState.isHumanCutter && setHoveredCutIndex(null)}
                   className="relative w-full h-36 sm:h-44 flex items-center justify-center pointer-events-auto"
                 >
+                  {/* Floating Laser Cut Seam Indicator when hovering over the 52-card ribbon */}
+                  {deckCutState.step === 'waiting_cut' && hoveredCutIndex !== null && isSpread && (
+                    <div
+                      style={{
+                        left: `calc(50% + ${
+                          ((hoveredCutIndex - 25.5) / 26) *
+                          (typeof window !== 'undefined' && window.innerWidth >= 640 ? 44 : 38)
+                        }%)`
+                      }}
+                      className="absolute top-0 bottom-0 -translate-x-1/2 z-[95] flex flex-col items-center justify-between pointer-events-none transition-all duration-75"
+                    >
+                      <div className="-mt-4 px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-cyber font-black text-[10px] shadow-[0_0_20px_rgba(251,191,36,0.95)] whitespace-nowrap flex items-center gap-1">
+                        <span>✂️ {hoveredCutIndex}</span>
+                        <span className="opacity-60">|</span>
+                        <span>{52 - hoveredCutIndex}</span>
+                      </div>
+                      <div className="w-0.5 flex-1 bg-gradient-to-b from-amber-300 via-yellow-200 to-amber-400 shadow-[0_0_14px_rgba(251,191,36,1)] animate-pulse" />
+                    </div>
+                  )}
+
                   {Array.from({ length: 52 }).map((_, idx) => {
                     const isSm = typeof window !== 'undefined' && window.innerWidth >= 640;
-                    const pileOffset = isSm ? 140 : 105;
+                    const pileOffset = isSm ? 165 : 115;
                     const cutIdx = deckCutState.cutIndex ?? 26;
                     const isLeftPile = idx < cutIdx;
 
                     let cardLeft = '50%';
                     let cardTransform = 'translate(-50%, 0) rotate(0deg)';
                     let cardZIndex = idx + 1;
+                    let cardOpacity = 1;
                     let cardTransition =
-                      'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+                      'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease';
 
                     if (deckCutState.step === 'waiting_cut') {
                       const maxOffset = isSm ? 44 : 38;
-                      const offsetPercent = isSpread ? ((idx - 25.5) / 26) * maxOffset : 0;
-                      const rotDeg = isSpread ? ((idx - 25.5) / 26) * 12 : 0;
-                      
-                      // Tactile Riffle Preview Calculation: cards near the hovered cut point lift and fan outward
+                      const normPos = (idx - 25.5) / 26;
+                      const offsetPercent = isSpread ? normPos * maxOffset : 0;
+                      const rotDeg = isSpread ? normPos * 14 : 0;
+                      // Subtle 3D casino arch curve across the ribbon
+                      const archY = isSpread ? normPos * normPos * 12 : -(idx * 0.4);
+
+                      // Tactile V-Seam Parting & Riffle Lift around hoveredCutIndex
                       let tactileLiftY = 0;
+                      let tactileShiftX = 0;
                       let tactileScale = 1;
                       let tactileRotDelta = 0;
                       let tactileZ = idx + 1;
 
                       if (hoveredCutIndex !== null && isSpread) {
                         const dist = Math.abs(idx - hoveredCutIndex);
-                        if (dist <= 5) {
-                          const factor = 1 - dist / 6; // 1.0 at center, 0.16 at edges
-                          tactileLiftY = -22 * factor;
-                          tactileScale = 1 + 0.12 * factor;
-                          tactileRotDelta = (idx < hoveredCutIndex ? -5 : idx > hoveredCutIndex ? 5 : 0) * factor;
-                          tactileZ = 60 + (6 - dist);
+                        // Part the entire ribbon slightly left/right of the cut seam
+                        tactileShiftX = idx < hoveredCutIndex ? -8 : 8;
+                        if (dist <= 6) {
+                          const factor = 1 - dist / 7;
+                          tactileLiftY = -28 * factor;
+                          tactileScale = 1 + 0.14 * factor;
+                          tactileRotDelta = (idx < hoveredCutIndex ? -7 : 7) * factor;
+                          tactileZ = 60 + (7 - dist);
                         }
                       }
 
-                      cardLeft = isSpread ? `calc(50% + ${offsetPercent}%)` : `calc(50% - ${pileOffset}px)`;
-                      cardTransform = `translate(-50%, ${tactileLiftY}px) rotate(${rotDeg + tactileRotDelta}deg) scale(${tactileScale})`;
+                      cardLeft = isSpread ? `calc(50% + ${offsetPercent}%)` : '50%';
+                      cardTransform = `translate(calc(-50% + ${tactileShiftX}px), ${archY + tactileLiftY}px) rotate(${rotDeg + tactileRotDelta}deg) scale(${tactileScale})`;
                       cardZIndex = tactileZ;
                       cardTransition = isSpread
-                        ? 'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.2, 0.9, 0.3, 1)'
+                        ? 'left 0.62s cubic-bezier(0.16, 1, 0.3, 1), transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1)'
                         : 'none';
                     } else if (
                       deckCutState.step === 'splitting' ||
-                      deckCutState.step === 'dealing_pot'
+                      deckCutState.step === 'dealing_pot' ||
+                      deckCutState.step === 'jack_reveal'
                     ) {
                       if (isLeftPile) {
                         const layer = idx;
+                        // Hide top cards that have already peeled off Pile A into the Center Pot!
+                        const isAlreadyDealt = idx >= deckCutState.pileACount;
                         cardLeft = `calc(50% - ${pileOffset}px)`;
-                        cardTransform = `translate(-50%, ${
-                          (layer - cutIdx / 2) * -0.6
-                        }px) rotate(${(layer - cutIdx / 2) * 0.25}deg)`;
+                        cardTransform = `perspective(900px) translate(-50%, ${
+                          (layer - cutIdx / 2) * -0.75
+                        }px) rotateX(6deg) rotateZ(${(layer - cutIdx / 2) * 0.25}deg) scale(${isAlreadyDealt ? 0.85 : 1})`;
                         cardZIndex = layer + 1;
+                        cardOpacity = isAlreadyDealt ? 0 : 1;
                       } else {
                         const layer = idx - cutIdx;
                         cardLeft = `calc(50% + ${pileOffset}px)`;
-                        cardTransform = `translate(-50%, ${
-                          (layer - (52 - cutIdx) / 2) * -0.6
-                        }px) rotate(${(layer - (52 - cutIdx) / 2) * 0.25}deg)`;
+                        cardTransform = `perspective(900px) translate(-50%, ${
+                          (layer - (52 - cutIdx) / 2) * -0.75
+                        }px) rotateX(6deg) rotateZ(${(layer - (52 - cutIdx) / 2) * 0.25}deg)`;
                         cardZIndex = layer + 1;
                       }
                       cardTransition =
-                        'left 0.55s cubic-bezier(0.25, 1, 0.5, 1), transform 0.55s cubic-bezier(0.25, 1, 0.5, 1)';
+                        'left 0.58s cubic-bezier(0.22, 1, 0.36, 1), transform 0.58s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease';
                     } else if (deckCutState.step === 'merging') {
                       if (isLeftPile) {
+                        const isAlreadyDealt = idx >= deckCutState.pileACount;
                         const layer = idx;
                         cardLeft = `calc(50% - ${pileOffset}px)`;
-                        cardTransform = `translate(-50%, ${
-                          (layer - cutIdx / 2) * -0.5
-                        }px) rotate(0deg)`;
+                        cardTransform = `perspective(900px) translate(-50%, ${
+                          (layer - deckCutState.pileACount / 2) * -0.65
+                        }px) rotate(0deg) scale(1.03)`;
                         cardZIndex = layer + 1;
+                        cardOpacity = isAlreadyDealt ? 0 : 1;
                       } else {
-                        // Pile B glides and lands on top of Pile A!
-                        const layerOnTop = idx - cutIdx + cutIdx;
+                        // Pile B arcs over the Center Pot and slams on top of Pile A!
+                        const layerOnTop = deckCutState.pileACount + (idx - cutIdx);
                         cardLeft = `calc(50% - ${pileOffset}px)`;
-                        cardTransform = `translate(-50%, ${
-                          (layerOnTop - 26) * -0.6
-                        }px) rotate(0deg)`;
-                        cardZIndex = 40 + idx;
+                        cardTransform = `perspective(900px) translate(-50%, ${
+                          (layerOnTop - 24) * -0.65
+                        }px) rotate(0deg) scale(1.03)`;
+                        cardZIndex = 70 + idx;
                       }
                       cardTransition =
-                        'left 0.65s cubic-bezier(0.25, 1, 0.45, 1), transform 0.65s cubic-bezier(0.25, 1, 0.45, 1)';
+                        'left 0.65s cubic-bezier(0.22, 1.15, 0.38, 1), transform 0.65s cubic-bezier(0.22, 1.15, 0.38, 1)';
                     } else if (deckCutState.step === 'stowing') {
-                      const deckSlotOffset = isSm ? 72 : 56;
+                      const isAlreadyDealt = isLeftPile && idx >= deckCutState.pileACount;
+                      const deckSlotOffset = isSm ? 72 : 52;
                       cardLeft = `calc(50% - ${deckSlotOffset}px)`;
-                      cardTransform = `translate(-50%, ${(idx - 26) * -0.6}px) scale(1)`;
+                      cardTransform = `translate(-50%, ${(idx - 24) * -0.55}px) scale(1)`;
                       cardZIndex = idx + 1;
-                      cardTransition = 'all 0.45s cubic-bezier(0.25, 1, 0.5, 1)';
+                      cardOpacity = isAlreadyDealt ? 0 : 1;
+                      cardTransition = 'all 0.48s cubic-bezier(0.22, 1, 0.36, 1)';
                     }
 
                     return (
                       <div
                         key={idx}
-                        onClick={() => {
+                        onClick={e => {
                           if (
                             deckCutState.step === 'waiting_cut' &&
                             deckCutState.isHumanCutter &&
                             onCutDeck
                           ) {
-                            onCutDeck(idx);
+                            onCutDeck(idx, e.shiftKey);
                           }
                         }}
                         onMouseEnter={() =>
@@ -1131,21 +1249,17 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                           deckCutState.isHumanCutter &&
                           setHoveredCutIndex(idx)
                         }
-                        onMouseLeave={() =>
-                          deckCutState.step === 'waiting_cut' &&
-                          deckCutState.isHumanCutter &&
-                          setHoveredCutIndex(null)
-                        }
                         style={{
                           position: 'absolute',
                           left: cardLeft,
                           transform: cardTransform,
                           zIndex: cardZIndex,
+                          opacity: cardOpacity,
                           transition: cardTransition
                         }}
                         className={`${CARD_DIMENSIONS.md.classes} ${
                           deckCutState.step === 'waiting_cut' && deckCutState.isHumanCutter
-                            ? 'cursor-pointer hover:shadow-[0_0_20px_rgba(245,158,11,0.9)] ring-1 hover:ring-2 ring-amber-400/80 pointer-events-auto'
+                            ? 'cursor-pointer hover:shadow-[0_0_24px_rgba(245,158,11,0.95)] ring-1 hover:ring-2 ring-amber-400/80 pointer-events-auto'
                             : 'pointer-events-none'
                         }`}
                       >
@@ -1155,22 +1269,45 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   })}
                 </div>
 
+                {/* Singleplayer Optional Showcase Button: Cut with Guaranteed Jack (Vale) Reveal */}
+                {deckCutState.step === 'waiting_cut' &&
+                  deckCutState.isHumanCutter &&
+                  !isMultiplayer &&
+                  onCutDeck && (
+                    <div className="absolute -bottom-8 sm:-bottom-9 flex items-center justify-center gap-2 z-50 pointer-events-auto animate-in fade-in duration-300">
+                      <button
+                        type="button"
+                        onClick={() => onCutDeck(hoveredCutIndex ?? 26, true)}
+                        className="px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/25 via-yellow-500/30 to-amber-500/25 hover:from-amber-500/45 hover:to-yellow-500/45 border border-amber-400/80 text-amber-200 hover:text-white font-cyber text-[10px] sm:text-xs font-black tracking-wide shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_28px_rgba(245,158,11,0.8)] transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                        title="Kesilen desteden ortaya Vale (J) çıkmasını, kesene gitmesini ve yeni kart açılmasını canlı izle!"
+                      >
+                        <span>🃏</span>
+                        <span>Vale (J) Çıkışlı Kesim Göster</span>
+                      </button>
+                    </div>
+                  )}
+
                 {/* Pile Badges under the piles during splitting & dealing */}
-                {(deckCutState.step === 'splitting' || deckCutState.step === 'dealing_pot') && (
-                  <div className="absolute -bottom-7 sm:-bottom-8 flex items-center justify-between w-full max-w-sm px-6 animate-in fade-in duration-300">
-                    <span className="text-[10px] font-cyber text-amber-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-amber-400/40 shadow-md">
-                      {t.cutterPile} {deckCutState.pileACount}
+                {(deckCutState.step === 'splitting' ||
+                  deckCutState.step === 'dealing_pot' ||
+                  deckCutState.step === 'jack_reveal') && (
+                  <div className="absolute -bottom-8 sm:-bottom-9 flex items-center justify-between w-full max-w-md px-4 animate-in fade-in duration-300">
+                    <span className="text-[10px] font-cyber text-amber-300 font-bold bg-slate-950/95 px-3 py-0.5 rounded-full border border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                      ✂️ {t.cutterPile} {deckCutState.pileACount}
                     </span>
-                    <span className="text-[10px] font-cyber text-cyan-300 font-bold bg-slate-950/90 px-2.5 py-0.5 rounded-full border border-cyan-400/40 shadow-md">
-                      {t.remainingPile} {deckCutState.pileBCount}
+                    <span className="text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/95 px-2.5 py-0.5 rounded-full border border-emerald-400/40 shadow-md">
+                      {t.onFloor} {visibleTableCards.length}
+                    </span>
+                    <span className="text-[10px] font-cyber text-cyan-300 font-bold bg-slate-950/95 px-3 py-0.5 rounded-full border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                      🂠 {t.remainingPile} {deckCutState.pileBCount}
                     </span>
                   </div>
                 )}
 
                 {deckCutState.step === 'merging' && (
-                  <div className="absolute -bottom-7 sm:-bottom-8 flex items-center justify-center animate-in fade-in duration-200">
-                    <span className="text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/90 px-3 py-0.5 rounded-full border border-emerald-400/40 shadow-md">
-                      {t.deckMerged}
+                  <div className="absolute -bottom-8 sm:-bottom-9 flex items-center justify-center animate-in fade-in duration-200">
+                    <span className="text-[10px] font-cyber text-emerald-300 font-bold bg-slate-950/95 px-3.5 py-1 rounded-full border border-emerald-400/60 shadow-[0_0_20px_rgba(16,185,129,0.45)]">
+                      ✨ {t.deckMerged}
                     </span>
                   </div>
                 )}
@@ -1179,13 +1316,17 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
             <div
               className={`flex items-center justify-center gap-6 sm:gap-12 mx-auto transition-opacity duration-300 ${
-                (deckCutState?.isActive && deckCutState.step !== 'stowing') || isCountingActive
+                isCountingActive ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              }`}
+            >
+            {/* Physical Deck Stack on the Left of the Pot (Hidden only while 52-card cut spread is active on felt) */}
+            <div
+              className={`flex flex-col items-center transition-opacity duration-200 ${
+                deckCutState?.isActive && deckCutState.step !== 'stowing'
                   ? 'opacity-0 pointer-events-none'
                   : 'opacity-100'
               }`}
             >
-            {/* Physical Deck Stack on the Left of the Pot (Exact scale(1) to match shuffle end) */}
-            <div className="flex flex-col items-center">
               <div
                 ref={el => {
                   tableRefs.current.deckEl = el;
@@ -1231,14 +1372,25 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               ) : null}
             </div>
 
-            {/* Center Pot Pile (Where cards are dealt & thrown) */}
-            <div className="relative flex flex-col items-center justify-center">
+            {/* Center Pot Pile (Centered at 50% between split piles during cut, then glides to its slot on stowing!) */}
+            <div
+              style={{
+                transform:
+                  deckCutState?.isActive && deckCutState.step !== 'stowing'
+                    ? `translateX(-${typeof window !== 'undefined' && window.innerWidth >= 640 ? 72 : 52}px)`
+                    : 'translateX(0px)',
+                transition: 'transform 0.48s cubic-bezier(0.22, 1, 0.36, 1)'
+              }}
+              className="relative flex flex-col items-center justify-center z-40"
+            >
               <div
                 ref={el => {
                   tableRefs.current.potEl = el;
                 }}
                 className={`relative ${CARD_DIMENSIONS.md.classes} flex items-center justify-center rounded-2xl transition-all duration-300 ${
-                  isHoveredCardCapturing
+                  deckCutState?.step === 'jack_reveal'
+                    ? 'border-2 border-yellow-300 bg-amber-400/25 ring-4 ring-yellow-300/60 shadow-[0_0_55px_rgba(250,204,21,0.9)] scale-110'
+                    : isHoveredCardCapturing
                     ? 'border-2 border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/50 shadow-[0_0_40px_rgba(16,185,129,0.65)] scale-105'
                     : isSingleCardPistiChance
                     ? 'border-2 border-amber-400/80 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.25)]'

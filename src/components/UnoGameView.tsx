@@ -445,7 +445,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         targetRotation?: number;
         duration?: number;
         arcHeight?: number;
-        motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
+        motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam' | 'center_reveal';
         onFinish?: () => void;
       } = {}
     ) => {
@@ -660,9 +660,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       spawnFlyingUnoCard(initialCard, deckRect, discardRect, {
         startFaceUp: false,
         endFaceUp: true,
-        duration: 490,
-        motionType: 'play',
-        arcHeight: 115,
+        duration: 520,
+        motionType: 'center_reveal',
+        arcHeight: 120,
         startRotation: -12,
         targetRotation: 3,
         onFinish: () => {

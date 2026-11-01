@@ -33,15 +33,15 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-competitive progression system with level-gated rewards',
-  '-live global top 25 leaderboard for xp, wins and pistis',
-  '-achievements showcase with floating unlock toasts',
-  '-dynamic lofi vinyl and rhodes ambience soundscape',
-  '-animated neon scanline and shimmering gold card backs',
-  '-expanding holographic neon shockwave ring on pisti'
+  '-32-card 3d casino shuffling with waterfall bridge cascades',
+  '-tactile deck cut with curved arch spread and live v-seam parting',
+  '-3d 2-pile split with glowing felt halos and live peel counters',
+  '-jack cut ritual where revealed jacks fly to cutter and next card is drawn',
+  '-high-arc deck merge slam and seamless dual-glide stowing before deal',
+  '-upgraded initial discard reveal in renq with 3d close-up arc'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.30.0';
+const versionTitle = process.argv[2] || 'v1.30.1';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

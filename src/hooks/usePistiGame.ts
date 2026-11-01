@@ -31,11 +31,12 @@ export const SHUFFLE_STYLES: ShuffleStyle[] = [
   'riffle_bridge',
   'triple_cut',
   'table_wash',
-  'farot_wave'
+  'farot_wave',
+  'hindu_slide'
 ];
 
 export const getShuffleDuration = (_style: ShuffleStyle): number => {
-  return 2200;
+  return 2500;
 };
 
 export function orientHandsForPerspective(
@@ -62,11 +63,14 @@ export interface DeckCutState {
   cutterSeat: number;
   cutterName: string;
   isHumanCutter: boolean;
-  step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'merging' | 'stowing';
+  step: 'waiting_cut' | 'splitting' | 'dealing_pot' | 'jack_reveal' | 'merging' | 'stowing';
   cutIndex?: number;
+  initialPileACount?: number;
   pileACount: number;
   pileBCount: number;
   revealedJackCards?: Card[];
+  activeJackCard?: Card | null;
+  revealedTopCard?: Card | null;
 }
 
 export interface PendingDealContext {
@@ -793,7 +797,7 @@ export function usePistiGame({
           const botTimer = window.setTimeout(() => {
             const botCut = Math.floor(16 + Math.random() * 20);
             handleCutDeckAndProceed(botCut);
-          }, 1200);
+          }, 1350);
           dealTimersRef.current.push(botTimer);
         }
       }, shuffleDuration);
@@ -821,7 +825,7 @@ export function usePistiGame({
   );
 
   const handleCutDeckAndProceed = useCallback(
-    (cutIndex: number) => {
+    (cutIndex: number, guaranteeJackReveal: boolean = false) => {
       const activeCtx = pendingDealContextRef.current || pendingDealContext;
       if (!activeCtx) return;
       const { seedDeck, configuredSettings, isMp, mySeat, startingTurn } = activeCtx;
@@ -829,6 +833,17 @@ export function usePistiGame({
       // Slices and cuts the deck at the chosen position!
       const validIndex = Math.max(8, Math.min(cutIndex, seedDeck.length - 8));
       const cutDeck = [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
+
+      // Optional singleplayer showcase trigger: guarantees the 4th card opened in center is a Jack (Vale)!
+      if (guaranteeJackReveal && !isMp && cutDeck.length >= 12) {
+        const fourthFromTopIdx = cutDeck.length - 4;
+        const jackIdx = cutDeck.findIndex((c, idx) => c.value === 11 && idx < cutDeck.length - 6);
+        if (jackIdx !== -1) {
+          const temp = cutDeck[fourthFromTopIdx];
+          cutDeck[fourthFromTopIdx] = cutDeck[jackIdx];
+          cutDeck[jackIdx] = temp;
+        }
+      }
 
       // In Multiplayer: If local cutter clicked or host acting for AI, broadcast MP_DECK_CUT to peers!
       if (isMp && multiplayerManager.isConnected && (deckCutState?.isHumanCutter || multiplayerManager.isHost)) {
@@ -840,7 +855,7 @@ export function usePistiGame({
         });
       }
 
-      // Step 1: Splitting animation on the felt
+      // Step 1: 3D Splitting animation on the felt (Left: Pile A, Right: Pile B, Center: Open Stage)
       sound.playTripleCut();
       setDeckCutState(prev =>
         prev
@@ -848,22 +863,31 @@ export function usePistiGame({
               ...prev,
               step: 'splitting',
               cutIndex: validIndex,
+              initialPileACount: validIndex,
               pileACount: validIndex,
-              pileBCount: seedDeck.length - validIndex
+              pileBCount: seedDeck.length - validIndex,
+              activeJackCard: null,
+              revealedTopCard: null
             }
           : null
       );
 
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-      const pileOffsetX = isMobile ? 105 : 140;
+      const pileOffsetX = isMobile ? 115 : 165;
       const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
       const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 300;
+      const potElCenter = getCenter(tableRefs.current.potEl, centerX, centerY);
+      // During deckCutState, potEl is centered horizontally at centerX between Pile A and Pile B
+      const potPos = {
+        x: centerX,
+        y: potElCenter.y
+      };
       const pileAPos = {
         x: centerX - pileOffsetX,
-        y: centerY
+        y: potElCenter.y
       };
 
-      // Step 2: Dealing pot cards from Pile A into Pot (starts after 650ms split animation)
+      // Step 2: Dealing pot cards from Pile A into Center Stage (starts after 680ms split animation)
       const timerPot = window.setTimeout(() => {
         setDeckCutState(prev => (prev ? { ...prev, step: 'dealing_pot' } : null));
 
@@ -885,8 +909,6 @@ export function usePistiGame({
           ...orientedHands[0]
         ]);
 
-        const potPos = getCenter(tableRefs.current.potEl, centerX, centerY);
-
         // Prepare table card offsets
         const preparedTableCards: Card[] = initialDeal.tableCards.map((rawCard, idx) => ({
           ...rawCard,
@@ -903,19 +925,22 @@ export function usePistiGame({
         }
 
         const potSteps: PotStep[] = [];
-        let currentDelay = 40;
+        let currentDelay = 60;
 
-        // 3 face-down cards to pot
+        // 1) 3 face-down cards to center pot
         for (let i = 0; i < 3; i++) {
           potSteps.push({
             card: preparedTableCards[i],
             faceUp: false,
             delay: currentDelay
           });
-          currentDelay += 220;
+          currentDelay += 250;
         }
 
-        // Awarded Jacks (if any, "Vale Kesene Yarar")
+        // Brief dramatic pause before flipping the 4th card open
+        currentDelay += 120;
+
+        // 2) Awarded Jacks (if any, "Vale Kesene Yarar" — flips open in center, gleams, swoops to cutter, then next card opens!)
         const jacks = initialDeal.jacksAwardedToCutter || [];
         jacks.forEach(jackCard => {
           potSteps.push({
@@ -924,22 +949,34 @@ export function usePistiGame({
             isJackAward: true,
             delay: currentDelay
           });
-          currentDelay += 850;
+          // 640ms center_reveal flight + 720ms center showcase hold + 490ms headstart on swoop
+          currentDelay += 1850;
         });
 
-        // 4th top face-up card to pot
+        // 3) 4th top face-up card to center pot
         potSteps.push({
           card: preparedTableCards[3],
           faceUp: true,
           delay: currentDelay
         });
-        currentDelay += 500;
+        // 620ms center_reveal flight + 540ms showcase pause before merging piles
+        currentDelay += 1160;
 
         // Execute pot deal flights
         potSteps.forEach((pStep, sIdx) => {
           const tFlight = window.setTimeout(() => {
-            sound.playCardDeal();
+            sound.playCardDeal(pStep.faceUp ? 1.14 : 0.95 + sIdx * 0.04);
             setDeck(prev => (prev.length > 0 ? prev.slice(0, -1) : prev));
+            setDeckCutState(prev =>
+              prev
+                ? {
+                    ...prev,
+                    step: 'dealing_pot',
+                    activeJackCard: null,
+                    pileACount: Math.max(0, prev.pileACount - 1)
+                  }
+                : null
+            );
 
             if (pStep.isJackAward) {
               const flyToPotId = `pot-jack-${sIdx}-${Date.now()}`;
@@ -952,76 +989,111 @@ export function usePistiGame({
                   startY: pileAPos.y,
                   targetX: potPos.x,
                   targetY: potPos.y,
-                  startRotation: 0,
+                  startRotation: -8,
                   targetRotation: 0,
                   startFaceUp: false,
                   endFaceUp: true,
-                  duration: 400,
-                  arcHeight: 50,
+                  duration: 640,
+                  arcHeight: 112,
+                  motionType: 'center_reveal',
                   size: 'md',
-                  zIndex: 70 + sIdx,
+                  zIndex: 85 + sIdx,
                   onComplete: () => {
                     setFlyingCards(prev => prev.filter(f => f.id !== flyToPotId));
-                    sound.playJackSweep();
+                    sound.playPointCardChime(3);
+                    particleEngine.emitBurst(potPos.x, potPos.y, '#fbbf24', 32);
+
                     const cutterName = playersRef.current[startingTurn]?.name || 'Kesen Oyuncu';
                     showDevToast(
-                      `✂️ VALE KESENE YARAR! Masadaki Vale (${pStep.card.suit === 'hearts' || pStep.card.suit === 'diamonds' ? 'Kırmızı' : 'Siyah'} J) ${cutterName}'e verildi!`
+                      `✂️ VALE KESENE YARAR! Ortaya açılan Vale (${pStep.card.suit === 'hearts' || pStep.card.suit === 'diamonds' ? 'Kırmızı' : 'Siyah'} J) ${cutterName}'e gidiyor ve yeni kart açılıyor!`
                     );
 
-                    const cutterEl =
-                      tableRefs.current.collectedEls[startingTurn] ||
-                      tableRefs.current.handEls[startingTurn];
-                    let cutterPos = { x: centerX, y: window.innerHeight - 80 };
-                    if (cutterEl) {
-                      const r = cutterEl.getBoundingClientRect();
-                      if (r.width > 0 && r.height > 0) {
-                        cutterPos = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-                      }
-                    } else if (startingTurn !== 0) {
-                      cutterPos = { x: centerX, y: 80 };
-                    }
+                    // Place the revealed Jack visibly on top of the center pot for 720ms showcase!
+                    const showcaseJackCard: Card = {
+                      ...pStep.card,
+                      faceUp: true,
+                      tableOffsetX: 0,
+                      tableOffsetY: -3,
+                      tableRotation: 2
+                    };
+                    setTableCards(prev => [...prev, showcaseJackCard]);
+                    setDeckCutState(prev =>
+                      prev
+                        ? {
+                            ...prev,
+                            step: 'jack_reveal',
+                            activeJackCard: showcaseJackCard
+                          }
+                        : null
+                    );
 
-                    const flyToCutterId = `jack-sweep-${Date.now()}`;
-                    setFlyingCards(prev => [
-                      ...prev,
-                      {
-                        id: flyToCutterId,
-                        card: pStep.card,
-                        startX: potPos.x,
-                        startY: potPos.y,
-                        targetX: cutterPos.x,
-                        targetY: cutterPos.y,
-                        startRotation: 0,
-                        targetRotation: 360,
-                        startFaceUp: true,
-                        endFaceUp: true,
-                        duration: 700,
-                        arcHeight: 130,
-                        motionType: 'jack',
-                        size: 'md',
-                        zIndex: 90,
-                        onComplete: () => {
-                          setFlyingCards(prev => prev.filter(f => f.id !== flyToCutterId));
-                          setPlayers(prev =>
-                            prev.map((p, idx) => {
-                              if (idx === startingTurn) {
-                                return {
-                                  ...p,
-                                  collectedCards: [...p.collectedCards, pStep.card],
-                                  bonusPoints: (p.bonusPoints || 0) + 1
-                                };
-                              }
-                              return p;
-                            })
-                          );
+                    // After 720ms showcase on the center pot, swoop the Jack to the Cutter's Collected Pile!
+                    const tJackSwoop = window.setTimeout(() => {
+                      setTableCards(prev => prev.filter(c => c.id !== pStep.card.id));
+                      sound.playJackSweep();
+
+                      const cutterEl =
+                        tableRefs.current.collectedEls[startingTurn] ||
+                        tableRefs.current.handEls[startingTurn];
+                      let cutterPos = { x: centerX, y: window.innerHeight - 80 };
+                      if (cutterEl) {
+                        const r = cutterEl.getBoundingClientRect();
+                        if (r.width > 0 && r.height > 0) {
+                          cutterPos = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
                         }
+                      } else if (startingTurn !== 0) {
+                        cutterPos = { x: centerX, y: 80 };
                       }
-                    ]);
+
+                      const flyToCutterId = `jack-sweep-${Date.now()}`;
+                      setFlyingCards(prev => [
+                        ...prev,
+                        {
+                          id: flyToCutterId,
+                          card: pStep.card,
+                          startX: potPos.x,
+                          startY: potPos.y,
+                          targetX: cutterPos.x,
+                          targetY: cutterPos.y,
+                          waypointX: potPos.x + (cutterPos.x - potPos.x) * 0.35,
+                          waypointY: Math.min(potPos.y, cutterPos.y) - 68,
+                          waypointScale: 1.28,
+                          waypointOffset: 0.36,
+                          startRotation: 2,
+                          targetRotation: 360,
+                          startFaceUp: true,
+                          endFaceUp: true,
+                          duration: 740,
+                          arcHeight: 145,
+                          motionType: 'jack',
+                          size: 'md',
+                          zIndex: 95,
+                          onComplete: () => {
+                            setFlyingCards(prev => prev.filter(f => f.id !== flyToCutterId));
+                            particleEngine.emitBurst(cutterPos.x, cutterPos.y, '#fbbf24', 20);
+                            setPlayers(prev =>
+                              prev.map((p, idx) => {
+                                if (idx === startingTurn) {
+                                  return {
+                                    ...p,
+                                    collectedCards: [...p.collectedCards, pStep.card],
+                                    bonusPoints: (p.bonusPoints || 0) + 1
+                                  };
+                                }
+                                return p;
+                              })
+                            );
+                          }
+                        }
+                      ]);
+                    }, 720);
+                    dealTimersRef.current.push(tJackSwoop);
                   }
                 }
               ]);
             } else {
               const flyId = `pot-card-${sIdx}-${Date.now()}`;
+              const isOpenReveal = pStep.faceUp;
               setFlyingCards(prev => [
                 ...prev,
                 {
@@ -1031,17 +1103,30 @@ export function usePistiGame({
                   startY: pileAPos.y,
                   targetX: potPos.x + (pStep.card.tableOffsetX ?? 0),
                   targetY: potPos.y + (pStep.card.tableOffsetY ?? 0),
-                  startRotation: 0,
+                  startRotation: isOpenReveal ? -8 : 0,
                   targetRotation: pStep.card.tableRotation ?? 0,
                   startFaceUp: false,
                   endFaceUp: pStep.faceUp,
-                  duration: 420,
-                  arcHeight: 55,
+                  duration: isOpenReveal ? 620 : 400,
+                  arcHeight: isOpenReveal ? 105 : 58,
+                  motionType: isOpenReveal ? 'center_reveal' : 'deal',
                   size: 'md',
-                  zIndex: 70 + sIdx,
+                  zIndex: 75 + sIdx,
                   onComplete: () => {
                     setFlyingCards(prev => prev.filter(f => f.id !== flyId));
                     setTableCards(prev => [...prev, pStep.card]);
+                    if (isOpenReveal) {
+                      sound.playCardPlay();
+                      setDeckCutState(prev =>
+                        prev
+                          ? {
+                              ...prev,
+                              activeJackCard: null,
+                              revealedTopCard: pStep.card
+                            }
+                          : null
+                      );
+                    }
                   }
                 }
               ]);
@@ -1050,14 +1135,24 @@ export function usePistiGame({
           dealTimersRef.current.push(tFlight);
         });
 
-        // Merging remaining cut portions back into main deck
+        // Step 3: Merging remaining cut portions back into main deck (Pile B arcs over Center Pot onto Pile A)
         const timerMerge = window.setTimeout(() => {
           sound.playSweepGather();
-          setDeckCutState(prev => (prev ? { ...prev, step: 'merging' } : null));
+          setDeckCutState(prev =>
+            prev ? { ...prev, step: 'merging', activeJackCard: null } : null
+          );
 
-          const timerStow = window.setTimeout(() => {
+          const timerMergeSlap = window.setTimeout(() => {
             sound.playTripleCut();
-            setDeckCutState(prev => (prev ? { ...prev, step: 'stowing' } : null));
+          }, 380);
+          dealTimersRef.current.push(timerMergeSlap);
+
+          // Step 4: Stowing merged deck to deckEl while Center Pot glides to potEl
+          const timerStow = window.setTimeout(() => {
+            sound.playCardFan();
+            setDeckCutState(prev =>
+              prev ? { ...prev, step: 'stowing', revealedTopCard: null } : null
+            );
 
             const timerComplete = window.setTimeout(() => {
               setDeckCutState(null);
@@ -1071,14 +1166,14 @@ export function usePistiGame({
                 configuredSettings.playerCount,
                 startingTurn
               );
-            }, 550);
+            }, 500);
             dealTimersRef.current.push(timerComplete);
-          }, 600);
+          }, 700);
           dealTimersRef.current.push(timerStow);
-        }, currentDelay + 400);
+        }, currentDelay);
 
         dealTimersRef.current.push(timerMerge);
-      }, 650);
+      }, 680);
 
       dealTimersRef.current.push(timerPot);
     },
@@ -1270,7 +1365,7 @@ export function usePistiGame({
           const botTimer = window.setTimeout(() => {
             const botCut = Math.floor(16 + Math.random() * 20);
             handleCutDeckAndProceed(botCut);
-          }, 1200);
+          }, 1350);
           dealTimersRef.current.push(botTimer);
         }
       }, shuffleDuration);

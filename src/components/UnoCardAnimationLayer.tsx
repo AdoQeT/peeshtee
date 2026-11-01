@@ -21,7 +21,7 @@ export interface FlyingUnoCardData {
   arcHeight?: number;
   size?: 'sm' | 'md' | 'lg';
   zIndex?: number;
-  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam';
+  motionType?: 'deal' | 'play' | 'sweep' | 'jack' | 'pisti_slam' | 'center_reveal';
   onComplete?: () => void;
 }
 

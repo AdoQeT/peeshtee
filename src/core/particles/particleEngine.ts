@@ -347,6 +347,42 @@ export class ParticleEngine {
   }
 
   /**
+   * Emits a dynamic particle spark burst and miniature shockwave at given coordinates
+   */
+  public emitBurst(x: number, y: number, color: string = '#fbbf24', count: number = 24) {
+    if (!this.enabled) return;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 5 + 2;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: Math.random() * 2.8 + 1.2,
+        color,
+        alpha: 0.95,
+        decay: 0.035,
+        gravity: 0.06,
+        glow: true,
+        kind: 'spark',
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.15
+      });
+    }
+    this.shockwaves.push({
+      x,
+      y,
+      radius: 5,
+      maxRadius: 55,
+      lineWidth: 2.5,
+      color,
+      alpha: 0.75,
+      speed: 3.2
+    });
+  }
+
+  /**
    * Spawns subtle card placement burst (Theme-tuned: Sakura petals, cyber neon sparks, gold flakes, cosmic dust)
    */
   public triggerCardPlace(x: number, y: number) {

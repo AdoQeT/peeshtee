@@ -21,6 +21,7 @@ import { friendNetwork } from '../features/friends/friendNetwork';
 import type { TableDomRefs, SlotReadinessInfo } from '../components/TableSurface';
 import { MatchIntroPlayer } from '../components/MatchIntroOverlay';
 import { UserProfile, getUserProfile, getAvatarPreset, recordMatchStats } from '../features/profile/profileManager';
+import { checkAndUnlockAchievements } from '../features/progression/achievements';
 import { useCardFlightState, getCenter, cardDomElements } from './useCardFlightState';
 import { FlyingCardData } from '../components/CardAnimationLayer';
 import { RoundScoresState } from './useMultiplayerRoom';
@@ -1765,6 +1766,11 @@ export function usePistiGame({
         );
         setUserProfile(getUserProfile());
         friendNetwork.announcePresence();
+        checkAndUnlockAchievements(getUserProfile(), {
+          score: newUserScore,
+          justPisti: userSideAggregate.pistiCount > 0,
+          justDoublePisti: userSideAggregate.doublePistiCount > 0,
+        });
         if (xpRes.leveledUp) {
           showDevToast(`🎉 SEVİYE ATLADIN! Yeni Seviye: Level ${xpRes.newLevel} (+${xpRes.xpEarned} XP)`);
         }

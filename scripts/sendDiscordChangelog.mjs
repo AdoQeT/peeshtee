@@ -33,14 +33,15 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-restored centered 2-column arcade mode layout for singleplayer and multiplayer',
-  '-relocated daily quests to a sleek slim floating panel on the left edge',
-  '-placed micro level and xp progress bar directly underneath profile badge',
-  '-renamed offline and online modes to singleplayer and multiplayer across 4 languages',
-  '-general stability optimizations and bugfixes'
+  '-competitive progression system with level-gated rewards',
+  '-live global top 25 leaderboard for xp, wins and pistis',
+  '-achievements showcase with floating unlock toasts',
+  '-dynamic lofi vinyl and rhodes ambience soundscape',
+  '-animated neon scanline and shimmering gold card backs',
+  '-expanding holographic neon shockwave ring on pisti'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.29.1';
+const versionTitle = process.argv[2] || 'v1.30.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

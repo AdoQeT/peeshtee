@@ -16,6 +16,7 @@ const TableSurface = lazy(() =>
 );
 import { ScoreBoard } from './components/ScoreBoard';
 import { PistiOverlay } from './components/PistiOverlay';
+import { AchievementToast } from './components/AchievementToast';
 import { RulesModal } from './components/RulesModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MultiplayerModal } from './components/MultiplayerModal';
@@ -786,6 +787,9 @@ export default function App() {
         slam={activeSlam}
         onComplete={() => setActiveSlam(null)}
       />
+
+      {/* Global Achievement Unlock Toast */}
+      <AchievementToast />
 
       {/* Card Counting Overlay (el sonu kart sayma animasyonu) */}
       <CardCountingOverlay

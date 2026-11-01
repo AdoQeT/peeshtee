@@ -7,6 +7,7 @@ import {
   calculateLevel,
   getUserProfile
 } from '../features/profile/profileManager';
+import { ACHIEVEMENTS } from '../features/progression/achievements';
 import { AvatarBadge } from './AvatarBadge';
 import {
   User,
@@ -22,7 +23,8 @@ import {
   KeyRound,
   History,
   Gamepad2,
-  Clock
+  Clock,
+  Lock
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
@@ -51,7 +53,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   }, []);
   const t = translations[lang];
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'history'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'achievements'>('profile');
   const [name, setName] = useState(profile.name);
   const [selectedAvatarId] = useState(profile.avatarId);
   const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | undefined>(
@@ -230,6 +232,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 {activeProfile.matchHistory.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveTab('achievements');
+            }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'achievements'
+                ? 'bg-amber-400 text-slate-950 shadow-md font-black'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>{t.tabAchievements || 'Başarımlar'}</span>
+            <span className="text-[10px] bg-slate-800 text-amber-300 px-1.5 py-0.2 rounded-full ml-0.5 font-mono">
+              {activeProfile.unlockedAchievements?.length || 0}/{ACHIEVEMENTS.length}
+            </span>
           </button>
         </div>
 
@@ -579,6 +598,98 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 3: ACHIEVEMENTS */}
+          {activeTab === 'achievements' && (
+            <div className="space-y-4">
+              {/* Progress Summary Header */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-950 border border-amber-400/30 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black text-amber-300 uppercase tracking-wide">
+                    {t.tabAchievements || 'Başarımlar'}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {lang === 'en'
+                      ? 'Complete milestones to earn bonus XP and glory'
+                      : 'Özel hedefleri tamamlayarak bonus XP ve ünvanlar kazan'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-base font-black font-cyber text-amber-400">
+                    {activeProfile.unlockedAchievements?.length || 0} / {ACHIEVEMENTS.length}
+                  </span>
+                  <div className="w-24 h-1.5 rounded-full bg-slate-800 overflow-hidden border border-white/10 mt-1">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.round(
+                          ((activeProfile.unlockedAchievements?.length || 0) / ACHIEVEMENTS.length) * 100
+                        )}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Achievements Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {ACHIEVEMENTS.map(ach => {
+                  const isUnlocked = Boolean(
+                    activeProfile.unlockedAchievements?.includes(ach.id)
+                  );
+                  const title = (t as any)[ach.titleKey] || ach.id;
+                  const desc = (t as any)[ach.descKey] || '';
+
+                  return (
+                    <div
+                      key={ach.id}
+                      className={`p-3.5 rounded-2xl border transition-all duration-200 flex items-start gap-3 ${
+                        isUnlocked
+                          ? 'bg-amber-950/25 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+                          : 'bg-slate-950/50 border-white/5 opacity-60'
+                      }`}
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
+                          isUnlocked
+                            ? 'bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-md'
+                            : 'bg-slate-800/60 border border-white/10 text-slate-500'
+                        }`}
+                      >
+                        {isUnlocked ? ach.icon : <Lock className="w-4 h-4 text-slate-500" />}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <h5 className={`text-xs font-bold truncate ${isUnlocked ? 'text-white' : 'text-slate-400'}`}>
+                            {title}
+                          </h5>
+                          <span
+                            className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                              isUnlocked
+                                ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                                : 'bg-slate-800 text-slate-500'
+                            }`}
+                          >
+                            +{ach.rewardXp} XP
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-snug line-clamp-2">
+                          {desc}
+                        </p>
+                        {isUnlocked && (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 mt-1.5">
+                            <Check className="w-3 h-3" />
+                            <span>{lang === 'en' ? 'Unlocked' : 'Kazanıldı'}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

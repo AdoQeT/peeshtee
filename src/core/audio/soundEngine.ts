@@ -1,4 +1,4 @@
-export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain';
+export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain' | 'lofi';
 
 /**
  * Project Pişti - Procedural Web Audio Sound Engine & Ambience Generator
@@ -573,6 +573,69 @@ class SoundEngine {
         this.ambienceTimers.push(nextTimer);
       };
       playChord();
+    } else if (type === 'lofi') {
+      // Lo-Fi Chill / Cyber Lounge: Vinyl static flutter + warm floating Rhodes synth chords
+      const vinylBufferSize = this.ctx.sampleRate * 2;
+      const vinylBuffer = this.ctx.createBuffer(1, vinylBufferSize, this.ctx.sampleRate);
+      const vData = vinylBuffer.getChannelData(0);
+      for (let i = 0; i < vinylBufferSize; i++) {
+        // Intermittent vinyl dust crackles
+        const isCrackle = Math.random() < 0.002;
+        vData[i] = isCrackle ? (Math.random() * 2 - 1) * 0.08 : (Math.random() * 2 - 1) * 0.004;
+      }
+      const vinylSource = this.ctx.createBufferSource();
+      vinylSource.buffer = vinylBuffer;
+      vinylSource.loop = true;
+      const vinylFilter = this.ctx.createBiquadFilter();
+      vinylFilter.type = 'highpass';
+      vinylFilter.frequency.setValueAtTime(1200, t);
+      vinylSource.connect(vinylFilter);
+      vinylFilter.connect(masterGain);
+      vinylSource.start(t);
+      this.ambienceActiveNodes.push(vinylSource, vinylFilter);
+
+      // Deep mellow 7th & 9th jazz chords
+      const lofiChords = [
+        [130.81, 196.0, 246.94, 293.66, 329.63], // Cmaj9
+        [110.0, 164.81, 220.0, 261.63, 329.63],  // Am9
+        [146.83, 174.61, 220.0, 261.63, 329.63], // Dm9
+        [98.0, 146.83, 246.94, 293.66, 349.23]   // G13
+      ];
+      let lofiChordIdx = 0;
+
+      const playLofiProgression = () => {
+        if (this.currentAmbience !== 'lofi' || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = lofiChords[lofiChordIdx % lofiChords.length];
+        lofiChordIdx++;
+
+        notes.forEach(freq => {
+          const osc = this.ctx!.createOscillator();
+          const g = this.ctx!.createGain();
+          const lp = this.ctx!.createBiquadFilter();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          lp.type = 'lowpass';
+          lp.frequency.setValueAtTime(450, now);
+
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.026 * this.ambienceVolume, now + 1.2);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 5.5);
+
+          osc.connect(lp);
+          lp.connect(g);
+          g.connect(masterGain);
+
+          osc.start(now);
+          osc.stop(now + 5.8);
+        });
+
+        const nextTimer = window.setTimeout(playLofiProgression, 6000);
+        this.ambienceTimers.push(nextTimer);
+      };
+      playLofiProgression();
     }
   }
 

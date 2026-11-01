@@ -82,7 +82,7 @@ export function getCardBackForTheme(theme: TableTheme): string {
   }
 }
 
-export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain';
+export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain' | 'lofi';
 
 export interface GameSettings {
   soundEnabled: boolean;

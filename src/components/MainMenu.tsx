@@ -23,6 +23,7 @@ import { AvatarBadge } from './AvatarBadge';
 import { UserProfile, calculateLevel } from '../features/profile/profileManager';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 import { DailyQuestsWidget } from './DailyQuestsWidget';
+import { LeaderboardModal } from './LeaderboardModal';
 
 import { AmbientParticles } from './AmbientParticles';
 
@@ -82,6 +83,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     defaultSetup.botDifficulty || 'medium'
   );
   const [isComingSoonOpen, setIsComingSoonOpen] = useState<boolean>(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState<boolean>(false);
   const [isQuestsOpen, setIsQuestsOpen] = useState<boolean>(true);
   const [lang, setLang] = useState<Language>(getLanguage());
   const [isTransitioningLang, setIsTransitioningLang] = useState(false);
@@ -239,6 +241,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </svg>
             <span className="hidden xl:inline">Discord</span>
           </a>
+
+          {/* Global Leaderboard Button */}
+          <button
+            onClick={() => handleClick(() => setIsLeaderboardOpen(true))}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-amber-950/85 hover:bg-amber-900 border border-amber-400/50 text-xs font-bold text-amber-200 transition-colors shadow-md cursor-pointer"
+            title={t.leaderboard || 'Liderlik Tablosu'}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden md:inline">{t.leaderboard || 'Sıralama'}</span>
+          </button>
 
           {/* Coming Soon Modal Button */}
           <button
@@ -590,7 +602,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.29.1'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.30.0'}
         </span>
       </div>
 
@@ -719,6 +731,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
       )}
+
+      {/* Global Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+        currentUserProfile={userProfile}
+      />
     </div>
   );
 };

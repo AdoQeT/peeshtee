@@ -150,8 +150,11 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
   const isMonaco = cardBack === 'monaco_royal';
   const isSakura = cardBack === 'sakura_blossom';
   const isGold = cardBack === 'gold_dragon';
+  const isCyber = cardBack === 'cyber_neon';
 
-  const themeStyles = isEstoril
+  const themeStyles = isCyber
+    ? 'bg-gradient-to-br from-[#031525] via-[#05213b] to-[#010810] border-2 border-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.5)]'
+    : isEstoril
     ? 'bg-gradient-to-br from-[#0284c7] via-[#034d82] to-[#011428] border-2 border-sky-300 shadow-[0_4px_20px_rgba(56,189,248,0.45)]'
     : isAlpine
     ? 'bg-gradient-to-br from-[#f8fafc] via-[#e2e8f0] to-[#cbd5e1] border-2 border-white shadow-[0_4px_16px_rgba(255,255,255,0.4)]'
@@ -162,10 +165,12 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
     : isSakura
     ? 'bg-gradient-to-br from-[#3b0a28] via-[#1f0726] to-[#0f0318] border-2 border-pink-300/90 shadow-[0_4px_16px_rgba(244,114,182,0.25)]'
     : isGold
-    ? 'bg-gradient-to-br from-amber-900 via-stone-900 to-black border-2 border-amber-400 shadow-[0_4px_16px_rgba(245,158,11,0.35)]'
+    ? 'bg-gradient-to-br from-[#2f1c07] via-[#170e03] to-black border-2 border-amber-400 shadow-[0_4px_20px_rgba(245,158,11,0.5)]'
     : 'bg-gradient-to-br from-blue-900 via-slate-900 to-black border-2 border-blue-400/80 shadow-md';
 
-  const innerBorderClass = isEstoril
+  const innerBorderClass = isCyber
+    ? 'border-cyan-400/60 text-cyan-300'
+    : isEstoril
     ? 'border-sky-300/40 text-sky-200'
     : isAlpine
     ? 'border-slate-400/50 text-slate-700'
@@ -183,6 +188,25 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
     <div
       className={`w-full h-full relative select-none overflow-hidden rounded-[inherit] shadow-md ${themeStyles} ${className}`}
     >
+      {/* Moving Cyber Scanline / Grid Effect */}
+      {isCyber && (
+        <>
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.25)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.15)_1px,transparent_1px)] bg-[size:8px_8px] pointer-events-none opacity-40" />
+          <div
+            className="absolute inset-x-0 h-4 bg-gradient-to-b from-transparent via-cyan-400/40 to-transparent pointer-events-none"
+            style={{ animation: 'cardSpecularGlint 2.8s ease-in-out infinite' }}
+          />
+        </>
+      )}
+
+      {/* Shimmering Gold Dragon Sheen */}
+      {isGold && (
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-300/35 to-transparent -skew-x-12 pointer-events-none"
+          style={{ animation: 'cardSpecularGlint 3.2s ease-in-out infinite' }}
+        />
+      )}
+
       {/* Inner ornate border */}
       <div
         className={`absolute inset-1.5 rounded-lg flex items-center justify-center overflow-hidden border ${innerBorderClass}`}
@@ -201,6 +225,8 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
               ? 'repeating-linear-gradient(45deg, rgba(239,68,68,0.2) 0px, rgba(239,68,68,0.2) 1px, transparent 1px, transparent 7px)'
               : isMonaco
               ? 'repeating-linear-gradient(45deg, rgba(245,158,11,0.25) 0px, rgba(245,158,11,0.25) 1px, transparent 1px, transparent 8px)'
+              : isCyber
+              ? 'repeating-linear-gradient(90deg, rgba(34,211,238,0.3) 0px, rgba(34,211,238,0.3) 1px, transparent 1px, transparent 6px)'
               : 'repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 6px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 6px)',
             backgroundSize: isSakura ? '10px 10px, auto' : 'auto'
           }}
@@ -215,7 +241,9 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
         {/* Central Medallion */}
         <div
           className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full border flex items-center justify-center shadow-inner ${
-            isSakura
+            isCyber
+              ? 'border-cyan-300 bg-cyan-950/80 text-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.6)] animate-pulse'
+              : isSakura
               ? 'border-pink-300/60 bg-pink-950/60 text-pink-300 shadow-[0_0_15px_rgba(244,114,182,0.4)]'
               : isEstoril
               ? 'border-sky-300 bg-sky-950/80 text-sky-200 shadow-[0_0_18px_rgba(56,189,248,0.5)]'
@@ -230,7 +258,9 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
               : 'border-blue-300/60 bg-blue-950/70 text-blue-200'
           }`}
         >
-          {isSakura ? (
+          {isCyber ? (
+            <span className="text-sm select-none">⚡</span>
+          ) : isSakura ? (
             <SakuraFlowerSvg className="w-6 h-6 sm:w-7 sm:h-7 text-pink-300" />
           ) : isEstoril ? (
             <span className="font-cyber font-black text-xs text-sky-200 select-none">M</span>
@@ -241,7 +271,7 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
           ) : isMonaco ? (
             <span className="text-sm select-none">👑</span>
           ) : isGold ? (
-            <span className="text-sm select-none">⚜️</span>
+            <span className="text-sm select-none">🐉</span>
           ) : (
             <span className="font-arcade text-xs select-none">P</span>
           )}

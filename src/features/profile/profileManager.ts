@@ -218,6 +218,7 @@ export interface UserProfile {
   isOwner?: boolean; // Creator & Owner VIP badge and golden crown
   xp?: number;
   level?: number;
+  unlockedAchievements?: string[];
   matchHistory?: MatchRecord[];
   dailyTasks?: {
     lastResetDate: string; // YYYY-MM-DD
@@ -368,6 +369,9 @@ export function getUserProfile(): UserProfile {
             : [],
           level: typeof parsed.level === 'number' && parsed.level >= 1 ? parsed.level : 1,
           xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
+          unlockedAchievements: Array.isArray(parsed.unlockedAchievements)
+            ? parsed.unlockedAchievements
+            : [],
           matchHistory: Array.isArray(parsed.matchHistory) ? parsed.matchHistory : [],
           dailyTasks: parsed.dailyTasks || undefined,
           stats: {
@@ -424,6 +428,7 @@ export function getUserProfile(): UserProfile {
     friends: [],
     level: 1,
     xp: 0,
+    unlockedAchievements: [],
     matchHistory: [],
     stats: {
       matchesPlayed: 0,
@@ -576,6 +581,7 @@ export async function syncProfileToFirebase(profile: UserProfile): Promise<void>
       isOwner: profile.isOwner || false,
       level: profile.level || 1,
       xp: profile.xp || 0,
+      unlockedAchievements: profile.unlockedAchievements || [],
       stats: profile.stats || {},
       lastOnline: Date.now()
     };

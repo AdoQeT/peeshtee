@@ -15,6 +15,8 @@ import {
 import { GameSettings, TableTheme, AIDifficulty, getCardBackForTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
 import { getLanguage, setLanguage, Language, translations } from '../utils/i18n';
+import { getUserProfile, calculateLevel } from '../features/profile/profileManager';
+import { isItemLockedByLevel } from '../features/progression/levelRewards';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,6 +34,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'themes' | 'audio' | 'rules'>('themes');
   const [lang, setLang] = useState<Language>(getLanguage());
   const t = translations[lang];
+  const userProfile = getUserProfile();
+  const userLevel = calculateLevel(userProfile.xp || 0).level;
 
   if (!isOpen) return null;
 
@@ -181,27 +185,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {themes.map(th => {
+                    const lock = isItemLockedByLevel('theme', th.id, userLevel);
                     const isSelected = settings.theme === th.id;
                     return (
                       <button
                         key={th.id}
+                        disabled={lock.isLocked}
                         onClick={() => {
+                          if (lock.isLocked) return;
                           sound.playClick();
                           const matchingCardBack = getCardBackForTheme(th.id);
                           onUpdateSettings({ theme: th.id, cardBack: matchingCardBack });
                         }}
-                        className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden bg-gradient-to-br cursor-pointer ${th.preview} ${
+                        className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden bg-gradient-to-br ${
+                          lock.isLocked
+                            ? 'opacity-40 grayscale cursor-not-allowed border-white/5'
+                            : 'cursor-pointer hover:opacity-100 hover:border-white/40'
+                        } ${th.preview} ${
                           isSelected
                             ? 'ring-2 ring-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] scale-[1.01]'
-                            : 'opacity-70 hover:opacity-100 hover:border-white/40'
+                            : !lock.isLocked ? 'opacity-70' : ''
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-black text-xs sm:text-sm text-white font-cyber tracking-wide">
+                          <span className="font-black text-xs sm:text-sm text-white font-cyber tracking-wide flex items-center gap-1.5">
                             {th.name}
+                            {lock.isLocked && <span className="text-[10px] text-amber-300">🔒 LVL {lock.requiredLevel}</span>}
                           </span>
                           <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/10 text-slate-200 border border-white/20">
-                            {th.badge}
+                            {lock.isLocked ? `KİLİTLİ (LVL ${lock.requiredLevel})` : th.badge}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-300/80 font-sans">{th.subtitle}</p>
@@ -343,15 +355,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ? `🌧️ ${t.ambRain}`
                       : settings.ambience === 'jazz'
                       ? `🎷 ${t.ambJazz}`
+                      : settings.ambience === 'lofi'
+                      ? `🎧 ${t.ambLofi || 'Lo-Fi Gece'}`
                       : `🔇 ${t.ambNone}`}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {[
                     { id: 'none', label: t.ambNone, icon: '🔇' },
                     { id: 'cafe', label: t.ambCafe, icon: '☕' },
                     { id: 'rain', label: t.ambRain, icon: '🌧️' },
-                    { id: 'jazz', label: t.ambJazz, icon: '🎷' }
+                    { id: 'jazz', label: t.ambJazz, icon: '🎷' },
+                    { id: 'lofi', label: t.ambLofi || 'Lo-Fi', icon: '🎧' }
                   ].map(amb => (
                     <button
                       key={amb.id}

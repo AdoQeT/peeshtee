@@ -19,6 +19,7 @@ import {
 import { UnoCardView, UnoCardBack } from './UnoCardView';
 import { AvatarBadge } from './AvatarBadge';
 import { getUserProfile, recordMatchStats, getAvatarPreset } from '../features/profile/profileManager';
+import { checkAndUnlockAchievements } from '../features/progression/achievements';
 import { getLanguage, onLanguageChange, translations, Language, getRandomBotNames } from '../utils/i18n';
 import { sound } from '../core/audio/soundEngine';
 import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLayer';
@@ -2594,6 +2595,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                       setWildPickerCard(null);
                       setWildPickerRect(undefined);
                       executePlayCard(0, c, color, rect);
+                      if (c.value === 'wild_draw4') {
+                        checkAndUnlockAchievements(getUserProfile(), { isUnoWild4: true });
+                      }
                       if (isMultiplayer) {
                         multiplayerManager.send({
                           type: 'MP_UNO_PLAY_CARD',

@@ -99,6 +99,26 @@ export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) 
         }`}
       />
 
+      {/* Expanding Holographic Neon Shockwave Ring on Table Felt */}
+      {isPisti && (
+        <div className="fixed inset-0 pointer-events-none flex items-center justify-center -z-10">
+          <div
+            className={`w-64 h-64 rounded-full border-4 animate-ping opacity-75 ${
+              isFiveWin
+                ? 'border-red-500 shadow-[0_0_80px_rgba(239,68,68,0.9)]'
+                : isDouble
+                ? 'border-fuchsia-400 shadow-[0_0_80px_rgba(217,70,239,0.9)]'
+                : 'border-amber-400 shadow-[0_0_70px_rgba(245,158,11,0.9)]'
+            }`}
+            style={{ animationDuration: '0.7s', animationIterationCount: 1 }}
+          />
+          <div
+            className="absolute w-96 h-96 rounded-full border-2 border-white/40 animate-ping opacity-40"
+            style={{ animationDuration: '0.85s', animationIterationCount: 1, animationDelay: '0.08s' }}
+          />
+        </div>
+      )}
+
       {/* Floating Arcade Banner (positioned above center pot) */}
       <div onAnimationEnd={onComplete} className="relative flex flex-col items-center animate-banner-pop max-w-md w-full">
         {/* Subtle Player Badge */}

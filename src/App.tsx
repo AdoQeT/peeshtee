@@ -172,6 +172,11 @@ export default function App() {
     myMultiplayerSeat,
     setMyMultiplayerSeat,
     myMultiplayerSeatRef,
+    isSpectator,
+    setIsSpectator,
+    isSpectatorRef,
+    initialSpectateMode,
+    setInitialSpectateMode,
     activeMultiplayerSlots,
     setActiveMultiplayerSlots,
     activeMultiplayerSlotsRef,
@@ -270,6 +275,7 @@ export default function App() {
     isMultiplayerHostRef,
     myMultiplayerSeat,
     myMultiplayerSeatRef,
+    isSpectatorRef,
     activeMultiplayerSlots,
     activeMultiplayerSlotsRef,
     readySeatsForNextRound,
@@ -455,6 +461,8 @@ export default function App() {
     setIsMultiplayerHost,
     setMyMultiplayerSeat,
     myMultiplayerSeatRef,
+    setIsSpectator,
+    isSpectatorRef,
     setActiveMultiplayerSlots,
     activeMultiplayerSlotsRef,
     setIsMultiplayerOpen,
@@ -703,9 +711,13 @@ export default function App() {
             }}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onExitToMenu={() => {
-              if (isMultiplayerGame) {
+              if (isMultiplayerGame && !isSpectator) {
                 setIsSurrenderModalOpen(true);
                 return;
+              }
+              if (isMultiplayerGame && isSpectator) {
+                multiplayerManager.leaveRoom(false);
+                resetMultiplayerState();
               }
               clearScheduledTimers();
               sound.playClick();
@@ -786,6 +798,14 @@ export default function App() {
         onClose={() => setIsSetupOpen(false)}
       />
 
+      {/* Spectator Mode Floating Banner */}
+      {screen !== 'menu' && isMultiplayerGame && isSpectator && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-purple-950/90 border border-purple-400/60 text-purple-200 text-xs font-black tracking-wide shadow-[0_8px_25px_rgba(0,0,0,0.65)] backdrop-blur-md flex items-center gap-2 pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+          <span>👁️ SEYİRCİ MODU — Maçı Canlı İzliyorsun</span>
+        </div>
+      )}
+
       {/* Multiplayer Peer Reconnecting Grace Period Toast */}
       {peerReconnectingSeconds !== null && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-amber-950/95 border border-amber-500/70 text-amber-200 px-5 py-2.5 rounded-full shadow-[0_10px_35px_rgba(0,0,0,0.7)] backdrop-blur-md flex items-center gap-3 animate-pulse">
@@ -852,12 +872,14 @@ export default function App() {
         userName={players[0].name}
         userAvatar={players[0].avatar}
         initialJoinCode={initialJoinCode}
+        initialSpectateMode={initialSpectateMode}
         initialSettings={settings}
         pendingFriendInvite={pendingFriendInvite}
         onClearPendingInvite={() => setPendingFriendInvite(null)}
         onOpenFriendsModal={() => setIsFriendsOpen(true)}
         onClose={() => {
           setIsMultiplayerOpen(false);
+          setInitialSpectateMode(false);
           cleanUrlDeepLink();
         }}
         onHostLaunchMatch={(
@@ -971,7 +993,7 @@ export default function App() {
         hideBackdrop={false}
         userProfile={userProfile}
         onUpdateProfile={updated => setUserProfile(updated)}
-        onJoinFriendRoom={(code: string, _isSpectator?: boolean) => {
+        onJoinFriendRoom={(code: string, spectate?: boolean) => {
           const trimmed = code.trim().toUpperCase();
           const clean = trimmed.replace(/[^A-Z0-9]/g, '');
           let formatted: string;
@@ -983,6 +1005,7 @@ export default function App() {
             formatted = `PST-${clean}`;
           }
           setInitialJoinCode(formatted);
+          setInitialSpectateMode(Boolean(spectate));
           setIsFriendsOpen(false);
           setIsMultiplayerOpen(true);
         }}

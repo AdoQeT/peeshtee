@@ -13,6 +13,7 @@ export interface LeaderboardEntry {
   isOwner?: boolean;
   level: number;
   xp: number;
+  elo: number;
   wins: number;
   pistiCount: number;
   unoWins: number;
@@ -22,7 +23,7 @@ let cachedLeaderboard: { timestamp: number; data: LeaderboardEntry[] } | null = 
 const CACHE_DURATION_MS = 25000; // 25s cache
 
 export async function fetchLeaderboard(
-  category: 'xp' | 'wins' | 'pistis' = 'xp'
+  category: 'xp' | 'elo' | 'wins' | 'pistis' = 'xp'
 ): Promise<LeaderboardEntry[]> {
   const now = Date.now();
   if (cachedLeaderboard && now - cachedLeaderboard.timestamp < CACHE_DURATION_MS) {
@@ -67,6 +68,7 @@ export async function fetchLeaderboard(
           isOwner: Boolean(p.isOwner),
           level: typeof p.level === 'number' ? p.level : 1,
           xp: typeof p.xp === 'number' ? p.xp : 0,
+          elo: typeof p.elo === 'number' ? p.elo : 1000 + (p.stats?.wins || 0) * 18,
           wins: p.stats?.wins || 0,
           pistiCount: p.stats?.pistiCount || 0,
           unoWins: p.stats?.unoWins || 0
@@ -85,9 +87,12 @@ export async function fetchLeaderboard(
 
 function sortLeaderboardEntries(
   entries: LeaderboardEntry[],
-  category: 'xp' | 'wins' | 'pistis'
+  category: 'xp' | 'elo' | 'wins' | 'pistis'
 ): LeaderboardEntry[] {
   const sorted = [...entries].sort((a, b) => {
+    if (category === 'elo') {
+      return b.elo - a.elo || b.xp - a.xp;
+    }
     if (category === 'wins') {
       return (b.wins + b.unoWins) - (a.wins + a.unoWins) || b.xp - a.xp;
     }
@@ -103,7 +108,7 @@ function sortLeaderboardEntries(
   }));
 }
 
-function getFallbackLeaderboard(category: 'xp' | 'wins' | 'pistis'): LeaderboardEntry[] {
+function getFallbackLeaderboard(category: 'xp' | 'elo' | 'wins' | 'pistis'): LeaderboardEntry[] {
   // Mock bot hesapları tamamen temizlendi — sadece aktif gerçek kullanıcı varsa onu göster
   const myProfile = getUserProfile();
   if (myProfile && myProfile.name && !myProfile.name.toLowerCase().includes('bot')) {
@@ -118,6 +123,7 @@ function getFallbackLeaderboard(category: 'xp' | 'wins' | 'pistis'): Leaderboard
         isOwner: Boolean(myProfile.isOwner),
         level: myProfile.level || 1,
         xp: myProfile.xp || 0,
+        elo: myProfile.elo || 1000,
         wins: myProfile.stats?.wins || 0,
         pistiCount: myProfile.stats?.pistiCount || 0,
         unoWins: myProfile.stats?.unoWins || 0

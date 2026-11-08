@@ -17,8 +17,8 @@ This document establishes the official engineering roadmap, critical architectur
   - Verify message sender authenticity strictly via `PacketEnvelope.senderId` matching the assigned `peerId` in room slots.
   - Enforce monotonic `seq` replay protection across all packets (including `GUEST_JOINED`, `HOST_LOBBY_SYNC`, `MP_GAME_START`).
   - Deny unverified or missing seat/peerId actions in both Pişti and RENQ/Uno (`UnoGameView.tsx`).
-- [ ] **Host-Authoritative Deck Secrecy (C2 — Planned Separate Branch)**:
-  - Stop broadcasting full `seedDeck` and `seedUnoDeck` to all clients (`App.tsx`); deliver each player's hand via a private per-player channel while keeping card identity separate from card face.
+- [x] **Host-Authoritative Deck Secrecy (C2 — Completed in v1.31.0)**:
+  - Stop broadcasting full `seedDeck` and `seedUnoDeck` to all clients (`App.tsx`); deliver each player's hand via a private per-player channel (`rooms/$code/private/$peerId`) while keeping opaque card IDs separate from card faces.
 - [x] **Single Source of Truth Versioning & Build Config Fixes**:
   - Fix `vite.config.ts` version string handling and wire `MainMenu.tsx` dynamically from `__APP_VERSION__`.
   - Align `package.json` `engines` (`node: ">=24.12.0"`) and GitHub Actions CI (`node-version: 24`) with `firebase@13`.
@@ -60,8 +60,8 @@ This document establishes the official engineering roadmap, critical architectur
 ### ⚡ Phase 3: Architectural Decoupling, Bundle Optimization & Deep Bot AI
 - [x] **Large Component Modularization & Code Splitting**:
   - Implemented `React.lazy` and `Suspense` boundary for `UnoGameView`, decoupling the secondary Renq/Uno bundle from initial chunk loading.
-- [ ] **Further Hook & Bundle Decomposition (D1 & D2)**:
-  - Split `usePistiGame.ts` into smaller focused hooks (`useCountingCeremony`, dealing, cutting, bot turn, round end) and lazy-load `TableSurface`.
+- [x] **Further Hook & Bundle Decomposition (D1 & D2 — Completed in v1.31.0)**:
+  - Split `TableSurface.tsx`, `UnoGameView.tsx`, `usePistiGame.ts`, `App.tsx`, and `i18n.ts` into modular subcomponents/helpers (`DeckCutOverlay`, `RoundSummaryModal`, `PlayerHudBadge`, `UnoEndOverlays`, `pistiSetupHelpers`, `GlobalNotificationsLayer`, `locales/{tr,en,de,es}.ts`) and lazy-load `TableSurface`.
 - [x] **Advanced Bot AI Heuristics**:
   - Hard bot difficulty enhanced with table pot point density evaluation (`potBasePoints`), thickness thresholds, and card-counting-based safe discards on empty tables.
 - [x] **Centralized Telemetry & Error Logging**:
@@ -77,13 +77,17 @@ This document establishes the official engineering roadmap, critical architectur
 - [ ] **Erişilebilirlik (a11y)**:
   - Klavye ile kart seçme ve oynama akışı (`Tab` → `Enter`); ARIA etiketleri kart elleri, skor tablosu ve modal'lar için tamamlanmalı.
   - Ekran okuyucu desteği için anlamlı `aria-label` içerikleri (`"Karo 10 oyna"`, `"Vale ile süpür"` gibi).
-- [ ] **Gizlilik & Kullanıcı Hakları**:
-  - Hesap ve profil silme akışı (KVKK/GDPR uyumluluğu); "Tüm verilerimi sil" seçeneği ayarlar içinden.
-  - Gizlilik politikası sayfası ya da modal'ı.
+- [x] **Gizlilik & Kullanıcı Hakları (KVKK/GDPR — Completed in v1.31.0)**:
+  - Hesap ve profil silme akışı (`deleteAccountAndRemoteData`); "Verilerimi İndir (JSON)" (`exportUserDataAsJson`) ve "Hesabımı ve Verilerimi Sil" seçenekleri ayarlar içinden.
+  - Gizlilik politikası ve veri şeffaflığı sekmesi (`SettingsModal.tsx`).
 - [ ] **Hata İzleme & Prodüksiyon Gözlemleme**:
   - Sentry veya benzeri bir araçla `ErrorBoundary` entegrasyonu; üretimde sessiz catch yerine yapılandırılmış error raporlama.
-- [ ] **Ranked & Turnuva Modu**:
-  - Elo-tabanlı sıralama sistemi; sezonluk liderboard; ELO badge görünümü.
+- [x] **Ranked & ELO Sistemi (Completed in v1.31.0)**:
+  - ELO-tabanlı sıralama sistemi (`Bronze`, `Silver`, `Gold`, `Platinum`, `Diamond`); Dereceli Lig liderlik tablosu (`LeaderboardModal.tsx`) ve profil ELO rozeti (`ProfileModal.tsx`).
+- [x] **Performans, Yeniden Bağlanma, Seyirci Modu, Etkileşimli Eğitim & Yeni Görünümler (Completed in v1.31.0)**:
+  - Grafik kalitesi önayarları (`auto`, `low`, `medium`, `high`) ve `prefers-reduced-motion` uyumluluğu.
+  - 8 saniyelik bağlantı kopma toleransı (`PEER_RECONNECTING`) ve `REQUEST_RESYNC` ile el/masa senkronizasyonu.
+  - Canlı Seyirci Modu (`isSpectator`), 4 adımlı Etkileşimli İlk Oyun Eğitimi (`InteractiveTutorialModal.tsx`), tarih tohumlu Günlük Meydan Okumalar (`DAILY_CHALLENGE_POOL`) ve 3 yeni masa teması (`neon_cyber`, `ottoman_palace`, `arctic_aurora`) + 3 yeni kart arkası (`ottoman_tughra`, `aurora_crystal`, `obsidian_flame`).
 - [ ] **Sesli Sohbet (Voice Chat)**:
   - WebRTC peer-to-peer ses kanalı veya Discord Activity entegrasyonu.
 - [ ] **Lonca / Guild Sistemi**:
@@ -92,6 +96,7 @@ This document establishes the official engineering roadmap, critical architectur
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.31.0**: Implemented Host-Authoritative Deck Secrecy (C2) for both Pişti and RENQ/Uno using opaque card IDs and private per-seat RTDB channels (`rooms/$code/private/$peerId`); resolved all 54 ESLint `@typescript-eslint/no-explicit-any` warnings; decomposed `TableSurface.tsx`, `UnoGameView.tsx`, `usePistiGame.ts`, `App.tsx`, and `i18n.ts` into modular subcomponents and per-language locale files; added Graphics Quality presets (`auto`, `low`, `medium`, `high`) with `prefers-reduced-motion` support; added GDPR/KVKK privacy controls (JSON data export, full local + Firebase account deletion, and privacy policy tab); implemented an 8-second peer disconnect grace period and `REQUEST_RESYNC` state recovery; added ELO Ranked Tiers (`Bronze` through `Diamond`) to player profiles and the global leaderboard; added Live Spectator Mode (`isSpectator`) to online lobbies and active matches; built a 4-step playable Interactive Tutorial (`InteractiveTutorialModal.tsx`) with a +100 XP completion reward; expanded Daily Quests into a deterministic date-seeded challenge pool; and added 3 new table themes (`neon_cyber`, `ottoman_palace`, `arctic_aurora`) and 3 new card backs (`ottoman_tughra`, `aurora_crystal`, `obsidian_flame`).
 - **v1.30.3**: Removed the deck cut Jack test button from the cut view; strictly enforced the 3-closed and 1-open table card ratio (3'e 1) after a Jack cut deal; overhauled end-of-round card counting to count directly on the felt without dark window containers; applied seat-oriented counting rotation (-90°) for 4-player side players with zero-teleportation mid-air flight rotation; removed mock bots and filtered test/bot accounts from the global leaderboard; and implemented automated live update detection (`useVersionChecker` & `public/version.json`) that alerts active users without requiring manual F5 refreshes.
 - **v1.30.2**: Fixed multi-tab account hashtag (#) regeneration and database inflation bug by preserving permanent identity in localStorage and verifying profile ownership via `authStateReady()` before anonymous fallback; unlocked full deck cutting freedom (removed the artificial 8-card boundary, allowing cuts from card 1 to card 51); delivered the traditional Jack cut rule straight to the cutter's hand with smooth aerodynamic delivery (eliminating dizzying 360 spins and sweep rotations), topping up the cutter's hand cleanly during subsequent dealing; overhauled deck shuffle animations to convey authentic physical interleaving, table baize friction, and packet reordering rather than cosmetic hovering; and transformed end-of-round card counting into an authentic casino ceremony with tactile dealer counting ticks, point card chimes, leather-stitched felt counting mats, and celebratory majority sting audio.
 - **v1.30.1**: Built cinematic 3D casino card rituals across Pişti and RENQ: upgraded card shuffles to 32 3D-layered cards (`perspective`, `rotateX`, `rotateY`, `rotateZ`) across all 5 styles with waterfall bridge cascades, synchronized multi-beat audio, ambient spotlight rings, and casino dealer stage HUD banners; introduced interactive tactile deck cutting with curved casino arch spreads, dynamic V-seam parting on hover/touch, and automated AI riffle sweeps; engineered 3D 2-pile splits (Pile A / Pile B) with glowing felt halos, live card peel counters, and zero-teleportation center pot placement; built the traditional "Vale Kesene Yarar" ritual where Jacks revealed as the 4th card land face-up on the center pot with golden halo bursts, trigger a 720ms showcase, swoop 360° into the cutter's collected pile, and dynamically peel and reveal the next card; and unified 3D deck re-merging with high-arc slam physics and seamless dual-glide stowing before hand dealing begins.

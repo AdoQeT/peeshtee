@@ -40,6 +40,12 @@ export interface LobbyPlayerSlot {
   isAI?: boolean;
 }
 
+export interface LobbySpectator {
+  peerId: string;
+  name: string;
+  avatarId?: string;
+}
+
 export type MultiplayerEvent =
   | {
       type: 'GUEST_JOINED';
@@ -50,6 +56,7 @@ export type MultiplayerEvent =
       guestCustomTitle?: string;
       guestLevel?: number;
       guestPeerId: string;
+      isSpectator?: boolean;
     }
   | {
       type: 'GUEST_LEFT';
@@ -67,6 +74,7 @@ export type MultiplayerEvent =
       gameType?: 'pisti' | 'uno';
       settings: GameSettings;
       slots: LobbyPlayerSlot[];
+      spectators?: LobbySpectator[];
       seedUnoDeck?: UnoCard[];
       roomToken?: string;
     }
@@ -579,7 +587,8 @@ export class MultiplayerManager {
     guestAvatarId?: string,
     guestCustomAvatarUrl?: string,
     guestCustomTitle?: string,
-    guestLevel?: number
+    guestLevel?: number,
+    isSpectator?: boolean
   ): Promise<{ success: boolean; error?: string }> {
     this.disconnect();
     this.isHost = false;
@@ -658,7 +667,8 @@ export class MultiplayerManager {
           guestCustomAvatarUrl,
           guestCustomTitle,
           guestLevel,
-          guestPeerId: this.instanceId
+          guestPeerId: this.instanceId,
+          ...(isSpectator ? { isSpectator: true } : {})
         });
       };
 

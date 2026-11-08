@@ -128,6 +128,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#4d0b13_0%,_#240509_55%,_#0f0204_100%)]'
       : theme === 'monaco_velvet'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#3b0764_0%,_#240440_52%,_#0a0114_100%)]'
+      : theme === 'neon_cyber'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0e3a5c_0%,_#1e0b36_52%,_#03040c_100%)]'
+      : theme === 'ottoman_palace'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#5c1127_0%,_#2e0714_52%,_#0a0205_100%)]'
+      : theme === 'arctic_aurora'
+      ? 'bg-[radial-gradient(circle_at_50%_20%,_#0d4f4f_0%,_#07283b_52%,_#010912_100%)]'
       : theme === 'traditional'
       ? 'bg-[radial-gradient(circle_at_50%_20%,_#064e3b_0%,_#041f17_55%,_#020c09_100%)]'
       : 'bg-[radial-gradient(circle_at_50%_20%,_#451a03_0%,_#1c1917_55%,_#090807_100%)]';
@@ -623,7 +629,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.30.3'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.31.0'}
         </span>
       </div>
 

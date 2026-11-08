@@ -16,6 +16,8 @@ import {
   assignOpaqueUnoDeckIds,
   buildMaskedUnoDeckForSeat
 } from '../src/features/uno/unoDeck.ts';
+import { getCardBackForTheme } from '../src/types/game.ts';
+import { isItemLockedByLevel } from '../src/features/progression/levelRewards.ts';
 
 test('rules.ts: evaluatePlay on empty table places card', () => {
   const card = { id: 'c1', suit: 'hearts', value: 7, isSpecial: false, basePoints: 0, faceUp: false };
@@ -250,3 +252,18 @@ test('C2 Uno deck secrecy: buildMaskedUnoDeckForSeat hides opponent hands & draw
   // Opponent (seat 0) cards are masked placeholders
   assert.equal(guestDealt.hands[0].every(c => c.scoreValue === 0 && c.value === '0'), true);
 });
+
+test('Phase 3 Skins & Level Progression: new table themes and card backs map and unlock accurately', () => {
+  assert.equal(getCardBackForTheme('neon_cyber'), 'cyber_neon');
+  assert.equal(getCardBackForTheme('ottoman_palace'), 'ottoman_tughra');
+  assert.equal(getCardBackForTheme('arctic_aurora'), 'aurora_crystal');
+
+  assert.equal(isItemLockedByLevel('theme', 'neon_cyber', 4).isLocked, true);
+  assert.equal(isItemLockedByLevel('theme', 'neon_cyber', 5).isLocked, false);
+  assert.equal(isItemLockedByLevel('theme', 'ottoman_palace', 6).isLocked, false);
+  assert.equal(isItemLockedByLevel('theme', 'arctic_aurora', 7).isLocked, false);
+
+  assert.equal(isItemLockedByLevel('card_back', 'obsidian_flame', 7).isLocked, true);
+  assert.equal(isItemLockedByLevel('card_back', 'obsidian_flame', 8).isLocked, false);
+});
+

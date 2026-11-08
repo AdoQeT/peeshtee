@@ -151,9 +151,18 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
   const isSakura = cardBack === 'sakura_blossom';
   const isGold = cardBack === 'gold_dragon';
   const isCyber = cardBack === 'cyber_neon';
+  const isOttoman = cardBack === 'ottoman_tughra';
+  const isAurora = cardBack === 'aurora_crystal';
+  const isObsidian = cardBack === 'obsidian_flame';
 
   const themeStyles = isCyber
     ? 'bg-gradient-to-br from-[#031525] via-[#05213b] to-[#010810] border-2 border-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.5)]'
+    : isOttoman
+    ? 'bg-gradient-to-br from-[#5c1127] via-[#360714] to-[#120206] border-2 border-amber-400 shadow-[0_4px_18px_rgba(245,158,11,0.45)]'
+    : isAurora
+    ? 'bg-gradient-to-br from-[#064e3b] via-[#0c4a6e] to-[#02121f] border-2 border-emerald-300 shadow-[0_4px_18px_rgba(52,211,153,0.45)]'
+    : isObsidian
+    ? 'bg-gradient-to-br from-[#18181b] via-[#09090b] to-black border-2 border-orange-500 shadow-[0_0_18px_rgba(249,115,22,0.55)]'
     : isEstoril
     ? 'bg-gradient-to-br from-[#0284c7] via-[#034d82] to-[#011428] border-2 border-sky-300 shadow-[0_4px_20px_rgba(56,189,248,0.45)]'
     : isAlpine
@@ -170,6 +179,12 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
 
   const innerBorderClass = isCyber
     ? 'border-cyan-400/60 text-cyan-300'
+    : isOttoman
+    ? 'border-amber-400/60 text-amber-300'
+    : isAurora
+    ? 'border-emerald-300/60 text-emerald-200'
+    : isObsidian
+    ? 'border-orange-500/60 text-orange-400'
     : isEstoril
     ? 'border-sky-300/40 text-sky-200'
     : isAlpine
@@ -255,11 +270,23 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
               ? 'border-amber-400/90 bg-rose-950/90 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.5)]'
               : isGold
               ? 'border-amber-400/80 bg-amber-950/70 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+              : isOttoman
+              ? 'border-amber-400/90 bg-rose-950/90 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+              : isAurora
+              ? 'border-emerald-300/80 bg-teal-950/80 text-emerald-200 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+              : isObsidian
+              ? 'border-orange-400/90 bg-zinc-950/90 text-orange-400 shadow-[0_0_16px_rgba(249,115,22,0.6)]'
               : 'border-blue-300/60 bg-blue-950/70 text-blue-200'
           }`}
         >
           {isCyber ? (
             <span className="text-sm select-none">⚡</span>
+          ) : isOttoman ? (
+            <span className="text-sm select-none">🕌</span>
+          ) : isAurora ? (
+            <span className="text-sm select-none">❄️</span>
+          ) : isObsidian ? (
+            <span className="text-sm select-none">🔥</span>
           ) : isSakura ? (
             <SakuraFlowerSvg className="w-6 h-6 sm:w-7 sm:h-7 text-pink-300" />
           ) : isEstoril ? (

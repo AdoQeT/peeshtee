@@ -12,10 +12,11 @@ import {
   Gamepad2,
   UserPlus,
   Send,
-  Zap
+  Zap,
+  Eye
 } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
-import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
+import { multiplayerManager, LobbyPlayerSlot, LobbySpectator } from '../features/multiplayer/peerManager';
 import { GameSettings } from '../types/game';
 import {
   getUserProfile,
@@ -32,6 +33,7 @@ interface MultiplayerModalProps {
   userName: string;
   userAvatar: string;
   initialJoinCode?: string;
+  initialSpectateMode?: boolean;
   pendingFriendInvite?: {
     friendCode?: string;
     name: string;
@@ -54,6 +56,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   userName,
   userAvatar,
   initialJoinCode,
+  initialSpectateMode = false,
   pendingFriendInvite,
   onClearPendingInvite,
   onOpenFriendsModal,
@@ -145,6 +148,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [slots, setSlots] = useState<LobbyPlayerSlot[]>(() =>
     createInitialSlots(2, localName, localAvatar, localAvatarId, localCustomAvatarUrl)
   );
+  const [spectators, setSpectators] = useState<LobbySpectator[]>([]);
+  const spectatorsRef = useRef<LobbySpectator[]>([]);
+  spectatorsRef.current = spectators;
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -281,34 +287,61 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           let isNewPlayer = false;
           const prev = slotsRef.current;
           const next = [...prev];
-          const existingIdx = next.findIndex(s => s.peerId === event.guestPeerId);
-          if (existingIdx !== -1) {
-            next[existingIdx] = {
-              ...next[existingIdx],
-              name: event.guestName,
-              avatar: event.guestAvatar,
-              avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
-              customAvatarUrl: event.guestCustomAvatarUrl || next[existingIdx].customAvatarUrl,
-              customTitle: event.guestCustomTitle || next[existingIdx].customTitle,
-              level: event.guestLevel || next[existingIdx].level || 1
-            };
-          } else {
-            isNewPlayer = true;
-            const emptyIdx = next.findIndex(
-              s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
-            );
-            if (emptyIdx !== -1) {
-              next[emptyIdx] = {
-                ...next[emptyIdx],
+          const nextSpecs = [...spectatorsRef.current];
+
+          if (event.isSpectator) {
+            const specIdx = nextSpecs.findIndex(sp => sp.peerId === event.guestPeerId);
+            if (specIdx === -1) {
+              isNewPlayer = true;
+              nextSpecs.push({
                 peerId: event.guestPeerId,
                 name: event.guestName,
+                avatarId: event.guestAvatarId || 'wolf'
+              });
+            }
+            spectatorsRef.current = nextSpecs;
+            setSpectators(nextSpecs);
+          } else {
+            const existingIdx = next.findIndex(s => s.peerId === event.guestPeerId);
+            if (existingIdx !== -1) {
+              next[existingIdx] = {
+                ...next[existingIdx],
+                name: event.guestName,
                 avatar: event.guestAvatar,
-                avatarId: event.guestAvatarId || 'wolf',
-                customAvatarUrl: event.guestCustomAvatarUrl,
-                customTitle: event.guestCustomTitle,
-                level: event.guestLevel || 1,
-                isHost: false
+                avatarId: event.guestAvatarId || next[existingIdx].avatarId || 'wolf',
+                customAvatarUrl: event.guestCustomAvatarUrl || next[existingIdx].customAvatarUrl,
+                customTitle: event.guestCustomTitle || next[existingIdx].customTitle,
+                level: event.guestLevel || next[existingIdx].level || 1
               };
+            } else {
+              isNewPlayer = true;
+              const emptyIdx = next.findIndex(
+                s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
+              );
+              if (emptyIdx !== -1) {
+                next[emptyIdx] = {
+                  ...next[emptyIdx],
+                  peerId: event.guestPeerId,
+                  name: event.guestName,
+                  avatar: event.guestAvatar,
+                  avatarId: event.guestAvatarId || 'wolf',
+                  customAvatarUrl: event.guestCustomAvatarUrl,
+                  customTitle: event.guestCustomTitle,
+                  level: event.guestLevel || 1,
+                  isHost: false
+                };
+              } else {
+                // Table seats full -> auto-join as spectator
+                if (!nextSpecs.some(sp => sp.peerId === event.guestPeerId)) {
+                  nextSpecs.push({
+                    peerId: event.guestPeerId,
+                    name: event.guestName,
+                    avatarId: event.guestAvatarId || 'wolf'
+                  });
+                  spectatorsRef.current = nextSpecs;
+                  setSpectators(nextSpecs);
+                }
+              }
             }
           }
 
@@ -334,7 +367,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               ...settingsRef.current,
               playerCount: playerCountRef.current
             },
-            slots: next
+            slots: next,
+            spectators: nextSpecs
           });
         }
       } else if (event.type === 'REQUEST_SEAT_CHANGE') {
@@ -380,6 +414,10 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         sound.playMatchSweep();
         slotsRef.current = event.slots;
         setSlots(event.slots);
+        if (event.spectators) {
+          spectatorsRef.current = event.spectators;
+          setSpectators(event.spectators);
+        }
         if (event.gameType) {
           setGameType(event.gameType);
         }
@@ -634,7 +672,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     }
   };
 
-  const handleJoinRoomWithCode = async (codeToJoin: string) => {
+  const handleJoinRoomWithCode = async (codeToJoin: string, asSpectator: boolean = false) => {
     if (!codeToJoin.trim()) return;
     sound.playClick();
     setErrorMsg(null);
@@ -650,7 +688,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
       localAvatarId,
       undefined, // Stripped big customAvatarUrl from handshake packets
       profile.customTitle || getAvatarPreset(localAvatarId).title,
-      profile.level || 1
+      profile.level || 1,
+      asSpectator
     );
 
     setIsConnecting(false);
@@ -973,23 +1012,41 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => handleJoinRoomWithCode(invitedRoomCode)}
-                    disabled={isConnecting}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm font-cyber flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
-                  >
-                    {isConnecting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{t.mpConnectingRoom}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 fill-slate-950" />
-                        <span>{t.mpJoinWithCodeBtn} ({invitedRoomCode})</span>
-                      </>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleJoinRoomWithCode(invitedRoomCode, Boolean(initialSpectateMode))}
+                      disabled={isConnecting}
+                      className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm font-cyber flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>{t.mpConnectingRoom}</span>
+                        </>
+                      ) : initialSpectateMode ? (
+                        <>
+                          <Eye className="w-4 h-4" />
+                          <span>{lang === 'tr' ? 'Maçı İzle' : 'Spectate'} ({invitedRoomCode})</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 fill-slate-950" />
+                          <span>{t.mpJoinWithCodeBtn} ({invitedRoomCode})</span>
+                        </>
+                      )}
+                    </button>
+                    {!initialSpectateMode && (
+                      <button
+                        onClick={() => handleJoinRoomWithCode(invitedRoomCode, true)}
+                        disabled={isConnecting}
+                        title={lang === 'tr' ? 'Seyirci Olarak İzle' : 'Spectate Match'}
+                        className="px-4 py-3.5 rounded-2xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-400/50 text-purple-200 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        <Eye className="w-4 h-4 text-purple-300" />
+                        <span>{lang === 'tr' ? 'İzle' : 'Watch'}</span>
+                      </button>
                     )}
-                  </button>
+                  </div>
 
                   <div className="text-center pt-1">
                     <button
@@ -1138,15 +1195,24 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                         className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-white font-mono text-xs uppercase tracking-wider focus:outline-none focus:border-cyan-400"
                       />
                       <button
-                        onClick={() => handleJoinRoomWithCode(joinCodeInput)}
+                        onClick={() => handleJoinRoomWithCode(joinCodeInput, false)}
                         disabled={!joinCodeInput.trim() || isConnecting}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                       >
                         {isConnecting ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <span>{t.mpJoinBtn}</span>
                         )}
+                      </button>
+                      <button
+                        onClick={() => handleJoinRoomWithCode(joinCodeInput, true)}
+                        disabled={!joinCodeInput.trim() || isConnecting}
+                        title={lang === 'tr' ? 'Seyirci olarak izle' : 'Watch as spectator'}
+                        className="px-3.5 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-400/50 text-purple-200 font-black text-xs font-cyber flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-purple-300" />
+                        <span>{lang === 'tr' ? 'İzle' : 'Watch'}</span>
                       </button>
                     </div>
                   </div>
@@ -1323,6 +1389,26 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   );
                 })}
               </div>
+
+              {/* Spectators List (if any) */}
+              {spectators.length > 0 && (
+                <div className="p-2.5 rounded-2xl bg-purple-950/20 border border-purple-400/30 flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-purple-400" />
+                    <span>{lang === 'tr' ? `İzleyiciler (${spectators.length})` : `Spectators (${spectators.length})`}</span>
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {spectators.map(sp => (
+                      <span
+                        key={sp.peerId}
+                        className="px-2 py-0.5 rounded-lg bg-slate-900 border border-purple-400/30 text-[10px] font-bold text-purple-200"
+                      >
+                        👁️ {sp.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Host Launch Button or Guest Waiting Message */}
               {isHost ? (

@@ -62,6 +62,60 @@ export const LEVEL_REWARDS: LevelReward[] = [
     description: 'Masanın mutlak hükümdarlarına özel altın efsanevi ünvan',
     icon: '👑',
     title: 'Efsanevi Ünvan'
+  },
+  {
+    level: 5,
+    type: 'theme',
+    rewardId: 'neon_cyber',
+    name: 'Neon Cyberpunk Masa',
+    description: 'Siber ızgara ve elektrik mavisi lazer raylı gelecek masası',
+    icon: '⚡',
+    title: 'Siber Masa Teması'
+  },
+  {
+    level: 6,
+    type: 'card_back',
+    rewardId: 'ottoman_tughra',
+    name: 'Payitaht Tuğra Kart Arkası',
+    description: 'Hünkar bordosu ve altın Selçuklu yıldızı işlemeli kart arkası',
+    icon: '🕌',
+    title: 'Tarihi Kart Arkası'
+  },
+  {
+    level: 6,
+    type: 'theme',
+    rewardId: 'ottoman_palace',
+    name: 'Saray İhtişamı Masa',
+    description: 'Kاشi çini ve altın varaklı Osmanlı saray divanı masası',
+    icon: '🏛️',
+    title: 'Saray Masa Teması'
+  },
+  {
+    level: 7,
+    type: 'card_back',
+    rewardId: 'aurora_crystal',
+    name: 'Kuzey Işıkları Kart Arkası',
+    description: 'Kutup yeşili ve prizmatik buz kristali parıltılı kart arkası',
+    icon: '❄️',
+    title: 'Kutup Kart Arkası'
+  },
+  {
+    level: 7,
+    type: 'theme',
+    rewardId: 'arctic_aurora',
+    name: 'Kuzey Işıkları Masa',
+    description: 'Buzul turkuazı ve kutup aurorası yansımalı masa teması',
+    icon: '🌌',
+    title: 'Aurora Masa Teması'
+  },
+  {
+    level: 8,
+    type: 'card_back',
+    rewardId: 'obsidian_flame',
+    name: 'Obsidyen Alev Kart Arkası',
+    description: 'Volkanik siyah obsidyen ve kor alev damarlı efsanevi kart arkası',
+    icon: '🔥',
+    title: 'Efsanevi Kart Arkası'
   }
 ];
 

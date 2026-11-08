@@ -3,7 +3,7 @@ import { Trophy, Flame, Sparkles, X, Swords, RefreshCw } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { AvatarBadge } from './AvatarBadge';
 import { LeaderboardEntry, fetchLeaderboard } from '../features/progression/leaderboardService';
-import { UserProfile } from '../features/profile/profileManager';
+import { UserProfile, getRankTierInfo } from '../features/profile/profileManager';
 import { getLanguage, translations, Language } from '../utils/i18n';
 
 interface LeaderboardModalProps {
@@ -17,14 +17,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   onClose,
   currentUserProfile
 }) => {
-  const [category, setCategory] = useState<'xp' | 'wins' | 'pistis'>('xp');
+  const [category, setCategory] = useState<'elo' | 'xp' | 'wins' | 'pistis'>('elo');
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const lang = getLanguage() as Language;
   const t = translations[lang] || translations.tr;
 
-  const loadData = async (cat: 'xp' | 'wins' | 'pistis') => {
+  const loadData = async (cat: 'elo' | 'xp' | 'wins' | 'pistis') => {
     setIsLoading(true);
     const data = await fetchLeaderboard(cat);
     setEntries(data);
@@ -90,20 +90,35 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-950/70 border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-1.5 px-5 py-2.5 bg-slate-950/70 border-b border-white/10 shrink-0">
+          <button
+            onClick={() => {
+              sound.playClick();
+              setCategory('elo');
+            }}
+            className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              category === 'elo'
+                ? 'bg-emerald-400 text-slate-950 shadow-sm font-black'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>{lang === 'en' ? 'Ranked ELO' : 'Dereceli Lig'}</span>
+          </button>
+
           <button
             onClick={() => {
               sound.playClick();
               setCategory('xp');
             }}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               category === 'xp'
                 ? 'bg-amber-400 text-slate-950 shadow-sm font-black'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{t.levelLabel || 'Seviye'} & XP</span>
+            <span>{t.levelLabel || 'Seviye'}</span>
           </button>
 
           <button
@@ -224,7 +239,22 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
                   {/* Metric Value */}
                   <div className="text-right shrink-0">
-                    {category === 'xp' ? (
+                    {category === 'elo' ? (
+                      (() => {
+                        const rankInfo = getRankTierInfo(entry.elo);
+                        return (
+                          <>
+                            <div className="text-xs sm:text-sm font-black font-cyber text-emerald-300 flex items-center justify-end gap-1">
+                              <span>{rankInfo.badge}</span>
+                              <span>{entry.elo} LP</span>
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-400">
+                              {lang === 'en' ? rankInfo.nameEn : rankInfo.nameTr}
+                            </div>
+                          </>
+                        );
+                      })()
+                    ) : category === 'xp' ? (
                       <>
                         <div className="text-xs sm:text-sm font-black font-cyber text-amber-300">
                           LVL {entry.level}

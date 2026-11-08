@@ -209,6 +209,74 @@ export interface DailyTask {
   claimed: boolean;
 }
 
+export type RankTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+
+export interface RankTierInfo {
+  tier: RankTier;
+  nameTr: string;
+  nameEn: string;
+  badge: string;
+  colorClass: string;
+  minElo: number;
+  nextTierMinElo: number | null;
+}
+
+export function getRankTierInfo(elo: number = 1000): RankTierInfo {
+  if (elo >= 1650) {
+    return {
+      tier: 'Diamond',
+      nameTr: 'Elmas Ligi',
+      nameEn: 'Diamond League',
+      badge: '💎',
+      colorClass: 'text-cyan-300 border-cyan-400/50 bg-cyan-500/15',
+      minElo: 1650,
+      nextTierMinElo: null
+    };
+  }
+  if (elo >= 1450) {
+    return {
+      tier: 'Platinum',
+      nameTr: 'Platin Ligi',
+      nameEn: 'Platinum League',
+      badge: '💠',
+      colorClass: 'text-teal-300 border-teal-400/50 bg-teal-500/15',
+      minElo: 1450,
+      nextTierMinElo: 1650
+    };
+  }
+  if (elo >= 1250) {
+    return {
+      tier: 'Gold',
+      nameTr: 'Altın Ligi',
+      nameEn: 'Gold League',
+      badge: '🥇',
+      colorClass: 'text-amber-300 border-amber-400/50 bg-amber-500/15',
+      minElo: 1250,
+      nextTierMinElo: 1450
+    };
+  }
+  if (elo >= 1100) {
+    return {
+      tier: 'Silver',
+      nameTr: 'Gümüş Ligi',
+      nameEn: 'Silver League',
+      badge: '🥈',
+      colorClass: 'text-slate-200 border-slate-300/50 bg-slate-400/15',
+      minElo: 1100,
+      nextTierMinElo: 1250
+    };
+  }
+  return {
+    tier: 'Bronze',
+    nameTr: 'Bronz Ligi',
+    nameEn: 'Bronze League',
+    badge: '🥉',
+    colorClass: 'text-orange-300 border-orange-400/50 bg-orange-500/15',
+    minElo: 800,
+    nextTierMinElo: 1100
+  };
+}
+
 export interface UserProfile {
   id: string;
   friendCode: string; // 6-digit unique human-readable ID (e.g. "482910")
@@ -219,6 +287,7 @@ export interface UserProfile {
   isOwner?: boolean; // Creator & Owner VIP badge and golden crown
   xp?: number;
   level?: number;
+  elo?: number; // Ranked ELO rating (default 1000)
   unlockedAchievements?: string[];
   matchHistory?: MatchRecord[];
   dailyTasks?: {
@@ -430,6 +499,7 @@ export function getUserProfile(): UserProfile {
             : [],
           level: typeof parsed.level === 'number' && parsed.level >= 1 ? parsed.level : 1,
           xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
+          elo: typeof parsed.elo === 'number' && parsed.elo >= 100 ? parsed.elo : 1000,
           unlockedAchievements: Array.isArray(parsed.unlockedAchievements)
             ? parsed.unlockedAchievements
             : [],
@@ -489,6 +559,7 @@ export function getUserProfile(): UserProfile {
     friends: [],
     level: 1,
     xp: 0,
+    elo: 1000,
     unlockedAchievements: [],
     matchHistory: [],
     stats: {
@@ -657,6 +728,7 @@ export async function syncProfileToFirebase(profile: UserProfile): Promise<void>
       isOwner: profile.isOwner || false,
       level: profile.level || 1,
       xp: profile.xp || 0,
+      elo: profile.elo || 1000,
       unlockedAchievements: profile.unlockedAchievements || [],
       stats: profile.stats || {},
       lastOnline: Date.now()
@@ -742,6 +814,11 @@ export function recordMatchStats(
   if (matchTotalPistis > (profile.stats.recordPistiCount || 0)) {
     profile.stats.recordPistiCount = matchTotalPistis;
   }
+
+  // Update ELO Rating (K-factor bounded between -22 and +26 per match)
+  const currentElo = typeof profile.elo === 'number' ? profile.elo : 1000;
+  const eloDelta = isWin ? 24 + Math.min(4, pistis + doublePistis) : -18;
+  profile.elo = Math.max(800, Math.min(3000, currentElo + eloDelta));
 
   // Calculate XP gained from match performance
   let xp = isUno ? (isWin ? 150 : 60) : (isWin ? 160 : 70);
@@ -842,40 +919,65 @@ export function addXp(amount: number): {
   return res;
 }
 
-// Default Daily Tasks template
-function createInitialDailyTasks(): DailyTask[] {
-  return [
-    {
-      id: 'task_pisti_win',
-      title: 'Zirveye Oyna',
-      description: 'Günün en az 1 Pişti maçını kazan',
-      icon: '🏆',
-      target: 1,
-      current: 0,
-      rewardXp: 120,
-      claimed: false
-    },
-    {
-      id: 'task_pisti_count',
-      title: 'Pişti Avcısı',
-      description: 'Toplam 3 adet Pişti yap',
-      icon: '⚡',
-      target: 3,
-      current: 0,
-      rewardXp: 150,
-      claimed: false
-    },
-    {
-      id: 'task_uno_play',
-      title: 'Renk Ustası',
-      description: '1 adet RENQ (UNO) maçı tamamla',
-      icon: '🔥',
-      target: 1,
-      current: 0,
-      rewardXp: 100,
-      claimed: false
-    }
-  ];
+// Date-seeded Daily Challenges pool (rotates deterministically every calendar day)
+const DAILY_CHALLENGE_POOL: Omit<DailyTask, 'current' | 'claimed'>[] = [
+  {
+    id: 'task_pisti_win',
+    title: 'Zirveye Oyna',
+    description: 'Günün en az 1 Pişti maçını kazan',
+    icon: '🏆',
+    target: 1,
+    rewardXp: 120
+  },
+  {
+    id: 'task_pisti_count',
+    title: 'Pişti Avcısı',
+    description: 'Toplam 3 adet Pişti yap',
+    icon: '⚡',
+    target: 3,
+    rewardXp: 150
+  },
+  {
+    id: 'task_uno_play',
+    title: 'Renk Ustası',
+    description: '1 adet RENQ (UNO) maçı tamamla',
+    icon: '🔥',
+    target: 1,
+    rewardXp: 100
+  },
+  {
+    id: 'task_pisti_win_2',
+    title: 'Çifte Zafer',
+    description: 'Bugün 2 Pişti maçı kazan',
+    icon: '⚔️',
+    target: 2,
+    rewardXp: 200
+  },
+  {
+    id: 'task_pisti_count_5',
+    title: 'Keskin Nişancı',
+    description: 'Masada toplam 5 Pişti veya Çift Pişti vur',
+    icon: '🎯',
+    target: 5,
+    rewardXp: 220
+  }
+];
+
+function createInitialDailyTasks(dateSeedStr?: string): DailyTask[] {
+  const seedStr = dateSeedStr || new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  const winTask = hash % 2 === 0 ? DAILY_CHALLENGE_POOL[0] : DAILY_CHALLENGE_POOL[3];
+  const pistiTask = (hash >> 1) % 2 === 0 ? DAILY_CHALLENGE_POOL[1] : DAILY_CHALLENGE_POOL[4];
+  const unoTask = DAILY_CHALLENGE_POOL[2];
+
+  return [winTask, pistiTask, unoTask].map(item => ({
+    ...item,
+    current: 0,
+    claimed: false
+  }));
 }
 
 export function getOrInitDailyTasks(forcedProfile?: UserProfile): DailyTask[] {
@@ -885,7 +987,7 @@ export function getOrInitDailyTasks(forcedProfile?: UserProfile): DailyTask[] {
   if (!profile.dailyTasks || profile.dailyTasks.lastResetDate !== todayStr) {
     profile.dailyTasks = {
       lastResetDate: todayStr,
-      tasks: createInitialDailyTasks()
+      tasks: createInitialDailyTasks(todayStr)
     };
     if (!forcedProfile) saveUserProfile(profile);
   }
@@ -905,9 +1007,9 @@ export function updateDailyTaskProgress(
   let leveledUp = false;
 
   if (profile.dailyTasks) {
-    const fullId = `task_${taskIdSuffix}`;
+    const fullPrefix = `task_${taskIdSuffix}`;
     profile.dailyTasks.tasks = profile.dailyTasks.tasks.map(t => {
-      if (t.id === fullId && !t.claimed) {
+      if ((t.id === fullPrefix || t.id.startsWith(`${fullPrefix}_`)) && !t.claimed) {
         const nextCurrent = Math.min(t.target, t.current + increment);
         const reached = nextCurrent >= t.target;
         if (reached) {

@@ -108,7 +108,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       preview: 'from-[#381408] via-[#21090d] to-[#0d0407] border-amber-500/60',
       badge: 'VIP',
       cardDesc: '24k Altın Folyo & Varak Ejderha'
+    },
+    {
+      id: 'neon_cyber',
+      name: 'Neon Cyberpunk',
+      subtitle: 'Siber Izgara & Elektrik Lazer Raylar',
+      preview: 'from-[#0e3a5c] via-[#1e0b36] to-[#040714] border-cyan-400/70 shadow-[0_0_15px_rgba(34,211,238,0.4)]',
+      badge: 'CYBER',
+      cardDesc: 'Siber Neon Kart & Hareketli Tarayıcı'
+    },
+    {
+      id: 'ottoman_palace',
+      name: 'Saray İhtişamı',
+      subtitle: 'Hünkar Bordosu & İznik Çini Altın Varak',
+      preview: 'from-[#5c1127] via-[#2e0714] to-[#120206] border-amber-400/70',
+      badge: 'PAYİTAHT',
+      cardDesc: 'Payitaht Tuğra & Selçuklu Yıldızı Kart'
+    },
+    {
+      id: 'arctic_aurora',
+      name: 'Kuzey Işıkları',
+      subtitle: 'Buzul Turkuazı & Kutup Aurorası Parıltısı',
+      preview: 'from-[#0d4f4f] via-[#07283b] to-[#021019] border-emerald-300/70',
+      badge: 'AURORA',
+      cardDesc: 'Aurora Kristal & Kutup Yıldızı Kart'
     }
+  ];
+
+  const cardBacks: { id: string; name: string; badge: string }[] = [
+    { id: 'classic_blue', name: 'Klasik Mavi', badge: 'KLASİK' },
+    { id: 'estoril_sport', name: 'Estoril Sport', badge: 'M-POWER' },
+    { id: 'alpine_platinum', name: 'Alpine Platinum', badge: 'PLATINUM' },
+    { id: 'melbourne_speed', name: 'Melbourne Speed', badge: 'SPEED' },
+    { id: 'cyber_neon', name: 'Siber Neon', badge: 'LVL 2' },
+    { id: 'gold_dragon', name: 'Altın Ejder', badge: 'LVL 3' },
+    { id: 'monaco_royal', name: 'Monaco Royal', badge: 'ROYALE' },
+    { id: 'sakura_blossom', name: 'Sakura Çiçeği', badge: 'ZARİF' },
+    { id: 'ottoman_tughra', name: 'Payitaht Tuğra', badge: 'LVL 6' },
+    { id: 'aurora_crystal', name: 'Kuzey Kristali', badge: 'LVL 7' },
+    { id: 'obsidian_flame', name: 'Obsidyen Alev', badge: 'LVL 8' }
   ];
 
   return (
@@ -244,24 +282,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Temaya Özel Kart Deseni Bilgisi */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-sm shadow-sm">
-                    🂠
+              {/* Temaya Özel Kart Deseni Bilgisi & Özel Kart Arkası Seçici */}
+              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-sm shadow-sm">
+                      🂠
+                    </div>
+                    <div>
+                      <span className="font-bold text-xs text-white block">
+                        {t.autoCardSetTitle}
+                      </span>
+                      <span className="text-[11px] text-slate-400 block mt-0.5">
+                        {themes.find(th => th.id === settings.theme)?.cardDesc || 'Temaya özel el yapımı kart deseni'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-bold text-xs text-white block">
-                      {t.autoCardSetTitle}
-                    </span>
-                    <span className="text-[11px] text-slate-400 block mt-0.5">
-                      {themes.find(th => th.id === settings.theme)?.cardDesc || 'Temaya özel el yapımı kart deseni'}
-                    </span>
+                  <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono font-bold shrink-0">
+                    {t.autoCardSetActive}
+                  </span>
+                </div>
+
+                <div className="border-t border-white/10 pt-3">
+                  <span className="text-[11px] font-bold text-slate-300 block mb-2">
+                    {lang === 'en' ? 'Custom Card Back Override:' : 'Özel Kart Arkası Seçimi:'}
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {cardBacks.map(cb => {
+                      const cbLock = isItemLockedByLevel('card_back', cb.id, userLevel);
+                      const isSelected = settings.cardBack === cb.id;
+                      return (
+                        <button
+                          key={cb.id}
+                          disabled={cbLock.isLocked}
+                          onClick={() => {
+                            if (cbLock.isLocked) return;
+                            sound.playClick();
+                            onUpdateSettings({ cardBack: cb.id });
+                          }}
+                          className={`px-2.5 py-2 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-1.5 ${
+                            cbLock.isLocked
+                              ? 'opacity-40 cursor-not-allowed border-white/5 bg-slate-950/50 text-slate-500'
+                              : isSelected
+                              ? 'border-amber-400 bg-amber-400/15 text-amber-300 shadow-sm cursor-pointer'
+                              : 'border-white/10 bg-white/5 text-slate-300 hover:text-white cursor-pointer'
+                          }`}
+                        >
+                          <span className="truncate">{cb.name}</span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/40 text-amber-300/90 shrink-0">
+                            {cbLock.isLocked ? `🔒 L${cbLock.requiredLevel}` : cb.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono font-bold shrink-0">
-                  {t.autoCardSetActive}
-                </span>
               </div>
             </div>
           )}

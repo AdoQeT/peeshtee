@@ -260,6 +260,12 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
         return 'bg-[#10021c] bg-[radial-gradient(ellipse_at_center,_#510b8c_0%,_#2e0652_52%,_#080111_100%)] border-amber-400/80 shadow-[inset_0_0_150px_rgba(245,158,11,0.38),0_0_50px_rgba(168,85,247,0.3),0_25px_70px_rgba(0,0,0,0.98)]';
       case 'luxury_gold':
         return 'bg-[#120507] bg-[radial-gradient(ellipse_at_center,_#522013_0%,_#260d13_55%,_#060203_100%)] border-amber-400/80 shadow-[inset_0_0_150px_rgba(245,158,11,0.32),0_0_45px_rgba(245,158,11,0.25),0_25px_70px_rgba(0,0,0,0.95)]';
+      case 'neon_cyber':
+        return 'bg-[#040714] bg-[radial-gradient(ellipse_at_center,_#0e3a5c_0%,_#1e0b36_52%,_#03040c_100%)] border-cyan-400/80 shadow-[inset_0_0_150px_rgba(34,211,238,0.38),0_0_50px_rgba(217,70,239,0.28),0_25px_70px_rgba(0,0,0,0.98)]';
+      case 'ottoman_palace':
+        return 'bg-[#14040a] bg-[radial-gradient(ellipse_at_center,_#5c1127_0%,_#2e0714_52%,_#0a0205_100%)] border-amber-400/80 shadow-[inset_0_0_150px_rgba(245,158,11,0.35),0_0_45px_rgba(45,212,191,0.22),0_25px_70px_rgba(0,0,0,0.96)]';
+      case 'arctic_aurora':
+        return 'bg-[#021019] bg-[radial-gradient(ellipse_at_center,_#0d4f4f_0%,_#07283b_52%,_#010912_100%)] border-emerald-300/80 shadow-[inset_0_0_150px_rgba(52,211,153,0.35),0_0_50px_rgba(56,189,248,0.28),0_25px_70px_rgba(0,0,0,0.96)]';
       case 'traditional':
       default:
         return 'bg-[#041c13] bg-[radial-gradient(ellipse_at_center,_#12593d_0%,_#093827_52%,_#02130d_100%)] border-amber-700/70 shadow-[inset_0_0_150px_rgba(0,0,0,0.92),0_0_40px_rgba(245,158,11,0.2),0_25px_70px_rgba(0,0,0,0.95)]';

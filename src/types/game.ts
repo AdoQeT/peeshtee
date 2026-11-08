@@ -60,7 +60,10 @@ export type TableTheme =
   | 'monaco_velvet'
   | 'traditional'
   | 'sakura'
-  | 'luxury_gold';
+  | 'luxury_gold'
+  | 'neon_cyber'
+  | 'ottoman_palace'
+  | 'arctic_aurora';
 
 export function getCardBackForTheme(theme: TableTheme): string {
   switch (theme) {
@@ -76,6 +79,12 @@ export function getCardBackForTheme(theme: TableTheme): string {
       return 'sakura_blossom';
     case 'luxury_gold':
       return 'gold_dragon';
+    case 'neon_cyber':
+      return 'cyber_neon';
+    case 'ottoman_palace':
+      return 'ottoman_tughra';
+    case 'arctic_aurora':
+      return 'aurora_crystal';
     case 'traditional':
     default:
       return 'classic_blue';

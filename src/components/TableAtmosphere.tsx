@@ -309,5 +309,78 @@ export const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_38%,_rgba(10,2,20,0.96)_100%)]" />
         </div>
       );
+
+    case 'neon_cyber':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          <div
+            className="absolute inset-0 opacity-[0.075]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(34,211,238,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(217,70,239,0.35) 1px, transparent 1px)',
+              backgroundSize: '28px 28px'
+            }}
+          />
+          <div className="absolute inset-2 sm:inset-3 rounded-2xl border-2 border-cyan-400/75 shadow-[inset_0_0_35px_rgba(34,211,238,0.3),0_0_22px_rgba(217,70,239,0.25)]" />
+          <div className="absolute inset-3.5 sm:inset-5 rounded-xl border border-dashed border-fuchsia-400/45" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.16] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-80 h-80 sm:w-[26rem] sm:h-[26rem] text-cyan-300" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <polygon points="100,15 180,60 180,140 100,185 20,140 20,60" strokeDasharray="6 3" />
+              <polygon points="100,35 160,70 160,130 100,165 40,130 40,70" />
+              <circle cx="100" cy="100" r="24" strokeWidth="2" />
+            </svg>
+          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(34,211,238,0.18)_0%,_transparent_58%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_38%,_rgba(4,6,18,0.95)_100%)]" />
+        </div>
+      );
+
+    case 'ottoman_palace':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          <div
+            className="absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(45deg, #fbbf24 0, #fbbf24 1.2px, transparent 1.2px, transparent 7px), repeating-linear-gradient(-45deg, #2dd4bf 0, #2dd4bf 1.2px, transparent 1.2px, transparent 7px)'
+            }}
+          />
+          <div className="absolute inset-2 sm:inset-3 rounded-2xl border-2 border-amber-400/75 shadow-[inset_0_0_35px_rgba(245,158,11,0.3),0_0_20px_rgba(245,158,11,0.2)]" />
+          <div className="absolute inset-3.5 sm:inset-5 rounded-xl border border-dashed border-teal-300/40" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.16] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-80 h-80 sm:w-[26rem] sm:h-[26rem] text-amber-300" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <circle cx="100" cy="100" r="90" strokeDasharray="5 3" />
+              <polygon points="100,20 122,68 172,52 146,100 172,148 122,132 100,180 78,132 28,148 54,100 28,52 78,68" strokeWidth="1.8" />
+              <circle cx="100" cy="100" r="26" fill="currentColor" opacity="0.2" />
+            </svg>
+          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(245,158,11,0.16)_0%,_transparent_58%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_38%,_rgba(20,4,10,0.94)_100%)]" />
+        </div>
+      );
+
+    case 'arctic_aurora':
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]">
+          <div
+            className="absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 50% 50%, #34d399 1.2px, transparent 1.2px), repeating-linear-gradient(60deg, #38bdf8 0, #38bdf8 1px, transparent 1px, transparent 9px)'
+            }}
+          />
+          <div className="absolute inset-2 sm:inset-3 rounded-2xl border-2 border-emerald-300/70 shadow-[inset_0_0_35px_rgba(52,211,153,0.28),0_0_22px_rgba(56,189,248,0.25)]" />
+          <div className="absolute inset-3.5 sm:inset-5 rounded-xl border border-dashed border-cyan-300/40" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.15] pointer-events-none">
+            <svg viewBox="0 0 200 200" className="w-80 h-80 sm:w-[26rem] sm:h-[26rem] text-emerald-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="100" cy="100" r="88" strokeDasharray="4 4" />
+              <polygon points="100,22 135,82 178,100 135,118 100,178 65,118 22,100 65,82" strokeWidth="1.8" />
+              <circle cx="100" cy="100" r="20" strokeWidth="2" />
+            </svg>
+          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(52,211,153,0.18)_0%,_transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_38%,_rgba(2,14,22,0.94)_100%)]" />
+        </div>
+      );
   }
 };

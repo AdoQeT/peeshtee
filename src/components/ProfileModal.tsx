@@ -5,7 +5,8 @@ import {
   saveUserProfile,
   grantOwnerAccess,
   calculateLevel,
-  getUserProfile
+  getUserProfile,
+  getRankTierInfo
 } from '../features/profile/profileManager';
 import { ACHIEVEMENTS } from '../features/progression/achievements';
 import { AvatarBadge } from './AvatarBadge';
@@ -71,6 +72,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     isInspectingOther ? activeProfile.avatarId : selectedAvatarId
   );
   const lvlInfo = calculateLevel(activeProfile.xp || 0);
+  const rankTier = getRankTierInfo(activeProfile.elo || 1000);
 
   const winRate =
     activeProfile.stats.matchesPlayed > 0
@@ -303,6 +305,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     </h3>
                     <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
                       #{activeProfile.friendCode}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${rankTier.colorClass}`}>
+                      <span>{rankTier.badge}</span>
+                      <span>{lang === 'en' ? rankTier.nameEn : rankTier.nameTr} ({activeProfile.elo || 1000} LP)</span>
                     </span>
                     <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
                       {isInspectingOther

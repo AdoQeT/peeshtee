@@ -81,6 +81,7 @@ export interface UsePistiGameProps {
   isMultiplayerHostRef: React.MutableRefObject<boolean>;
   myMultiplayerSeat: number;
   myMultiplayerSeatRef: React.MutableRefObject<number>;
+  isSpectatorRef?: React.MutableRefObject<boolean>;
   activeMultiplayerSlots: LobbyPlayerSlot[];
   activeMultiplayerSlotsRef: React.MutableRefObject<LobbyPlayerSlot[]>;
   readySeatsForNextRound: Set<number>;
@@ -117,6 +118,7 @@ export function usePistiGame({
   isMultiplayerHostRef,
   myMultiplayerSeat,
   myMultiplayerSeatRef,
+  isSpectatorRef,
   activeMultiplayerSlots,
   activeMultiplayerSlotsRef,
   readySeatsForNextRound,
@@ -630,7 +632,7 @@ export function usePistiGame({
         pendingDealContextRef.current = ctx;
         setPendingDealContext(ctx);
 
-        const isHuman = isMp ? (startingTurn === 0) : true;
+        const isHuman = isMp ? (startingTurn === 0 && !isSpectatorRef?.current) : true;
         const cutterSeatIdx = startingTurn;
         const cName = newPlayers[cutterSeatIdx]?.name || 'Oyuncu';
         sound.playWashScramble();
@@ -690,8 +692,8 @@ export function usePistiGame({
       const validIndex = Math.max(1, Math.min(cutIndex, seedDeck.length - 1));
 
       // Guest cutter sends MP_DECK_CUT to Host and waits for Host's MP_PRIVATE_DEAL_VIEW before proceeding!
-      if (isMp && !multiplayerManager.isHost && !overrideCutDeck) {
-        if (multiplayerManager.isConnected && deckCutState?.isHumanCutter) {
+      if (isMp && !multiplayerManager.isHost && !overrideCutDeck && deckCutState?.isHumanCutter) {
+        if (multiplayerManager.isConnected) {
           multiplayerManager.send({
             type: 'MP_DECK_CUT',
             cutIndex: validIndex,
@@ -717,6 +719,24 @@ export function usePistiGame({
           cutterSeat: absCutterSeat,
           senderPeerId: multiplayerManager.instanceId
         });
+
+        const dealPreview = dealInitialGame(
+          cutDeck,
+          configuredSettings.playerCount,
+          true,
+          absStartingTurn,
+          absCutterSeat
+        );
+        const publicReveals = [
+          ...dealPreview.tableCards.filter(c => c.faceUp),
+          ...(dealPreview.jacksAwardedToCutter || [])
+        ];
+        if (publicReveals.length > 0) {
+          multiplayerManager.send({
+            type: 'MP_CARD_REVEAL',
+            cards: publicReveals
+          });
+        }
 
         const slots = activeMultiplayerSlotsRef.current || [];
         slots.forEach(slot => {
@@ -1236,7 +1256,7 @@ export function usePistiGame({
         pendingDealContextRef.current = ctx;
         setPendingDealContext(ctx);
 
-        const isHuman = isMp ? (nextStartingTurn === 0) : (nextStartingTurn === 0);
+        const isHuman = isMp ? (nextStartingTurn === 0 && !isSpectatorRef?.current) : (nextStartingTurn === 0);
         const cutterSeatIdx = nextStartingTurn;
         const cName = playersRef.current[cutterSeatIdx]?.name || 'Oyuncu';
         sound.playWashScramble();
@@ -1326,7 +1346,10 @@ export function usePistiGame({
       initialTilt: number = 0,
       isRemoteMultiplayerMove: boolean = false
     ) => {
-      // Guard against click spam while dealing, shuffling, busy, already action-locked, out-of-turn, or card not in hand
+      // Guard against click spam while dealing, shuffling, busy, already action-locked, out-of-turn, spectator, or card not in hand
+      if (!isRemoteMultiplayerMove && isSpectatorRef?.current) {
+        return;
+      }
       if (
         isBusyRef.current ||
         isDealingAnimationRef.current ||

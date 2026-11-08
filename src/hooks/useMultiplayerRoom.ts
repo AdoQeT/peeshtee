@@ -36,6 +36,11 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
   const myMultiplayerSeatRef = useRef<number>(0);
   myMultiplayerSeatRef.current = myMultiplayerSeat;
 
+  const [isSpectator, setIsSpectator] = useState<boolean>(false);
+  const isSpectatorRef = useRef<boolean>(false);
+  isSpectatorRef.current = isSpectator;
+  const [initialSpectateMode, setInitialSpectateMode] = useState<boolean>(false);
+
   const [activeMultiplayerSlots, setActiveMultiplayerSlots] = useState<LobbyPlayerSlot[]>([]);
   const activeMultiplayerSlotsRef = useRef<LobbyPlayerSlot[]>(activeMultiplayerSlots);
   activeMultiplayerSlotsRef.current = activeMultiplayerSlots;
@@ -234,6 +239,9 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
     isMultiplayerGameRef.current = false;
     setMyMultiplayerSeat(0);
     myMultiplayerSeatRef.current = 0;
+    setIsSpectator(false);
+    isSpectatorRef.current = false;
+    setInitialSpectateMode(false);
     setInitialJoinCode('');
     setActiveMultiplayerSlots([]);
     activeMultiplayerSlotsRef.current = [];
@@ -252,6 +260,11 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
     myMultiplayerSeat,
     setMyMultiplayerSeat,
     myMultiplayerSeatRef,
+    isSpectator,
+    setIsSpectator,
+    isSpectatorRef,
+    initialSpectateMode,
+    setInitialSpectateMode,
     activeMultiplayerSlots,
     setActiveMultiplayerSlots,
     activeMultiplayerSlotsRef,
@@ -295,6 +308,8 @@ export interface UseMultiplayerEventsProps {
   setIsMultiplayerHost: React.Dispatch<React.SetStateAction<boolean>>;
   setMyMultiplayerSeat: React.Dispatch<React.SetStateAction<number>>;
   myMultiplayerSeatRef: React.MutableRefObject<number>;
+  setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>;
+  isSpectatorRef: React.MutableRefObject<boolean>;
   setActiveMultiplayerSlots: React.Dispatch<React.SetStateAction<LobbyPlayerSlot[]>>;
   activeMultiplayerSlotsRef: React.MutableRefObject<LobbyPlayerSlot[]>;
   setIsMultiplayerOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -354,6 +369,8 @@ export function useMultiplayerEvents({
   setIsMultiplayerHost,
   setMyMultiplayerSeat,
   myMultiplayerSeatRef,
+  setIsSpectator,
+  isSpectatorRef,
   setActiveMultiplayerSlots,
   activeMultiplayerSlotsRef,
   setIsMultiplayerOpen,
@@ -377,7 +394,10 @@ export function useMultiplayerEvents({
       if (msg.type === 'MP_GAME_START') {
         if (!multiplayerManager.isHost) {
           const mySlot = msg.slots.find(s => s.peerId === multiplayerManager.instanceId);
-          const mySeatIdx = mySlot ? mySlot.seatIndex : 1;
+          const amSpectator = !mySlot;
+          const mySeatIdx = mySlot ? mySlot.seatIndex : 0;
+          setIsSpectator(amSpectator);
+          isSpectatorRef.current = amSpectator;
           setInitialJoinCode('');
           setChatMessages([]);
 
@@ -572,8 +592,8 @@ export function useMultiplayerEvents({
         }
       } else if (msg.type === 'MP_DECK_CUT') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
-        // Only the Host processes MP_DECK_CUT directly; Guests wait for their private MP_PRIVATE_DEAL_VIEW
-        if (multiplayerManager.isHost) {
+        // Host and Spectators process MP_DECK_CUT directly; seated Guests wait for their private MP_PRIVATE_DEAL_VIEW
+        if (multiplayerManager.isHost || isSpectatorRef.current) {
           onCutDeckAndProceed(msg.cutIndex);
         }
       } else if (msg.type === 'MP_PRIVATE_DEAL_VIEW') {

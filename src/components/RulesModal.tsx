@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Flame, Zap, Award, BookOpen } from 'lucide-react';
+import { X, Flame, Zap, Award, BookOpen, GraduationCap } from 'lucide-react';
 import { sound } from '../core/audio/soundEngine';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
+import { InteractiveTutorialModal } from './InteractiveTutorialModal';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface RulesModalProps {
 
 export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
   const [lang, setLang] = useState<Language>(getLanguage());
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   useEffect(() => {
     return onLanguageChange(setLang);
   }, []);
@@ -153,8 +155,18 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* Simple Return Button */}
-        <div className="mt-5 pt-3 border-t border-white/10">
+        {/* Interactive Tutorial & Return Buttons */}
+        <div className="mt-5 pt-3 border-t border-white/10 space-y-2">
+          <button
+            onClick={() => {
+              sound.playClick();
+              setIsTutorialOpen(true);
+            }}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs font-cyber transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span>{lang === 'tr' ? '🎓 ETKİLEŞİMLİ İLK OYUN EĞİTİMİNİ BAŞLAT' : '🎓 START INTERACTIVE TUTORIAL'}</span>
+          </button>
           <button
             onClick={handleClose}
             className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white font-bold text-xs transition-colors cursor-pointer"
@@ -163,6 +175,11 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
       </div>
+
+      <InteractiveTutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+      />
     </div>
   );
 };

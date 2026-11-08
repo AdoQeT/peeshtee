@@ -27,44 +27,20 @@ import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/pee
 import { friendNetwork } from '../features/friends/friendNetwork';
 import type { TableDomRefs, SlotReadinessInfo } from '../components/TableSurface';
 import { MatchIntroPlayer } from '../components/MatchIntroOverlay';
-import { UserProfile, getUserProfile, getAvatarPreset, recordMatchStats } from '../features/profile/profileManager';
+import { UserProfile, getUserProfile, recordMatchStats } from '../features/profile/profileManager';
+import {
+  SHUFFLE_STYLES,
+  getShuffleDuration,
+  orientHandsForPerspective,
+  buildInitialPistiPlayers
+} from '../utils/pistiPlayerFactory';
+export { SHUFFLE_STYLES, getShuffleDuration, orientHandsForPerspective };
 import { checkAndUnlockAchievements } from '../features/progression/achievements';
 import { useCardFlightState, getCenter, cardDomElements } from './useCardFlightState';
 import { FlyingCardData } from '../components/CardAnimationLayer';
 import { ChatMessage } from '../components/InGameChat';
 import { RoundScoresState } from './useMultiplayerRoom';
 import confetti from 'canvas-confetti';
-
-export const SHUFFLE_STYLES: ShuffleStyle[] = [
-  'riffle_bridge',
-  'triple_cut',
-  'table_wash',
-  'farot_wave',
-  'hindu_slide'
-];
-
-export const getShuffleDuration = (_style: ShuffleStyle): number => {
-  return 2500;
-};
-
-export function orientHandsForPerspective(
-  hands: Card[][],
-  mySeatIdx: number = 0
-): Card[][] {
-  const count = hands.length;
-  if (count <= 1) return hands;
-  const rotated: Card[][] = [];
-  for (let j = 0; j < count; j++) {
-    const originalIdx = (j + mySeatIdx) % count;
-    rotated.push(
-      hands[originalIdx].map(c => ({
-        ...c,
-        faceUp: j === 0
-      }))
-    );
-  }
-  return rotated;
-}
 
 export interface DeckCutState {
   isActive: boolean;
@@ -180,148 +156,7 @@ export function usePistiGame({
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(15);
 
   // Setup Players based on count & difficulty
-  const createInitialPlayers = useCallback(
-    (
-      count: 2 | 4,
-      difficulty: string,
-      localName: string = 'Oyuncu (Sen)',
-      localAvatar: string = '😎',
-      customOpponentName?: string,
-      customOpponentAvatar?: string,
-      mpSlots?: LobbyPlayerSlot[],
-      mySeatIdx: number = 0
-    ): Player[] => {
-      const curProfile = getUserProfile();
-
-      if (mpSlots && mpSlots.length >= count) {
-        const playersList: Player[] = [];
-        for (let j = 0; j < count; j++) {
-          const originalSeat = (j + mySeatIdx) % count;
-          const slot = mpSlots[originalSeat];
-          const isMe = j === 0;
-          playersList.push({
-            id: isMe ? 'user' : `player-${originalSeat}`,
-            name: isMe ? `${slot.name} (Sen)` : slot.name,
-            isAI: Boolean(slot.isAI),
-            avatar: slot.avatar,
-            avatarId: isMe ? curProfile.avatarId : slot.avatarId || 'wolf',
-            customAvatarUrl: isMe ? curProfile.customAvatarDataUrl : slot.customAvatarUrl,
-            customTitle: isMe
-              ? (curProfile.customTitle || getAvatarPreset(curProfile.avatarId || 'wolf').title)
-              : (slot.customTitle || getAvatarPreset(slot.avatarId || 'wolf').title),
-            hand: [],
-            collectedCards: [],
-            pistiPairs: [],
-            pistiCount: 0,
-            doublePistiCount: 0,
-            bonusPoints: 0,
-            score: 0,
-            roundScore: 0,
-            level: 1
-          });
-        }
-        return playersList;
-      }
-
-      const botNames = getRandomBotNames(3, getLanguage());
-      const p1Name = customOpponentName
-        ? customOpponentName
-        : botNames[0] || 'Alex';
-
-      const bot1Personality =
-        difficulty === 'hard'
-          ? 'tactician'
-          : difficulty === 'easy'
-          ? 'aggressive'
-          : 'balanced';
-
-      const basePlayers: Player[] = [
-        {
-          id: 'user',
-          name: curProfile.name || localName,
-          isAI: false,
-          avatar: localAvatar,
-          avatarId: curProfile.avatarId || 'wolf',
-          customAvatarUrl: curProfile.customAvatarDataUrl,
-          customTitle: curProfile.customTitle || getAvatarPreset(curProfile.avatarId || 'wolf').title,
-          hand: [],
-          collectedCards: [],
-          pistiPairs: [],
-          pistiCount: 0,
-          doublePistiCount: 0,
-          score: 0,
-          roundScore: 0,
-          level: 1
-        },
-        {
-          id: 'bot-1',
-          name: p1Name,
-          isAI: !customOpponentName,
-          personality: bot1Personality,
-          avatar: customOpponentAvatar || '🤖',
-          avatarId: 'lion',
-          customTitle:
-            bot1Personality === 'tactician'
-              ? '🧠 Tactician'
-              : bot1Personality === 'aggressive'
-              ? '🔥 Aggressive'
-              : '🃏 Balanced',
-          hand: [],
-          collectedCards: [],
-          pistiPairs: [],
-          pistiCount: 0,
-          doublePistiCount: 0,
-          score: 0,
-          roundScore: 0,
-          level: 1
-        }
-      ];
-
-      if (count === 4) {
-        basePlayers.push(
-          {
-            id: 'bot-2',
-            name: botNames[1] || 'Leo',
-            isAI: true,
-            personality: 'aggressive',
-            avatar: '👴',
-            avatarId: 'dayi',
-            customTitle: '🔥 Aggressive',
-            hand: [],
-            collectedCards: [],
-            pistiPairs: [],
-            pistiCount: 0,
-            doublePistiCount: 0,
-            bonusPoints: 0,
-            score: 0,
-            roundScore: 0,
-            level: 1
-          },
-          {
-            id: 'bot-3',
-            name: botNames[2] || 'Max',
-            isAI: true,
-            personality: 'tactician',
-            avatar: '🧔',
-            avatarId: 'muhtar',
-            customTitle: '🧠 Tactician',
-            hand: [],
-            collectedCards: [],
-            pistiPairs: [],
-            pistiCount: 0,
-            doublePistiCount: 0,
-            bonusPoints: 0,
-            score: 0,
-            roundScore: 0,
-            level: 1
-          }
-        );
-      }
-
-      return basePlayers;
-    },
-    []
-  );
+  const createInitialPlayers = useCallback(buildInitialPistiPlayers, []);
 
   // On-Table Live Card Counting Ceremony State
   const [onTableCount, setOnTableCount] = useState<OnTableCountState>({

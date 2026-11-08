@@ -216,8 +216,16 @@ test('C2 deck secrecy: buildMaskedCutDeckForSeat hides opponent cards & 3 face-d
   assert.equal(guestDeal.tableCards[3].suit, hostDeal.tableCards[3].suit);
   assert.equal(guestDeal.tableCards[3].value, hostDeal.tableCards[3].value);
 
-  // Seat 0 (Host) hand must be masked in Seat 1's view, while Seat 1's own hand must be real
-  assert.equal(guestDeal.playerHands[0].every(c => isMaskedCard(c)), true);
+  // Seat 0 (Host) hand must be masked in Seat 1's view (except any public peeled Jacks awarded to cutterSeat=0)
+  const publicJackIds = new Set(hostDeal.jacksAwardedToCutter.map(j => j.id));
+  assert.equal(
+    guestDeal.playerHands[0].every(c => isMaskedCard(c) || publicJackIds.has(c.id)),
+    true
+  );
+  assert.equal(
+    guestDeal.playerHands[0].filter(c => !publicJackIds.has(c.id)).every(c => isMaskedCard(c)),
+    true
+  );
   assert.equal(guestDeal.playerHands[1].every(c => !isMaskedCard(c)), true);
   assert.deepEqual(
     guestDeal.playerHands[1].map(c => `${c.suit}-${c.value}`),

@@ -2,7 +2,7 @@
  * Project Pişti - Ultra-Smooth 144 FPS Canvas Particle, Sakura Petal & Shockwave Engine
  * Optimized with zero per-frame shadowBlur overhead for buttery performance.
  */
-import { TableTheme } from '../../types/game';
+import { TableTheme, GraphicsQuality } from '../../types/game';
 
 interface Particle {
   x: number;
@@ -74,6 +74,7 @@ export class ParticleEngine {
   private isRunning: boolean = false;
   private currentTheme: TableTheme = 'sakura';
   private enabled: boolean = true;
+  private quality: GraphicsQuality = 'auto';
   private resizeRafId: number | null = null;
 
   public init(canvas: HTMLCanvasElement) {
@@ -90,6 +91,27 @@ export class ParticleEngine {
       this.currentTheme = theme;
       this.seedAmbientParticles();
     }
+  }
+
+  public setQuality(quality: GraphicsQuality) {
+    if (this.quality !== quality) {
+      this.quality = quality;
+      this.seedAmbientParticles();
+    }
+  }
+
+  private getQualityMultiplier(): number {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return 0;
+    }
+    if (this.quality === 'low') return 0.25;
+    if (this.quality === 'medium') return 0.6;
+    if (this.quality === 'high') return 1.0;
+    // auto
+    const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
+    if (cores <= 2) return 0.35;
+    if (cores <= 4) return 0.7;
+    return 1.0;
   }
 
   public setEnabled(enabled: boolean) {
@@ -137,12 +159,15 @@ export class ParticleEngine {
 
   private seedAmbientParticles() {
     this.ambientPetals = [];
+    const mult = this.getQualityMultiplier();
+    if (mult <= 0 || this.quality === 'low') return;
     const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
     const h = typeof window !== 'undefined' ? window.innerHeight : 720;
 
     if (this.currentTheme === 'sakura') {
-      // 8 drifting Sakura petals + 4 floating Spirit Wisps (Lightweight 144fps)
-      for (let i = 0; i < 8; i++) {
+      const petalCount = Math.max(2, Math.round(8 * mult));
+      const wispCount = Math.max(1, Math.round(4 * mult));
+      for (let i = 0; i < petalCount; i++) {
         this.ambientPetals.push({
           x: Math.random() * w,
           y: Math.random() * h,
@@ -161,7 +186,7 @@ export class ParticleEngine {
         });
       }
 
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < wispCount; i++) {
         this.ambientPetals.push({
           x: Math.random() * w,
           y: Math.random() * h,
@@ -187,7 +212,8 @@ export class ParticleEngine {
           ? '#10b981'
           : '#fbbf24';
 
-      for (let i = 0; i < 14; i++) {
+      const moteCount = Math.max(3, Math.round(14 * mult));
+      for (let i = 0; i < moteCount; i++) {
         this.ambientPetals.push({
           x: Math.random() * w,
           y: Math.random() * h,
@@ -232,6 +258,9 @@ export class ParticleEngine {
   public triggerPistiExplosion(x: number, y: number, isDouble: boolean = false) {
     if (!this.enabled) return;
 
+    const mult = this.getQualityMultiplier();
+    if (mult <= 0) return;
+
     const isSakura = this.currentTheme === 'sakura';
     const primaryColor = isDouble
       ? '#ec4899'
@@ -243,7 +272,7 @@ export class ParticleEngine {
       : isSakura
       ? '#fb7185'
       : '#ef4444';
-    const sparkCount = isDouble ? 85 : 58;
+    const sparkCount = Math.max(12, Math.round((isDouble ? 85 : 58) * mult));
 
     this.shockwaves.push({
       x,
@@ -297,7 +326,7 @@ export class ParticleEngine {
       });
     }
 
-    const streakCount = isDouble ? 20 : 14;
+    const streakCount = Math.max(4, Math.round((isDouble ? 20 : 14) * mult));
     for (let i = 0; i < streakCount; i++) {
       const angle = (i / streakCount) * Math.PI * 2 + (Math.random() * 0.2 - 0.1);
       this.streaks.push({
@@ -318,8 +347,10 @@ export class ParticleEngine {
    */
   public triggerJackVortex(x: number, y: number) {
     if (!this.enabled) return;
+    const mult = this.getQualityMultiplier();
+    if (mult <= 0) return;
     const isSakura = this.currentTheme === 'sakura';
-    const particleCount = 38;
+    const particleCount = Math.max(8, Math.round(38 * mult));
 
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
@@ -351,7 +382,10 @@ export class ParticleEngine {
    */
   public emitBurst(x: number, y: number, color: string = '#fbbf24', count: number = 24) {
     if (!this.enabled) return;
-    for (let i = 0; i < count; i++) {
+    const mult = this.getQualityMultiplier();
+    if (mult <= 0) return;
+    const scaledCount = Math.max(4, Math.round(count * mult));
+    for (let i = 0; i < scaledCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * 5 + 2;
       this.particles.push({
@@ -387,12 +421,14 @@ export class ParticleEngine {
    */
   public triggerCardPlace(x: number, y: number) {
     if (!this.enabled) return;
+    const mult = this.getQualityMultiplier();
+    if (mult <= 0) return;
     const theme = this.currentTheme;
     const isSakura = theme === 'sakura';
     const isEstoril = theme === 'estoril_blue';
     const isGold = theme === 'luxury_gold';
     const isMonaco = theme === 'monaco_velvet';
-    const count = isSakura ? 12 : 10;
+    const count = Math.max(3, Math.round((isSakura ? 12 : 10) * mult));
 
     const themeColors = isSakura
       ? SAKURA_COLORS

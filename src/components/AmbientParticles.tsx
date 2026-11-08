@@ -5,6 +5,7 @@ interface AmbientParticlesProps {
   theme?: TableTheme | 'uno';
   unoColor?: 'red' | 'blue' | 'green' | 'yellow';
   intensity?: 'normal' | 'dense';
+  quality?: 'auto' | 'low' | 'medium' | 'high';
 }
 
 const THEME_PALETTES: Record<string, string[]> = {
@@ -39,7 +40,8 @@ interface Particle {
 export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
   theme = 'traditional',
   unoColor,
-  intensity = 'dense'
+  intensity = 'dense',
+  quality = 'auto'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -75,7 +77,7 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || quality === 'low') return;
 
     const paletteKey =
       theme === 'uno' && unoColor
@@ -86,7 +88,9 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     const colors = THEME_PALETTES[paletteKey] || THEME_PALETTES.estoril_blue;
 
     const isMobile = width < 640;
-    const count = intensity === 'dense' ? (isMobile ? 28 : 55) : (isMobile ? 16 : 32);
+    const baseCount = intensity === 'dense' ? (isMobile ? 28 : 55) : (isMobile ? 16 : 32);
+    const qualityMult = quality === 'medium' ? 0.55 : 1.0;
+    const count = Math.max(6, Math.round(baseCount * qualityMult));
     const particles: Particle[] = [];
 
     for (let i = 0; i < count; i++) {
@@ -160,7 +164,7 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [theme, unoColor, intensity]);
+  }, [theme, unoColor, intensity, quality]);
 
   return (
     <canvas

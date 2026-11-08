@@ -296,6 +296,7 @@ export class MultiplayerManager {
 
   // Heartbeat & reconnect monitoring
   private heartbeatTimer: number | null = null;
+  private disconnectGraceTimer: number | null = null;
   private lastRemoteMessageTime: number = 0;
   private isPeerReconnecting: boolean = false;
 
@@ -404,11 +405,22 @@ export class MultiplayerManager {
           });
         }
 
-        // Notify if a peer disconnected or closed tab while in room
+        // Notify if a peer disconnected or closed tab while in room (with 8s grace window for refresh/reconnect)
         if (previousPeerIds.size > 0) {
           previousPeerIds.forEach(id => {
             if (!currentPeerIds.has(id)) {
-              this.dispatch({ type: 'PEER_DISCONNECTED', peerId: id });
+              if (!this.isPeerReconnecting) {
+                this.isPeerReconnecting = true;
+                this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft: 8 });
+                if (this.disconnectGraceTimer) window.clearTimeout(this.disconnectGraceTimer);
+                this.disconnectGraceTimer = window.setTimeout(() => {
+                  this.disconnectGraceTimer = null;
+                  if (this.isPeerReconnecting) {
+                    this.isPeerReconnecting = false;
+                    this.dispatch({ type: 'PEER_DISCONNECTED', peerId: id });
+                  }
+                }, 8000);
+              }
             }
           });
         }
@@ -416,6 +428,10 @@ export class MultiplayerManager {
 
         if (currentPeerIds.size > 0) {
           this.lastRemoteMessageTime = Date.now();
+          if (this.disconnectGraceTimer) {
+            window.clearTimeout(this.disconnectGraceTimer);
+            this.disconnectGraceTimer = null;
+          }
           if (this.isPeerReconnecting) {
             this.isPeerReconnecting = false;
             this.dispatch({ type: 'PEER_RECONNECTED' });
@@ -920,6 +936,10 @@ export class MultiplayerManager {
     if (this.heartbeatTimer) {
       window.clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+    if (this.disconnectGraceTimer) {
+      window.clearTimeout(this.disconnectGraceTimer);
+      this.disconnectGraceTimer = null;
     }
 
     // Clean up room in Firebase if host is leaving

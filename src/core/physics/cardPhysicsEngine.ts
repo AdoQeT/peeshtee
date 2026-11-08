@@ -38,6 +38,23 @@ export interface GeneratedFlightPlan {
  *  5. Motion-type aware easing: play cards spring in, swept cards accelerate out
  */
 class CardPhysicsEngine {
+  private quality: 'auto' | 'low' | 'medium' | 'high' = 'auto';
+
+  public setQuality(quality: 'auto' | 'low' | 'medium' | 'high') {
+    this.quality = quality;
+  }
+
+  private isLowQuality(): boolean {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return true;
+    }
+    if (this.quality === 'low') return true;
+    if (this.quality === 'auto' && typeof navigator !== 'undefined' && (navigator.hardwareConcurrency || 4) <= 2) {
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Generates an ultra-smooth hardware keyframe sequence with bold, eye-catching 3D physics
    */
@@ -102,7 +119,8 @@ class CardPhysicsEngine {
         ? 'cubic-bezier(0.20, 1.10, 0.30, 1.02)'  // slight overshoot spring
         : 'cubic-bezier(0.25, 1.00, 0.35, 1.00)'; // standard casino baize
 
-    const steps = 20; // +2 extra keyframes for smoother arcs
+    const lowMode = this.isLowQuality();
+    const steps = lowMode ? 10 : 20; // +2 extra keyframes for smoother arcs, or 10 in low-quality mode
     const keyframes: Keyframe[] = [];
 
     if (waypointX !== undefined && waypointY !== undefined) {
@@ -146,7 +164,7 @@ class CardPhysicsEngine {
         keyframes.push({
           offset: t,
           transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
-          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
+          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
         });
       }
     } else if (motionType === 'pisti_slam') {
@@ -154,7 +172,7 @@ class CardPhysicsEngine {
       // 1. Kart havada 160px yükselir, büyür (1.35x), derin gölgesi genişler (Anticipation)
       // 2. Tepe noktasında hafifçe asılı kalır (Apex Hang)
       // 3. Son %20'lik dilimde şiddetli kinetik ivmeyle masaya "TAKKK" diye çarpar!
-      const steps = 24;
+      const steps = lowMode ? 12 : 24;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         let curX: number, curY: number, curRot: number, curScale: number;
@@ -212,7 +230,7 @@ class CardPhysicsEngine {
         keyframes.push({
           offset: t,
           transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
-          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
+          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
         });
       }
     } else if (motionType === 'center_reveal') {
@@ -220,7 +238,7 @@ class CardPhysicsEngine {
       // 1. Kart sol desteden yükselerek kameraya doğru (1.42x) büyür ve havada 180° döner (%0 -> %52)
       // 2. Zirvede kısa süre asılı kalarak kart yüzünü net şekilde sergiler (%52 -> %74)
       // 3. Kararlı ve tok bir vuruşla orta destenin üstüne oturur (%74 -> %100)
-      const steps = 24;
+      const steps = lowMode ? 12 : 24;
       const revealLiftY = Math.max(98, arcHeight);
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
@@ -270,7 +288,7 @@ class CardPhysicsEngine {
         keyframes.push({
           offset: t,
           transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
-          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
+          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
         });
       }
     } else {
@@ -325,7 +343,7 @@ class CardPhysicsEngine {
         keyframes.push({
           offset: t,
           transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${finalScale.toFixed(3)})`,
-          filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))`
+          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
         });
       }
     }

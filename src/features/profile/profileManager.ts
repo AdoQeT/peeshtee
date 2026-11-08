@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger';
-import { rtdb, ref, set, get, ensureFirebaseAuth, cleanForRtdb } from '../../core/firebase';
+import { auth, rtdb, ref, set, get, remove, ensureFirebaseAuth, cleanForRtdb } from '../../core/firebase';
+import { deleteUser, signInAnonymously } from 'firebase/auth';
 
 export interface AvatarPreset {
   id: string;
@@ -329,6 +330,66 @@ export function clearAllUserData(): void {
   } catch (err) {
     logger.warn('Failed to clear user data:', err);
   }
+}
+
+export function exportUserDataAsJson(): void {
+  try {
+    const profile = getUserProfile();
+    const rawSettings = localStorage.getItem('project_p_settings');
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      app: 'Peeshtee: Overdrive',
+      profile,
+      settings: rawSettings ? JSON.parse(rawSettings) : null
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `peeshtee_verilerim_${profile.friendCode || 'oyuncu'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    logger.warn('Failed to export user data:', err);
+  }
+}
+
+export async function deleteAccountAndRemoteData(): Promise<UserProfile> {
+  try {
+    const profile = getUserProfile();
+    const code = profile.friendCode;
+    await ensureFirebaseAuth().catch(() => null);
+
+    if (code) {
+      await Promise.allSettled([
+        remove(ref(rtdb, `profiles/${code}`)),
+        remove(ref(rtdb, `presence/${code}`))
+      ]);
+      remoteProfilesCache.delete(code);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await deleteUser(auth.currentUser);
+      } catch {}
+      try {
+        await signInAnonymously(auth);
+      } catch {}
+    }
+  } catch (err) {
+    logger.warn('Remote account deletion warning:', err);
+  }
+
+  clearAllUserData();
+  try {
+    localStorage.removeItem('project_p_settings');
+    localStorage.removeItem('project_p_onboarding_completed');
+    sessionStorage.clear();
+  } catch {}
+
+  return getUserProfile();
 }
 
 function generateFriendCode(): string {

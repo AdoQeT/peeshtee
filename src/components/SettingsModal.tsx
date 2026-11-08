@@ -10,18 +10,23 @@ import {
   Trophy,
   Bot,
   Flame,
-  Globe
+  Globe,
+  ShieldCheck,
+  Download,
+  Trash2,
+  Cpu
 } from 'lucide-react';
-import { GameSettings, TableTheme, AIDifficulty, AmbienceType, getCardBackForTheme } from '../types/game';
+import { GameSettings, TableTheme, AIDifficulty, AmbienceType, GraphicsQuality, getCardBackForTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
 import { getLanguage, setLanguage, Language, translations } from '../utils/i18n';
-import { getUserProfile, calculateLevel } from '../features/profile/profileManager';
+import { getUserProfile, calculateLevel, exportUserDataAsJson, deleteAccountAndRemoteData, UserProfile } from '../features/profile/profileManager';
 import { isItemLockedByLevel } from '../features/progression/levelRewards';
 
 interface SettingsModalProps {
   isOpen: boolean;
   settings: GameSettings;
   onUpdateSettings: (newSettings: Partial<GameSettings>) => void;
+  onProfileReset?: (freshProfile: UserProfile) => void;
   onClose: () => void;
 }
 
@@ -29,9 +34,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   settings,
   onUpdateSettings,
+  onProfileReset,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'themes' | 'audio' | 'rules'>('themes');
+  const [activeTab, setActiveTab] = useState<'themes' | 'audio' | 'rules' | 'privacy'>('themes');
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [lang, setLang] = useState<Language>(getLanguage());
   const t = translations[lang];
   const userProfile = getUserProfile();
@@ -164,6 +172,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <Trophy className="w-3.5 h-3.5" />
             <span>{t.tabRules}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveTab('privacy');
+            }}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'privacy' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>{lang === 'en' ? 'Privacy' : 'Gizlilik'}</span>
           </button>
         </div>
 
@@ -607,6 +628,152 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </button>
                 </div>
+                <div className="border-t border-white/10 pt-3.5 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-xs sm:text-sm flex items-center gap-1.5 text-white">
+                      <Cpu className="w-4 h-4 text-cyan-400" />
+                      {lang === 'en' ? 'Graphics Quality' : 'Grafik Kalitesi'}
+                    </span>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      {lang === 'en' ? '3D card physics & particle density' : '3B kart fiziği ve parçacık yoğunluğu'}
+                    </span>
+                  </div>
+                  <div className="flex bg-slate-950 border border-white/15 p-1 rounded-xl gap-1 shrink-0">
+                    {(
+                      [
+                        { id: 'auto', label: lang === 'en' ? 'Auto' : 'Oto' },
+                        { id: 'low', label: lang === 'en' ? 'Low' : 'Düşük' },
+                        { id: 'medium', label: lang === 'en' ? 'Med' : 'Orta' },
+                        { id: 'high', label: lang === 'en' ? 'High' : 'Yüksek' }
+                      ] as const
+                    ).map(q => (
+                      <button
+                        key={q.id}
+                        onClick={() => {
+                          sound.playClick();
+                          onUpdateSettings({ graphicsQuality: q.id as GraphicsQuality });
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          (settings.graphicsQuality || 'auto') === q.id
+                            ? 'bg-cyan-400 text-slate-950 shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: GİZLİLİK & VERİ YÖNETİMİ */}
+          {activeTab === 'privacy' && (
+            <div className="space-y-4">
+              {/* Privacy Policy Info Card */}
+              <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs sm:text-sm">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>{lang === 'en' ? 'Privacy & Data Protection (KVKK / GDPR)' : 'Gizlilik & Veri Güvenliği (KVKK / GDPR)'}</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {lang === 'en'
+                    ? 'Peeshtee: Overdrive uses anonymous Firebase authentication solely for live multiplayer synchronization and friend codes. No email, phone number, or personal identity is collected. Your match history and preferences are stored locally on your device, and your public profile card is synced under your 6-digit friend code.'
+                    : 'Peeshtee: Overdrive yalnızca canlı çok oyunculu oda senkronizasyonu ve arkadaş kodu eşleşmesi için anonim Firebase kimlik doğrulaması kullanır. E-posta, telefon veya kişisel kimlik bilgisi toplanmaz. Maç geçmişiniz ve tercihleriniz cihazınızda yerel olarak saklanır; genel profil kartınız ise 6 haneli arkadaş kodunuz altında senkronize edilir.'}
+                </p>
+              </div>
+
+              {/* Export Data */}
+              <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div>
+                  <span className="font-bold text-xs sm:text-sm text-white block">
+                    {lang === 'en' ? 'Download My Data (JSON)' : 'Verilerimi İndir (JSON)'}
+                  </span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    {lang === 'en'
+                      ? 'Export your profile stats, match history, friends, and settings'
+                      : 'Profil istatistiklerinizi, maç geçmişinizi ve ayarlarınızı dışa aktarın'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    exportUserDataAsJson();
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === 'en' ? 'Export JSON' : 'JSON İndir'}</span>
+                </button>
+              </div>
+
+              {/* Delete Account & Remote Data */}
+              <div className="bg-rose-950/30 border border-rose-500/30 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-xs sm:text-sm text-rose-300 block">
+                      {lang === 'en' ? 'Delete Account & All Data' : 'Hesabımı ve Verilerimi Sil'}
+                    </span>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      {lang === 'en'
+                        ? 'Permanently removes your Firebase profile, presence, and local storage'
+                        : 'Firebase profilinizi, çevrimiçi kaydınızı ve yerel verilerinizi kalıcı olarak siler'}
+                    </span>
+                  </div>
+                  {!confirmDeleteOpen && (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setConfirmDeleteOpen(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-300 font-bold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{lang === 'en' ? 'Delete' : 'Hesabı Sil'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {confirmDeleteOpen && (
+                  <div className="p-3 rounded-xl bg-black/50 border border-rose-500/40 space-y-2.5">
+                    <p className="text-xs text-rose-200 font-semibold">
+                      {lang === 'en'
+                        ? 'Are you sure? This action cannot be undone and all XP, achievements, and friends will be wiped.'
+                        : 'Emin misiniz? Bu işlem geri alınamaz; tüm seviye, başarım ve arkadaş listeniz sıfırlanır.'}
+                    </p>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        disabled={isDeletingAccount}
+                        onClick={() => setConfirmDeleteOpen(false)}
+                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold cursor-pointer"
+                      >
+                        {lang === 'en' ? 'Cancel' : 'Vazgeç'}
+                      </button>
+                      <button
+                        disabled={isDeletingAccount}
+                        onClick={async () => {
+                          setIsDeletingAccount(true);
+                          sound.playClick();
+                          const fresh = await deleteAccountAndRemoteData();
+                          setIsDeletingAccount(false);
+                          setConfirmDeleteOpen(false);
+                          if (onProfileReset) onProfileReset(fresh);
+                          onClose();
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-black cursor-pointer"
+                      >
+                        {isDeletingAccount
+                          ? lang === 'en'
+                            ? 'Deleting...'
+                            : 'Siliniyor...'
+                          : lang === 'en'
+                          ? 'Yes, Delete Everything'
+                          : 'Evet, Tümünü Sil'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

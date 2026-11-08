@@ -9,6 +9,7 @@ import {
 import { createDeck, shuffleDeck, assignOpaqueDeckIds, createMaskedCard } from './core/deck';
 import { sound } from './core/audio/soundEngine';
 import { particleEngine } from './core/particles/particleEngine';
+import { cardPhysics } from './core/physics/cardPhysicsEngine';
 import { multiplayerManager } from './features/multiplayer/peerManager';
 import { MainMenu } from './components/MainMenu';
 import type { ActiveEmote } from './components/TableSurface';
@@ -303,11 +304,13 @@ export default function App() {
     };
   }, [clearScheduledTimers]);
 
-  // Sync theme & particle settings with ParticleEngine
+  // Sync theme & particle settings with ParticleEngine & CardPhysicsEngine
   useEffect(() => {
     particleEngine.setTheme(settings.theme);
     particleEngine.setEnabled(settings.particlesEnabled);
-  }, [settings.theme, settings.particlesEnabled]);
+    particleEngine.setQuality(settings.graphicsQuality || 'auto');
+    cardPhysics.setQuality(settings.graphicsQuality || 'auto');
+  }, [settings.theme, settings.particlesEnabled, settings.graphicsQuality]);
 
   // Sync Audio Settings & Procedural Foley Ambience
   useEffect(() => {
@@ -839,6 +842,7 @@ export default function App() {
         isOpen={isSettingsOpen}
         settings={settings}
         onUpdateSettings={newS => setSettings(prev => ({ ...prev, ...newS }))}
+        onProfileReset={fresh => setUserProfile(fresh)}
         onClose={() => setIsSettingsOpen(false)}
       />
 

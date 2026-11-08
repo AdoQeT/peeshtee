@@ -84,6 +84,8 @@ export function getCardBackForTheme(theme: TableTheme): string {
 
 export type AmbienceType = 'none' | 'cafe' | 'jazz' | 'rain' | 'lofi';
 
+export type GraphicsQuality = 'auto' | 'low' | 'medium' | 'high';
+
 export interface GameSettings {
   soundEnabled: boolean;
   sfxVolume: number;
@@ -91,6 +93,7 @@ export interface GameSettings {
   ambienceVolume: number;
   screenShake: boolean;
   particlesEnabled: boolean;
+  graphicsQuality?: GraphicsQuality;
   theme: TableTheme;
   cardBack: string; // 'sakura_blossom' | 'classic_blue' | 'cyber_neon' | 'gold_dragon'
   targetScore: number;

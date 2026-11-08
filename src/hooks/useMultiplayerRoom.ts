@@ -92,7 +92,7 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
     }
   }, []);
 
-  // Persist active multiplayer match state for recovery
+  // Persist active multiplayer match state for recovery (sessionStorage + localStorage)
   useEffect(() => {
     try {
       if (
@@ -100,16 +100,18 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
         isMultiplayerGame &&
         multiplayerManager.roomCode
       ) {
-        localStorage.setItem(
-          'project_p_active_match',
-          JSON.stringify({
-            roomCode: multiplayerManager.roomCode,
-            screen,
-            timestamp: Date.now()
-          })
-        );
+        const snapshot = JSON.stringify({
+          roomCode: multiplayerManager.roomCode,
+          screen,
+          seatIndex: myMultiplayerSeatRef.current,
+          isHost: isMultiplayerHostRef.current,
+          timestamp: Date.now()
+        });
+        localStorage.setItem('project_p_active_match', snapshot);
+        sessionStorage.setItem('project_p_active_match', snapshot);
       } else if (screen === 'menu') {
         localStorage.removeItem('project_p_active_match');
+        sessionStorage.removeItem('project_p_active_match');
       }
     } catch {}
   }, [screen, isMultiplayerGame]);
@@ -502,6 +504,21 @@ export function useMultiplayerEvents({
             });
           }
         }
+      } else if (msg.type === 'REQUEST_RESYNC') {
+        if (multiplayerManager.isHost && msg.senderPeerId) {
+          const seatIdx = msg.seatIndex;
+          const N = settingsRef.current.playerCount;
+          const targetLocalIdx = (seatIdx - myMultiplayerSeatRef.current + N) % N;
+          const seatHand = playersRef.current[targetLocalIdx]?.hand || [];
+          const visibleTable = tableCardsRef.current.filter(c => c.faceUp);
+          const cardsToReveal = [...seatHand, ...visibleTable];
+          if (cardsToReveal.length > 0) {
+            multiplayerManager.sendPrivate(msg.senderPeerId, {
+              type: 'MP_CARD_REVEAL',
+              cards: cardsToReveal
+            });
+          }
+        }
       } else if (msg.type === 'MP_NEXT_ROUND') {
         if (!multiplayerManager.isHost) {
           setReadySeatsForNextRound(new Set());
@@ -577,6 +594,7 @@ export function useMultiplayerEvents({
 
           const patchedPlayers = playersRef.current.map(p => ({
             ...p,
+            hand: p.hand.map(patchCard),
             collectedCards: p.collectedCards.map(patchCard),
             pistiPairs: p.pistiPairs.map(pair => ({
               ...pair,

@@ -5,7 +5,7 @@ import {
   Player,
   ShuffleStyle
 } from './types/game';
-import { createDeck, shuffleDeck } from './core/deck';
+import { createDeck, shuffleDeck, assignOpaqueDeckIds, createMaskedCard } from './core/deck';
 import { sound } from './core/audio/soundEngine';
 import { particleEngine } from './core/particles/particleEngine';
 import { multiplayerManager } from './features/multiplayer/peerManager';
@@ -37,7 +37,12 @@ import {
 } from './features/profile/profileManager';
 import { MatchIntroOverlay, MatchIntroPlayer } from './components/MatchIntroOverlay';
 import { CardCountingOverlay } from './components/CardCountingOverlay';
-import { createUnoDeck, shuffleUnoDeck } from './features/uno/unoDeck';
+import {
+  createUnoDeck,
+  shuffleUnoDeck,
+  assignOpaqueUnoDeckIds,
+  buildMaskedUnoDeckForSeat
+} from './features/uno/unoDeck';
 import { friendNetwork, IncomingGameInvite } from './features/friends/friendNetwork';
 import { CardAnimationLayer } from './components/CardAnimationLayer';
 import { useMultiplayerRoom, useMultiplayerEvents } from './hooks/useMultiplayerRoom';
@@ -197,6 +202,8 @@ export default function App() {
     dealTimersRef,
     deck,
     tableCards,
+    setTableCards,
+    tableCardsRef,
     players,
     setPlayers,
     currentTurn,
@@ -432,6 +439,9 @@ export default function App() {
     userProfile,
     setUserProfile,
     playersRef,
+    setPlayers,
+    tableCardsRef,
+    setTableCards,
     currentTurnRef,
     settingsRef,
     matchIntroRef,
@@ -865,15 +875,26 @@ export default function App() {
           }));
 
           if (chosenGameType === 'uno') {
-            const seedUno = shuffleUnoDeck(createUnoDeck());
+            const seedUno = assignOpaqueUnoDeckIds(shuffleUnoDeck(createUnoDeck()));
             setMultiplayerSeedUnoDeck(seedUno);
-            // Host sends MP_GAME_START immediately!
+            const activePlayerCount = Math.max(2, finalSlots.length);
+            // Send private masked deck to each guest seat so no client sees opponent cards or draw pile
+            finalSlots.forEach(slot => {
+              if (!slot.isHost && !slot.isAI && slot.peerId) {
+                const guestMasked = buildMaskedUnoDeckForSeat(seedUno, slot.seatIndex, activePlayerCount);
+                multiplayerManager.sendPrivate(slot.peerId, {
+                  type: 'MP_UNO_PRIVATE_DEAL',
+                  round: 1,
+                  maskedDeck: guestMasked
+                });
+              }
+            });
+            // Host sends public MP_GAME_START without exposing the full unmasked Uno deck
             multiplayerManager.send({
               type: 'MP_GAME_START',
               gameType: 'uno',
               settings: lobbySettings,
               seedDeck: [],
-              seedUnoDeck: seedUno,
               shuffleStyle: 'riffle_bridge',
               round: 1,
               startingTurnSeat: 0,
@@ -902,14 +923,15 @@ export default function App() {
 
           const randomStyle =
             SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
-          const sharedSeedDeck = shuffleDeck(createDeck());
+          const sharedSeedDeck = assignOpaqueDeckIds(shuffleDeck(createDeck()));
+          const publicMaskedSeedDeck = sharedSeedDeck.map(c => createMaskedCard(c.id));
 
-          // Broadcast MP_GAME_START immediately to all Guests
+          // Broadcast MP_GAME_START to all Guests with masked placeholder deck (real cards arrive privately after cut)
           multiplayerManager.send({
             type: 'MP_GAME_START',
             gameType: 'pisti',
             settings: lobbySettings,
-            seedDeck: sharedSeedDeck,
+            seedDeck: publicMaskedSeedDeck,
             shuffleStyle: randomStyle,
             round: 1,
             startingTurnSeat: 0,

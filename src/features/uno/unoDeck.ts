@@ -1,4 +1,4 @@
-import { UnoCard, UnoColor, UnoValue } from './unoTypes';
+import type { UnoCard, UnoColor, UnoValue } from './unoTypes';
 
 const REGULAR_COLORS: UnoColor[] = ['red', 'blue', 'green', 'yellow'];
 
@@ -125,4 +125,70 @@ export function dealUnoGame(
     initialDiscard,
     initialColor
   };
+}
+
+function generateOpaqueUnoToken(index: number): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let rand = '';
+  const cryptoObj = typeof globalThis !== 'undefined' && 'crypto' in globalThis ? globalThis.crypto : null;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const buf = new Uint8Array(6);
+    cryptoObj.getRandomValues(buf);
+    for (let i = 0; i < 6; i++) rand += chars[buf[i] % chars.length];
+  } else {
+    for (let i = 0; i < 6; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `u_${index}_${rand}`;
+}
+
+export function assignOpaqueUnoDeckIds(deck: UnoCard[]): UnoCard[] {
+  return deck.map((c, idx) => ({
+    ...c,
+    id: generateOpaqueUnoToken(idx)
+  }));
+}
+
+export function createMaskedUnoCard(id: string): UnoCard {
+  return {
+    id,
+    color: 'red',
+    value: '0',
+    scoreValue: 0
+  };
+}
+
+/**
+ * Builds a guest-specific Uno deck where ONLY the guest's initial 7-card hand and the initial discard
+ * card have real faces, and all opponent hands + remaining draw pile are masked placeholders.
+ */
+export function buildMaskedUnoDeckForSeat(
+  fullDeck: UnoCard[],
+  targetSeat: number,
+  playerCount: number
+): UnoCard[] {
+  const visibleIds = new Set<string>();
+  const sim = [...fullDeck];
+  for (let p = 0; p < playerCount; p++) {
+    const hand = sim.splice(0, 7);
+    if (p === targetSeat) {
+      hand.forEach(c => visibleIds.add(c.id));
+    }
+  }
+  let discardIdx = sim.findIndex(c => c.value !== 'wild_draw4');
+  if (discardIdx === -1) discardIdx = 0;
+  const initialDiscard = sim[discardIdx];
+  if (initialDiscard) visibleIds.add(initialDiscard.id);
+
+  return fullDeck.map((c, idx) => {
+    if (visibleIds.has(c.id)) return { ...c };
+    // Ensure any card BEFORE initialDiscard in remaining pile that was skipped because it was wild_draw4
+    // stays wild_draw4 only in dealUnoGame? Wait: dealUnoGame looks for first c.value !== 'wild_draw4'.
+    // If a masked card before discardIdx had value '0', dealUnoGame would pick the wrong index!
+    // So any card skipped before initialDiscard WAS a wild_draw4 (which became public knowledge by being skipped).
+    const handCount = playerCount * 7;
+    if (idx >= handCount && idx < handCount + discardIdx) {
+      return { id: c.id, color: 'wild', value: 'wild_draw4', scoreValue: 50 };
+    }
+    return createMaskedUnoCard(c.id);
+  });
 }

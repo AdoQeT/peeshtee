@@ -27,6 +27,15 @@
             ".write": "auth != null && ((!data.exists() && root.child('rooms/' + $code + '/presence/' + newData.child('senderId').val() + '/uid').val() === auth.uid) || (!newData.exists() && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid))",
             ".validate": "newData.hasChildren(['msgId', 'senderId', 'timestamp', 'payload']) && newData.child('msgId').isString() && newData.child('msgId').val().length < 100 && newData.child('senderId').isString() && newData.child('senderId').val().length <= 64 && root.child('rooms/' + $code + '/presence/' + newData.child('senderId').val() + '/uid').val() === auth.uid"
           }
+        },
+        "private": {
+          "$peerId": {
+            ".read": "auth != null && (root.child('rooms/' + $code + '/presence/' + $peerId + '/uid').val() === auth.uid || root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid)",
+            "$id": {
+              ".write": "auth != null && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid",
+              ".validate": "newData.hasChildren(['msgId', 'senderId', 'timestamp', 'payload']) && newData.child('msgId').isString() && newData.child('msgId').val().length < 100 && newData.child('senderId').isString() && newData.child('senderId').val().length <= 64"
+            }
+          }
         }
       }
     },

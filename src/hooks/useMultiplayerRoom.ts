@@ -280,6 +280,9 @@ export interface UseMultiplayerEventsProps {
   userProfile: UserProfile;
   setUserProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
   playersRef: React.MutableRefObject<Player[]>;
+  setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
+  tableCardsRef: React.MutableRefObject<Card[]>;
+  setTableCards: React.Dispatch<React.SetStateAction<Card[]>>;
   currentTurnRef: React.MutableRefObject<number>;
   settingsRef: React.MutableRefObject<GameSettings>;
   matchIntroRef: React.MutableRefObject<unknown>;
@@ -305,7 +308,7 @@ export interface UseMultiplayerEventsProps {
   isMultiplayerGameRef: React.MutableRefObject<boolean>;
   // Action callbacks
   onPlayRemoteCard: (targetLocalIdx: number, card: Card) => void;
-  onCutDeckAndProceed: (cutIndex: number) => void;
+  onCutDeckAndProceed: (cutIndex: number, overrideCutDeck?: Card[]) => void;
   onTriggerEmote: (targetLocalIdx: number, emoji: string) => void;
   onStartMatchWithDeck: (
     settings: GameSettings,
@@ -337,6 +340,9 @@ export function useMultiplayerEvents({
   userProfile,
   setUserProfile,
   playersRef,
+  setPlayers,
+  tableCardsRef,
+  setTableCards,
   currentTurnRef,
   settingsRef,
   matchIntroRef,
@@ -384,7 +390,9 @@ export function useMultiplayerEvents({
           }));
 
           if (msg.gameType === 'uno') {
-            setMultiplayerSeedUnoDeck(msg.seedUnoDeck || null);
+            if (msg.seedUnoDeck && msg.seedUnoDeck.length > 0) {
+              setMultiplayerSeedUnoDeck(msg.seedUnoDeck);
+            }
             setIsMultiplayerGame(true);
             setIsMultiplayerHost(false);
             setMyMultiplayerSeat(mySeatIdx);
@@ -446,12 +454,42 @@ export function useMultiplayerEvents({
 
         const foundCard = targetPlayer.hand.find((c: Card) => c.id === msg.cardId);
         if (foundCard) {
+          // Host anti-cheat check: verify guest did not forge a different suit/value than their dealt card
+          if (
+            multiplayerManager.isHost &&
+            msg.card &&
+            (foundCard.suit !== msg.card.suit || foundCard.value !== msg.card.value)
+          ) {
+            logger.warn(
+              `[Anti-Cheat] Card face mismatch from seat ${msg.seatIndex}: claimed ${msg.card.suit}-${msg.card.value} vs authoritative ${foundCard.suit}-${foundCard.value}. Using authoritative card.`
+            );
+          }
+
+          // For guests holding a masked placeholder for the opponent's card, patch the revealed face before playing
+          const resolvedCard: Card =
+            !multiplayerManager.isHost && msg.card
+              ? { ...foundCard, ...msg.card, id: foundCard.id, faceUp: true }
+              : foundCard;
+
+          if (!multiplayerManager.isHost && msg.card) {
+            const nextPlayers = playersRef.current.map((p, idx) =>
+              idx === targetLocalIdx
+                ? {
+                    ...p,
+                    hand: p.hand.map(c => (c.id === foundCard.id ? resolvedCard : c))
+                  }
+                : p
+            );
+            playersRef.current = nextPlayers;
+            setPlayers(nextPlayers);
+          }
+
           if (currentTurnRef.current !== targetLocalIdx) {
             logger.warn(
               `Turn auto-alignment: seat ${msg.seatIndex} played valid card ${msg.cardId} while local turn was ${currentTurnRef.current}. Syncing turn.`
             );
           }
-          onPlayRemoteCard(targetLocalIdx, foundCard);
+          onPlayRemoteCard(targetLocalIdx, resolvedCard);
         } else {
           logger.warn(
             `Card desync: player seat ${msg.seatIndex} played ${msg.cardId} but not in local hand!`
@@ -517,7 +555,42 @@ export function useMultiplayerEvents({
         }
       } else if (msg.type === 'MP_DECK_CUT') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
-        onCutDeckAndProceed(msg.cutIndex);
+        // Only the Host processes MP_DECK_CUT directly; Guests wait for their private MP_PRIVATE_DEAL_VIEW
+        if (multiplayerManager.isHost) {
+          onCutDeckAndProceed(msg.cutIndex);
+        }
+      } else if (msg.type === 'MP_PRIVATE_DEAL_VIEW') {
+        if (!multiplayerManager.isHost) {
+          onCutDeckAndProceed(msg.cutIndex, msg.maskedCutDeck);
+        }
+      } else if (msg.type === 'MP_CARD_REVEAL') {
+        if (!multiplayerManager.isHost && Array.isArray(msg.cards) && msg.cards.length > 0) {
+          const revealMap = new Map<string, Card>(msg.cards.map(c => [c.id, c]));
+          const patchCard = (c: Card): Card => {
+            const rev = revealMap.get(c.id);
+            return rev ? { ...c, ...rev, id: c.id } : c;
+          };
+
+          const patchedTable = tableCardsRef.current.map(patchCard);
+          tableCardsRef.current = patchedTable;
+          setTableCards(patchedTable);
+
+          const patchedPlayers = playersRef.current.map(p => ({
+            ...p,
+            collectedCards: p.collectedCards.map(patchCard),
+            pistiPairs: p.pistiPairs.map(pair => ({
+              ...pair,
+              bottomCard: patchCard(pair.bottomCard),
+              topCard: patchCard(pair.topCard)
+            }))
+          }));
+          playersRef.current = patchedPlayers;
+          setPlayers(patchedPlayers);
+        }
+      } else if (msg.type === 'MP_UNO_PRIVATE_DEAL') {
+        if (!multiplayerManager.isHost && Array.isArray(msg.maskedDeck)) {
+          setMultiplayerSeedUnoDeck(msg.maskedDeck);
+        }
       } else if (msg.type === 'MP_MATCH_ABORTED') {
         if (!isMultiplayerGameRef.current) return;
         if (msg.gameType && msg.gameType !== 'pisti') return;
@@ -544,6 +617,9 @@ export function useMultiplayerEvents({
     userProfile,
     matchIntroRef,
     playersRef,
+    setPlayers,
+    tableCardsRef,
+    setTableCards,
     currentTurnRef,
     settingsRef,
     setRoundScores,

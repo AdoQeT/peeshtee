@@ -10,7 +10,14 @@ import {
   PistiPair,
   OnTableCountState
 } from '../types/game';
-import { createDeck, shuffleDeck, dealInitialGame } from '../core/deck';
+import {
+  createDeck,
+  shuffleDeck,
+  dealInitialGame,
+  assignOpaqueDeckIds,
+  createMaskedCard,
+  buildMaskedCutDeckForSeat
+} from '../core/deck';
 import { evaluatePlay, calculateRoundBreakdown } from '../core/rules';
 import { chooseAICard, getBotContextualReaction } from '../core/ai/bot';
 import { getLanguage, getRandomBotNames } from '../utils/i18n';
@@ -839,22 +846,61 @@ export function usePistiGame({
   );
 
   const handleCutDeckAndProceed = useCallback(
-    (cutIndex: number) => {
+    (cutIndex: number, overrideCutDeck?: Card[]) => {
       const activeCtx = pendingDealContextRef.current || pendingDealContext;
       if (!activeCtx) return;
       const { seedDeck, configuredSettings, isMp, mySeat, startingTurn } = activeCtx;
 
       // Slices and cuts the deck freely at the chosen position (1 to 51)!
       const validIndex = Math.max(1, Math.min(cutIndex, seedDeck.length - 1));
-      const cutDeck = [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
 
-      // In Multiplayer: If local cutter clicked or host acting for AI, broadcast MP_DECK_CUT to peers!
-      if (isMp && multiplayerManager.isConnected && (deckCutState?.isHumanCutter || multiplayerManager.isHost)) {
+      // Guest cutter sends MP_DECK_CUT to Host and waits for Host's MP_PRIVATE_DEAL_VIEW before proceeding!
+      if (isMp && !multiplayerManager.isHost && !overrideCutDeck) {
+        if (multiplayerManager.isConnected && deckCutState?.isHumanCutter) {
+          multiplayerManager.send({
+            type: 'MP_DECK_CUT',
+            cutIndex: validIndex,
+            cutterSeat: mySeat,
+            senderPeerId: multiplayerManager.instanceId
+          });
+        }
+        return;
+      }
+
+      const cutDeck = overrideCutDeck
+        ? [...overrideCutDeck]
+        : [...seedDeck.slice(validIndex), ...seedDeck.slice(0, validIndex)];
+
+      // Host broadcasts MP_DECK_CUT and sends private masked deal views to each guest seat (C2)
+      if (isMp && multiplayerManager.isConnected && multiplayerManager.isHost) {
+        const N = configuredSettings.playerCount;
+        const absStartingTurn = (startingTurn + mySeat) % N;
+        const absCutterSeat = absStartingTurn;
         multiplayerManager.send({
           type: 'MP_DECK_CUT',
           cutIndex: validIndex,
-          cutterSeat: mySeat,
+          cutterSeat: absCutterSeat,
           senderPeerId: multiplayerManager.instanceId
+        });
+
+        const slots = activeMultiplayerSlotsRef.current || [];
+        slots.forEach(slot => {
+          if (!slot.isHost && !slot.isAI && slot.peerId) {
+            const maskedForGuest = buildMaskedCutDeckForSeat(
+              cutDeck,
+              slot.seatIndex,
+              N,
+              absStartingTurn,
+              absCutterSeat
+            );
+            multiplayerManager.sendPrivate(slot.peerId, {
+              type: 'MP_PRIVATE_DEAL_VIEW',
+              round,
+              cutIndex: validIndex,
+              cutterSeat: absCutterSeat,
+              maskedCutDeck: maskedForGuest
+            });
+          }
         });
       }
 
@@ -897,12 +943,13 @@ export function usePistiGame({
 
         const N = configuredSettings.playerCount;
         const absStartingTurn = isMp ? (startingTurn + mySeat) % N : startingTurn;
+        const absCutterSeat = isMp ? absStartingTurn : startingTurn;
         const initialDeal = dealInitialGame(
           cutDeck,
           configuredSettings.playerCount,
           true,
           absStartingTurn,
-          startingTurn
+          absCutterSeat
         );
         const orientedHands = orientHandsForPerspective(
           initialDeal.playerHands,
@@ -1406,14 +1453,15 @@ export function usePistiGame({
     const hostTurn = (nextDealer + 1) % N;
 
     const randomStyle = SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
-    const freshDeck = shuffleDeck(createDeck());
+    const freshDeck = assignOpaqueDeckIds(shuffleDeck(createDeck()));
 
     if (isMultiplayerGame && multiplayerManager.isConnected) {
       const nextDealerAbs = (nextDealer + myMultiplayerSeatRef.current) % N;
       const startingTurnSeat = (nextDealerAbs + 1) % N;
+      const publicMaskedDeck = freshDeck.map(c => createMaskedCard(c.id));
       multiplayerManager.send({
         type: 'MP_NEXT_ROUND',
-        seedDeck: freshDeck,
+        seedDeck: publicMaskedDeck,
         shuffleStyle: randomStyle,
         round: round + 1,
         startingTurnSeat
@@ -1482,6 +1530,7 @@ export function usePistiGame({
         multiplayerManager.send({
           type: 'MP_CARD_PLAYED',
           cardId: card.id,
+          card: { ...card, faceUp: true },
           seatIndex: absSeat,
           tableOffsetX,
           tableOffsetY,
@@ -1642,6 +1691,21 @@ export function usePistiGame({
 
           // Case B: Sweep (Pişti, Double Pişti, Jack, Match)
           setLastCollectorIndex(playerIndex);
+
+          // Host reveals any captured face-down cards so guests can accurately count points at round end (C2)
+          if (
+            isMultiplayerGameRef.current &&
+            isMultiplayerHostRef.current &&
+            multiplayerManager.isConnected
+          ) {
+            const newlyCapturedFaceDown = currentTable.filter(c => !c.faceUp);
+            if (newlyCapturedFaceDown.length > 0) {
+              multiplayerManager.send({
+                type: 'MP_CARD_REVEAL',
+                cards: newlyCapturedFaceDown.map(c => ({ ...c, faceUp: true }))
+              });
+            }
+          }
 
           setSeenCards(prev => {
             const existingIds = new Set(prev.map(c => c.id));
@@ -2097,6 +2161,16 @@ export function usePistiGame({
       if (tableCards.length > 0 && lastCollectorIndex !== null) {
         setIsActionLocked(true);
         const leftover = tableCards.map(c => ({ ...c, faceUp: true }));
+        if (
+          isMultiplayerGameRef.current &&
+          isMultiplayerHostRef.current &&
+          multiplayerManager.isConnected
+        ) {
+          multiplayerManager.send({
+            type: 'MP_CARD_REVEAL',
+            cards: leftover
+          });
+        }
         animateSweepToCollector(
           leftover,
           lastCollectorIndex,

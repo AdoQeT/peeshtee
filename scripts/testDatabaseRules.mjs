@@ -236,6 +236,47 @@ test('database.rules.json: admins/$uid is read-only for the matching user and ne
   assert.equal(evalRule(adminRules['.read'], { auth: { uid: 'uid_2' }, $uid: 'uid_1' }), false);
 });
 
+test('database.rules.json: private/$peerId restricts reads to target peer or host and writes to host only (C2)', () => {
+  const privRules = rulesJson.rules.rooms.$code.private.$peerId;
+  const dbTree = {
+    rooms: {
+      '123456': {
+        meta: { hostUid: 'uid_host', active: true, created: 1, roomToken: 'tok' },
+        presence: {
+          inst_host: { instanceId: 'inst_host', uid: 'uid_host', role: 'host', lastSeen: 1000 },
+          inst_guest1: { instanceId: 'inst_guest1', uid: 'uid_guest1', role: 'guest', lastSeen: 1000 },
+          inst_guest2: { instanceId: 'inst_guest2', uid: 'uid_guest2', role: 'guest', lastSeen: 1000 }
+        }
+      }
+    }
+  };
+  const root = makeSnapshot(dbTree);
+
+  // Target guest1 and host can read inst_guest1's private node; guest2 and outsiders cannot
+  assert.equal(
+    evalRule(privRules['.read'], { auth: { uid: 'uid_guest1' }, root, $code: '123456', $peerId: 'inst_guest1' }),
+    true
+  );
+  assert.equal(
+    evalRule(privRules['.read'], { auth: { uid: 'uid_host' }, root, $code: '123456', $peerId: 'inst_guest1' }),
+    true
+  );
+  assert.equal(
+    evalRule(privRules['.read'], { auth: { uid: 'uid_guest2' }, root, $code: '123456', $peerId: 'inst_guest1' }),
+    false
+  );
+
+  // Only host can write private messages
+  assert.equal(
+    evalRule(privRules.$id['.write'], { auth: { uid: 'uid_host' }, root, $code: '123456', $peerId: 'inst_guest1' }),
+    true
+  );
+  assert.equal(
+    evalRule(privRules.$id['.write'], { auth: { uid: 'uid_guest2' }, root, $code: '123456', $peerId: 'inst_guest1' }),
+    false
+  );
+});
+
 test('database.rules.json: optional live @firebase/rules-unit-testing check when emulator is active', async (t) => {
   if (!process.env.FIREBASE_DATABASE_EMULATOR_HOST) {
     t.skip('FIREBASE_DATABASE_EMULATOR_HOST not set; static rule AST evaluation passed above');

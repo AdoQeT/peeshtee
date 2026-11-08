@@ -77,6 +77,17 @@ export type MultiplayerEvent =
       senderPeerId?: string;
     }
   | {
+      type: 'MP_PRIVATE_DEAL_VIEW';
+      round: number;
+      cutIndex: number;
+      cutterSeat: number;
+      maskedCutDeck: Card[];
+    }
+  | {
+      type: 'MP_CARD_REVEAL';
+      cards: Card[];
+    }
+  | {
       type: 'MP_GAME_START';
       gameType?: 'pisti' | 'uno';
       settings: GameSettings;
@@ -94,6 +105,7 @@ export type MultiplayerEvent =
   | {
       type: 'MP_CARD_PLAYED';
       cardId: string;
+      card?: Card;
       seatIndex: number;
       tableOffsetX: number;
       tableOffsetY: number;
@@ -103,9 +115,20 @@ export type MultiplayerEvent =
   | {
       type: 'MP_UNO_PLAY_CARD';
       cardId: string;
+      card?: UnoCard;
       chosenColor?: string;
       seatIndex: number;
       senderPeerId?: string;
+    }
+  | {
+      type: 'MP_UNO_PRIVATE_DEAL';
+      round: number;
+      maskedDeck: UnoCard[];
+    }
+  | {
+      type: 'MP_UNO_PRIVATE_DRAWN';
+      seatIndex: number;
+      cards: UnoCard[];
     }
   | {
       type: 'MP_UNO_DRAW_CARD';
@@ -225,6 +248,7 @@ interface PacketEnvelope {
   msgId: string;
   roomCode: string;
   roomToken?: string;
+  targetPeerId?: string;
   seq: number;
   senderId: string;
   timestamp: number;
@@ -265,6 +289,7 @@ export class MultiplayerManager {
   private storageListener: ((ev: StorageEvent) => void) | null = null;
 
   private firebaseEventsRef: DatabaseReference | null = null;
+  private firebasePrivateEventsRef: DatabaseReference | null = null;
   private firebasePresenceRef: DatabaseReference | null = null;
   private firebaseMemberRef: DatabaseReference | null = null;
   private roomPresenceRef: DatabaseReference | null = null;
@@ -334,7 +359,7 @@ export class MultiplayerManager {
         (snapshot: DataSnapshot) => {
           const val = snapshot.val();
           if (val) {
-            this.handleRawIncoming(val);
+            this.handleRawIncoming(val, 'public');
           }
         },
         (error: ErrorLike) => {
@@ -347,6 +372,21 @@ export class MultiplayerManager {
             type: 'MP_MATCH_ABORTED',
             reason: userMsg
           });
+        }
+      );
+
+      // Private per-peer channel for host-authoritative deal views and hand reveals (C2)
+      this.firebasePrivateEventsRef = ref(rtdb, `rooms/${code}/private/${this.instanceId}`);
+      onChildAdded(
+        this.firebasePrivateEventsRef,
+        (snapshot: DataSnapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            this.handleRawIncoming(val, 'private');
+          }
+        },
+        (error: ErrorLike) => {
+          logger.warn('Firebase private channel listener warning:', error);
         }
       );
 
@@ -393,6 +433,12 @@ export class MultiplayerManager {
         off(this.firebaseEventsRef);
       } catch {}
       this.firebaseEventsRef = null;
+    }
+    if (this.firebasePrivateEventsRef) {
+      try {
+        off(this.firebasePrivateEventsRef);
+      } catch {}
+      this.firebasePrivateEventsRef = null;
     }
     if (this.firebasePresenceRef) {
       try {
@@ -643,10 +689,11 @@ export class MultiplayerManager {
     }, 3000);
   }
 
-  private handleRawIncoming(rawEnvelope: unknown) {
+  private handleRawIncoming(rawEnvelope: unknown, channel: 'public' | 'private' = 'public') {
     if (!rawEnvelope || typeof rawEnvelope !== 'object' || !('__pistiEnvelope' in rawEnvelope)) return;
     const envelope = rawEnvelope as PacketEnvelope;
     if (envelope.senderId === this.instanceId || envelope.roomCode !== this.roomCode) return;
+    if (envelope.targetPeerId && envelope.targetPeerId !== this.instanceId) return;
 
     // Strict roomToken check: If local manager has a roomToken, incoming envelope MUST have matching roomToken
     if (this.roomToken) {
@@ -658,13 +705,15 @@ export class MultiplayerManager {
 
     if (this.seenMsgIds.has(envelope.msgId)) return;
 
-    // Discard replayed or out-of-order packets for all message types
+    // Discard replayed or out-of-order packets per (senderId, channel) pair so public and private streams never collide
     if (typeof envelope.seq !== 'number' || !envelope.senderId) return;
-    const last = this.lastSeenSeq.get(envelope.senderId) || 0;
+    const effectiveChannel = envelope.targetPeerId ? 'private' : channel;
+    const seqKey = `${envelope.senderId}:${effectiveChannel}`;
+    const last = this.lastSeenSeq.get(seqKey) || 0;
     if (envelope.seq <= last) {
       return;
     }
-    this.lastSeenSeq.set(envelope.senderId, envelope.seq);
+    this.lastSeenSeq.set(seqKey, envelope.seq);
 
     this.seenMsgIds.add(envelope.msgId);
     if (this.seenMsgIds.size > 500) {
@@ -766,6 +815,56 @@ export class MultiplayerManager {
       }
 
       if (typeof window !== 'undefined' && payload.type !== 'PEER_HEARTBEAT') {
+        try {
+          localStorage.setItem(`pisti-pkt-${this.roomCode}`, JSON.stringify(envelope));
+        } catch {}
+      }
+    }
+  }
+
+  /**
+   * Sends a private host-to-peer packet readable only by `targetPeerId` in Firebase RTDB (`rooms/$code/private/$targetPeerId`).
+   */
+  public sendPrivate(targetPeerId: string, payload: MultiplayerEvent) {
+    if (!this.roomCode || !targetPeerId) return;
+    if (targetPeerId === this.instanceId) {
+      const localVerified: VerifiedMultiplayerEvent = {
+        ...payload,
+        _verifiedSenderId: this.instanceId
+      };
+      this.dispatch(localVerified);
+      return;
+    }
+
+    this.seq = Math.max(this.seq + 1, Date.now());
+    const envelope: PacketEnvelope = {
+      __pistiEnvelope: true,
+      msgId: `${this.instanceId}-priv-${Date.now()}-${getCryptoRandomString(6)}`,
+      roomCode: this.roomCode,
+      ...(this.roomToken ? { roomToken: this.roomToken } : {}),
+      targetPeerId,
+      seq: this.seq,
+      senderId: this.instanceId,
+      timestamp: Date.now(),
+      payload
+    };
+
+    try {
+      const privRef = ref(rtdb, `rooms/${this.roomCode}/private/${targetPeerId}`);
+      push(privRef, cleanForRtdb(envelope)).catch((err: ErrorLike) => {
+        logger.error('Firebase private push error:', err?.code, err?.message, err);
+      });
+    } catch (err) {
+      logger.error('Firebase private push exception:', err);
+    }
+
+    if (import.meta.env.DEV) {
+      if (this.broadcastChannel) {
+        try {
+          this.broadcastChannel.postMessage(envelope);
+        } catch {}
+      }
+      if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(`pisti-pkt-${this.roomCode}`, JSON.stringify(envelope));
         } catch {}

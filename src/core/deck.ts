@@ -205,3 +205,101 @@ export function dealHand(
     remainingDeck: currentDeck
   };
 }
+
+/**
+ * Generates an opaque per-round token ID so card identities cannot be inferred from IDs alone.
+ */
+function generateOpaqueCardToken(index: number): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let rand = '';
+  const cryptoObj = typeof globalThis !== 'undefined' && 'crypto' in globalThis ? globalThis.crypto : null;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const buf = new Uint8Array(6);
+    cryptoObj.getRandomValues(buf);
+    for (let i = 0; i < 6; i++) rand += chars[buf[i] % chars.length];
+  } else {
+    for (let i = 0; i < 6; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `c_${index}_${rand}`;
+}
+
+/**
+ * Assigns fresh opaque IDs to every card in a shuffled deck before a multiplayer round starts.
+ */
+export function assignOpaqueDeckIds(deck: Card[]): Card[] {
+  return deck.map((c, idx) => ({
+    ...c,
+    id: generateOpaqueCardToken(idx)
+  }));
+}
+
+/**
+ * Creates a masked placeholder card that preserves only the opaque ID and hides suit/value/points.
+ * Value defaults to 2 (non-Jack, non-5, non-Ace) so placeholder cards never trigger accidental rules.
+ */
+export function createMaskedCard(id: string): Card {
+  return {
+    id,
+    suit: 'spades',
+    value: 2,
+    symbol: '?',
+    basePoints: 0,
+    isSpecial: false,
+    faceUp: false
+  };
+}
+
+export function isMaskedCard(card: Card | undefined | null): boolean {
+  return Boolean(card && card.symbol === '?');
+}
+
+/**
+ * Builds a guest-specific cut deck where ONLY the cards that guest is legally allowed to know
+ * (their own dealt hand in all waves + public face-up center card + any peeled Jacks) have real faces,
+ * and every other card (opponent hands, 3 face-down center cards) is a masked placeholder.
+ */
+export function buildMaskedCutDeckForSeat(
+  cutDeck: Card[],
+  targetSeat: number,
+  playerCount: 2 | 4,
+  absStartingTurn: number,
+  cutterSeat: number
+): Card[] {
+  const visibleIds = new Set<string>();
+  const simDeck = [...cutDeck];
+
+  // 3 face-down table cards stay hidden
+  for (let i = 0; i < 3; i++) simDeck.pop();
+
+  // 4th card + any consecutive Jacks are public
+  let topCard = simDeck.pop();
+  const jacks: Card[] = [];
+  while (topCard && topCard.value === 11 && simDeck.length > 0) {
+    visibleIds.add(topCard.id);
+    jacks.push(topCard);
+    topCard = simDeck.pop();
+  }
+  if (topCard) visibleIds.add(topCard.id);
+
+  // Wave 1: dealInitialGame order (starts at absStartingTurn)
+  for (let offset = 0; offset < playerCount; offset++) {
+    const p = ((absStartingTurn % playerCount) + playerCount + offset) % playerCount;
+    const needed = p === cutterSeat && jacks.length > 0 ? Math.max(0, 4 - jacks.length) : 4;
+    for (let i = 0; i < needed; i++) {
+      const c = simDeck.pop();
+      if (c && p === targetSeat) visibleIds.add(c.id);
+    }
+  }
+
+  // Subsequent refill waves (usePistiGame pops 4 cards per seat for seat = 0..N-1)
+  while (simDeck.length > 0) {
+    for (let seat = 0; seat < playerCount; seat++) {
+      for (let i = 0; i < 4; i++) {
+        const c = simDeck.pop();
+        if (c && seat === targetSeat) visibleIds.add(c.id);
+      }
+    }
+  }
+
+  return cutDeck.map(c => (visibleIds.has(c.id) ? { ...c } : createMaskedCard(c.id)));
+}

@@ -9,7 +9,9 @@ import {
 import {
   createUnoDeck,
   shuffleUnoDeck,
-  dealUnoGame
+  dealUnoGame,
+  assignOpaqueUnoDeckIds,
+  buildMaskedUnoDeckForSeat
 } from '../features/uno/unoDeck';
 import {
   canPlayUnoCard,
@@ -1288,7 +1290,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
         const foundCard = targetP.hand.find(c => c.id === event.cardId);
         if (foundCard) {
-          executePlayCard(targetLocalIdx, foundCard, event.chosenColor as UnoColor);
+          const resolvedCard: UnoCard =
+            !isHost && event.card ? { ...foundCard, ...event.card, id: foundCard.id } : foundCard;
+          executePlayCard(targetLocalIdx, resolvedCard, event.chosenColor as UnoColor);
         } else {
           logger.warn(`Card ${event.cardId} not found in player ${targetLocalIdx}'s hand!`);
         }
@@ -1299,13 +1303,43 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
+        const drawCount = event.count || 1;
+        // If Host, peek the real cards that will be drawn for this guest and send them privately (C2)
+        if (isHost && mpSlots && mpSlots[event.seatIndex]?.peerId) {
+          const drawnReal = deckSyncRef.current.slice(0, drawCount);
+          if (drawnReal.length > 0) {
+            multiplayerManager.sendPrivate(mpSlots[event.seatIndex].peerId, {
+              type: 'MP_UNO_PRIVATE_DRAWN',
+              seatIndex: event.seatIndex,
+              cards: drawnReal
+            });
+          }
+        }
         if (event.penalty) {
-          showSeatBubble(targetLocalIdx, `💥 ${event.count || 1} Ceza Kartı Çekti`, 2200);
-          deliverPenaltyCardsToPlayer(targetLocalIdx, event.count || 1);
+          showSeatBubble(targetLocalIdx, `💥 ${drawCount} Ceza Kartı Çekti`, 2200);
+          deliverPenaltyCardsToPlayer(targetLocalIdx, drawCount);
         } else {
-          drawCardsForPlayer(targetLocalIdx, event.count || 1);
-          showSeatBubble(targetLocalIdx, `📥 ${event.count || 1} Kart Çekti`);
+          drawCardsForPlayer(targetLocalIdx, drawCount);
+          showSeatBubble(targetLocalIdx, `📥 ${drawCount} Kart Çekti`);
           pushActionLog(`📥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} desteden kart çekti.`);
+        }
+      } else if (event.type === 'MP_UNO_PRIVATE_DEAL') {
+        if (!isHost && Array.isArray(event.maskedDeck)) {
+          startNewRound(event.maskedDeck);
+        }
+      } else if (event.type === 'MP_UNO_PRIVATE_DRAWN') {
+        if (!isHost && event.seatIndex === mySeatIndex && Array.isArray(event.cards)) {
+          const revealMap = new Map<string, UnoCard>(event.cards.map(c => [c.id, c]));
+          const nextPlayers = playersSyncRef.current.map((p, idx) => {
+            if (idx !== 0) return p;
+            const patchedHand = p.hand.map(c => {
+              const rev = revealMap.get(c.id);
+              return rev ? { ...c, ...rev, id: c.id } : c;
+            });
+            return { ...p, hand: sortUnoCardsByColor(patchedHand) };
+          });
+          playersSyncRef.current = nextPlayers;
+          setPlayers(nextPlayers);
         }
       } else if (event.type === 'MP_UNO_CALL_UNO') {
         if (event.senderPeerId === multiplayerManager.instanceId) return;
@@ -1337,7 +1371,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         handleTriggerEmote(targetLocalIdx, event.emoji);
       } else if (event.type === 'MP_UNO_NEXT_ROUND') {
         if (!isSenderAuthorized(0)) return;
-        startNewRound(event.seedCards);
+        if (event.seedCards && event.seedCards.length > 0) {
+          startNewRound(event.seedCards);
+        }
       } else if (event.type === 'MP_MATCH_ABORTED') {
         if (event.gameType && event.gameType !== 'uno') return;
         try { multiplayerManager.leaveRoom(); } catch {}
@@ -1382,6 +1418,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         multiplayerManager.send({
           type: 'MP_UNO_PLAY_CARD',
           cardId: card.id,
+          card,
           seatIndex: mySeatIndex,
           senderPeerId: multiplayerManager.instanceId
         });
@@ -1423,7 +1460,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
     drawCardsForPlayer(0, 1, drawn => {
       if (drawn.length > 0) {
-        const drawnCard = drawn[0];
+        const latestHand = playersSyncRef.current[0]?.hand || [];
+        const drawnCard = latestHand.find(c => c.id === drawn[0].id) || drawn[0];
         const cardTitle = formatCardName(drawnCard);
         setNewlyDrawnCardId(drawnCard.id);
 
@@ -1547,6 +1585,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           multiplayerManager.send({
             type: 'MP_UNO_PLAY_CARD',
             cardId: botDecision.cardToPlay.id,
+            card: botDecision.cardToPlay,
             chosenColor: botDecision.chosenWildColor,
             seatIndex: botAbsSeat,
             senderPeerId: multiplayerManager.instanceId
@@ -1594,6 +1633,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   multiplayerManager.send({
                     type: 'MP_UNO_PLAY_CARD',
                     cardId: drawn[0].id,
+                    card: drawn[0],
                     chosenColor: chosenWild,
                     seatIndex: botAbsSeat,
                     senderPeerId: multiplayerManager.instanceId
@@ -2602,6 +2642,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                         multiplayerManager.send({
                           type: 'MP_UNO_PLAY_CARD',
                           cardId: c.id,
+                          card: c,
                           chosenColor: color,
                           seatIndex: mySeatIndex,
                           senderPeerId: multiplayerManager.instanceId
@@ -2767,10 +2808,19 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                     onClick={() => {
                       sound.playClick();
                       if (isMultiplayer && isHost) {
-                        const nextDeck = shuffleUnoDeck(createUnoDeck());
+                        const nextDeck = assignOpaqueUnoDeckIds(shuffleUnoDeck(createUnoDeck()));
+                        const activeP = playersSyncRef.current.length;
+                        (mpSlots || []).forEach(slot => {
+                          if (!slot.isHost && !slot.isAI && slot.peerId) {
+                            multiplayerManager.sendPrivate(slot.peerId, {
+                              type: 'MP_UNO_PRIVATE_DEAL',
+                              round: 1,
+                              maskedDeck: buildMaskedUnoDeckForSeat(nextDeck, slot.seatIndex, activeP)
+                            });
+                          }
+                        });
                         multiplayerManager.send({
                           type: 'MP_UNO_NEXT_ROUND',
-                          seedCards: nextDeck,
                           startingTurnSeat: 0
                         });
                         startNewRound(nextDeck);
@@ -2797,10 +2847,19 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                       playersSyncRef.current = resetPlayers;
                       setPlayers(resetPlayers);
                       if (isMultiplayer && isHost) {
-                        const freshDeck = shuffleUnoDeck(createUnoDeck());
+                        const freshDeck = assignOpaqueUnoDeckIds(shuffleUnoDeck(createUnoDeck()));
+                        const activeP = playersSyncRef.current.length;
+                        (mpSlots || []).forEach(slot => {
+                          if (!slot.isHost && !slot.isAI && slot.peerId) {
+                            multiplayerManager.sendPrivate(slot.peerId, {
+                              type: 'MP_UNO_PRIVATE_DEAL',
+                              round: 1,
+                              maskedDeck: buildMaskedUnoDeckForSeat(freshDeck, slot.seatIndex, activeP)
+                            });
+                          }
+                        });
                         multiplayerManager.send({
                           type: 'MP_UNO_NEXT_ROUND',
-                          seedCards: freshDeck,
                           startingTurnSeat: 0
                         });
                         startNewRound(freshDeck);

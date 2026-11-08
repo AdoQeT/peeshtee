@@ -1,7 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluatePlay, calculateRoundBreakdown } from '../src/core/rules.ts';
-import { dealInitialGame } from '../src/core/deck.ts';
+import {
+  createDeck,
+  shuffleDeck,
+  dealInitialGame,
+  assignOpaqueDeckIds,
+  buildMaskedCutDeckForSeat,
+  isMaskedCard
+} from '../src/core/deck.ts';
+import {
+  createUnoDeck,
+  shuffleUnoDeck,
+  dealUnoGame,
+  assignOpaqueUnoDeckIds,
+  buildMaskedUnoDeckForSeat
+} from '../src/features/uno/unoDeck.ts';
 
 test('rules.ts: evaluatePlay on empty table places card', () => {
   const card = { id: 'c1', suit: 'hearts', value: 7, isSpecial: false, basePoints: 0, faceUp: false };
@@ -180,4 +194,51 @@ test('deck.ts: dealInitialGame awards consecutive Jacks revealed at position 4 t
   assert.equal(result.tableCards[3].id, 'card-next');
   assert.equal(result.tableCards[3].value, 7);
   assert.equal(result.tableCards[3].faceUp, true);
+});
+
+test('C2 deck secrecy: buildMaskedCutDeckForSeat hides opponent cards & 3 face-down pot cards while preserving exact deal layout', () => {
+  const realDeck = assignOpaqueDeckIds(shuffleDeck(createDeck()));
+  // Verify opaque IDs do not leak suit or value
+  for (const c of realDeck) {
+    assert.equal(/spades|hearts|diamonds|clubs/.test(c.id), false);
+  }
+
+  const maskedSeat1 = buildMaskedCutDeckForSeat(realDeck, 1, 2, 0, 0);
+  const hostDeal = dealInitialGame(realDeck, 2, true, 0, 0);
+  const guestDeal = dealInitialGame(maskedSeat1, 2, true, 0, 0);
+
+  // 3 face-down table cards must be masked on guest
+  assert.equal(isMaskedCard(guestDeal.tableCards[0]), true);
+  assert.equal(isMaskedCard(guestDeal.tableCards[1]), true);
+  assert.equal(isMaskedCard(guestDeal.tableCards[2]), true);
+  // 4th face-up table card must be identical to host's real card
+  assert.equal(isMaskedCard(guestDeal.tableCards[3]), false);
+  assert.equal(guestDeal.tableCards[3].suit, hostDeal.tableCards[3].suit);
+  assert.equal(guestDeal.tableCards[3].value, hostDeal.tableCards[3].value);
+
+  // Seat 0 (Host) hand must be masked in Seat 1's view, while Seat 1's own hand must be real
+  assert.equal(guestDeal.playerHands[0].every(c => isMaskedCard(c)), true);
+  assert.equal(guestDeal.playerHands[1].every(c => !isMaskedCard(c)), true);
+  assert.deepEqual(
+    guestDeal.playerHands[1].map(c => `${c.suit}-${c.value}`),
+    hostDeal.playerHands[1].map(c => `${c.suit}-${c.value}`)
+  );
+});
+
+test('C2 Uno deck secrecy: buildMaskedUnoDeckForSeat hides opponent hands & draw pile while matching initial discard', () => {
+  const realUno = assignOpaqueUnoDeckIds(shuffleUnoDeck(createUnoDeck()));
+  const maskedGuest = buildMaskedUnoDeckForSeat(realUno, 1, 2);
+
+  const hostDealt = dealUnoGame(realUno, 2);
+  const guestDealt = dealUnoGame(maskedGuest, 2);
+
+  assert.equal(guestDealt.initialDiscard.id, hostDealt.initialDiscard.id);
+  assert.equal(guestDealt.initialDiscard.color, hostDealt.initialDiscard.color);
+  assert.equal(guestDealt.initialDiscard.value, hostDealt.initialDiscard.value);
+  assert.deepEqual(
+    guestDealt.hands[1].map(c => `${c.color}-${c.value}`),
+    hostDealt.hands[1].map(c => `${c.color}-${c.value}`)
+  );
+  // Opponent (seat 0) cards are masked placeholders
+  assert.equal(guestDealt.hands[0].every(c => c.scoreValue === 0 && c.value === '0'), true);
 });

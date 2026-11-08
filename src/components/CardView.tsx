@@ -442,7 +442,7 @@ export const CardView: React.FC<CardViewProps> = ({
           ? (e: React.KeyboardEvent<HTMLDivElement>) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onClick(e as any);
+                onClick(e as unknown as React.MouseEvent<HTMLDivElement>);
               }
             }
           : undefined

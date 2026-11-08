@@ -2,7 +2,8 @@ import { logger } from '../utils/logger';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, GameSettings, Player, ShuffleStyle } from '../types/game';
 import { DetailedRoundScore } from '../core/rules';
-import { multiplayerManager, MultiplayerEvent, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
+import { multiplayerManager, MultiplayerEvent, LobbyPlayerSlot, VerifiedMultiplayerEvent } from '../features/multiplayer/peerManager';
+import type { UnoCard } from '../features/uno/unoTypes';
 import { friendNetwork } from '../features/friends/friendNetwork';
 import { ChatMessage } from '../components/InGameChat';
 import { MatchIntroPlayer } from '../components/MatchIntroOverlay';
@@ -39,7 +40,7 @@ export function useMultiplayerRoom({ userProfile, screen, playersRef }: UseMulti
   const activeMultiplayerSlotsRef = useRef<LobbyPlayerSlot[]>(activeMultiplayerSlots);
   activeMultiplayerSlotsRef.current = activeMultiplayerSlots;
 
-  const [multiplayerSeedUnoDeck, setMultiplayerSeedUnoDeck] = useState<any[] | null>(null);
+  const [multiplayerSeedUnoDeck, setMultiplayerSeedUnoDeck] = useState<UnoCard[] | null>(null);
   const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [initialJoinCode, setInitialJoinCode] = useState<string>('');
 
@@ -281,7 +282,7 @@ export interface UseMultiplayerEventsProps {
   playersRef: React.MutableRefObject<Player[]>;
   currentTurnRef: React.MutableRefObject<number>;
   settingsRef: React.MutableRefObject<GameSettings>;
-  matchIntroRef: React.MutableRefObject<any>;
+  matchIntroRef: React.MutableRefObject<unknown>;
   setScreen: (screen: 'menu' | 'game' | 'uno') => void;
   setRoundScores: React.Dispatch<React.SetStateAction<RoundScoresState | null>>;
   // State setters from useMultiplayerRoom
@@ -293,7 +294,7 @@ export interface UseMultiplayerEventsProps {
   activeMultiplayerSlotsRef: React.MutableRefObject<LobbyPlayerSlot[]>;
   setIsMultiplayerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setInitialJoinCode: React.Dispatch<React.SetStateAction<string>>;
-  setMultiplayerSeedUnoDeck: React.Dispatch<React.SetStateAction<any[] | null>>;
+  setMultiplayerSeedUnoDeck: React.Dispatch<React.SetStateAction<UnoCard[] | null>>;
   setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setReadySeatsForNextRound: React.Dispatch<React.SetStateAction<Set<number>>>;
   queuedMpEventsRef: React.MutableRefObject<MultiplayerEvent[]>;
@@ -421,7 +422,7 @@ export function useMultiplayerEvents({
           }
         }
       } else if (msg.type === 'MP_CARD_PLAYED') {
-        const envelopeSender = (msg as any)._verifiedSenderId || msg.senderPeerId;
+        const envelopeSender = (msg as VerifiedMultiplayerEvent)._verifiedSenderId || msg.senderPeerId;
         if (envelopeSender === multiplayerManager.instanceId) return;
 
         if (matchIntroRef.current) {

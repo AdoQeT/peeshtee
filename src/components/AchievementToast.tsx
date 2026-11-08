@@ -36,7 +36,8 @@ export const AchievementToast: React.FC<AchievementToastProps> = ({ achievement:
 
   if (!activeAch) return null;
 
-  const title = (t as any)[activeAch.title] || activeAch.title;
+  const tRecord = t as unknown as Record<string, unknown>;
+  const title = (typeof tRecord[activeAch.title] === 'string' ? (tRecord[activeAch.title] as string) : activeAch.title);
 
   return (
     <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] pointer-events-none animate-in fade-in slide-in-from-top-6 duration-300">

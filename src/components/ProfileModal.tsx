@@ -639,8 +639,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   const isUnlocked = Boolean(
                     activeProfile.unlockedAchievements?.includes(ach.id)
                   );
-                  const title = (t as any)[ach.titleKey] || ach.id;
-                  const desc = (t as any)[ach.descKey] || '';
+                  const tRecord = t as unknown as Record<string, unknown>;
+                  const title = (typeof tRecord[ach.titleKey] === 'string' ? (tRecord[ach.titleKey] as string) : ach.id);
+                  const desc = (typeof tRecord[ach.descKey] === 'string' ? (tRecord[ach.descKey] as string) : '');
 
                   return (
                     <div

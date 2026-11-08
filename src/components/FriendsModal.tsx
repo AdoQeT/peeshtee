@@ -30,6 +30,19 @@ import { AvatarBadge } from './AvatarBadge';
 import { sound } from '../core/audio/soundEngine';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
 
+/** Minimal contact shape (friend or explore presence) that can be inspected as a profile. */
+type InspectableContact = {
+  id: string;
+  friendCode?: string;
+  name: string;
+  avatarId?: string;
+  customAvatarDataUrl?: string;
+  customTitle?: string;
+  level?: number;
+  stats?: UserProfile['stats'];
+  matchHistory?: UserProfile['matchHistory'];
+};
+
 interface FriendsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -223,7 +236,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     showToast(`${friendName || 'Arkadaş'} arkadaş listenden çıkarıldı.`);
   };
 
-  const handleInspectPlayer = async (contact: any) => {
+  const handleInspectPlayer = async (contact: InspectableContact) => {
     sound.playClick();
     if (!onInspectProfile) return;
 

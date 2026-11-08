@@ -12,7 +12,7 @@ import {
   Flame,
   Globe
 } from 'lucide-react';
-import { GameSettings, TableTheme, AIDifficulty, getCardBackForTheme } from '../types/game';
+import { GameSettings, TableTheme, AIDifficulty, AmbienceType, getCardBackForTheme } from '../types/game';
 import { sound } from '../core/audio/soundEngine';
 import { getLanguage, setLanguage, Language, translations } from '../utils/i18n';
 import { getUserProfile, calculateLevel } from '../features/profile/profileManager';
@@ -372,7 +372,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       key={amb.id}
                       onClick={() => {
                         sound.playClick();
-                        const nextAmb = amb.id as any;
+                        const nextAmb = amb.id as AmbienceType;
                         sound.setAmbience(nextAmb);
                         onUpdateSettings({ ambience: nextAmb });
                       }}

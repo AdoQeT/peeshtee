@@ -32,7 +32,7 @@ This document establishes the official engineering roadmap, critical architectur
   - Unit tests for `src/features/uno/unoRules.ts` (`scripts/testUnoRules.mjs`): Color/rank validation, draw stacking rules (+2 countered by +2 or +4; +4 countered only by +4), AI color weighting and penalty stacking prioritization.
   - Unified `npm test` script executing all 18 automated test cases in Node.js test runner.
 - [x] **GitHub Actions CI/CD Pipeline**:
-  - Created `.github/workflows/ci.yml` running on push & PR to `main` with Node 20 caching, dependency installation (`npm ci`), test runner (`npm test`), and production build verification (`npm run build`).
+  - Created `.github/workflows/ci.yml` running on push & PR to `main` with Node 24 caching (aligned with `engines` and `firebase@13`), dependency installation (`npm ci`), test runner (`npm test`), and production build verification (`npm run build`).
 - [x] **Public Assets & Progressive Web App (PWA)**:
   - Created root `public/` directory with `manifest.json`, scalable SVG app icon (`icon.svg`), and rich OpenGraph social share card (`og-image.svg`).
   - Updated `index.html` with explicit viewport, theme color, SEO meta description, OpenGraph preview tags, Twitter cards, and web manifest linkage.

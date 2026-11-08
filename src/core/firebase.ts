@@ -46,8 +46,8 @@ export function ensureFirebaseAuth(): Promise<User | null> {
 
   authInitPromise = new Promise((resolve) => {
     // If Firebase Auth supports authStateReady (Firebase v9.14+), wait for persisted credentials
-    if (typeof (auth as any).authStateReady === 'function') {
-      (auth as any).authStateReady().then(() => {
+    if (typeof (auth as Partial<Pick<typeof auth, 'authStateReady'>>).authStateReady === 'function') {
+      auth.authStateReady().then(() => {
         if (auth.currentUser) {
           resolve(auth.currentUser);
         } else {

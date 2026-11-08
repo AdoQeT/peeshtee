@@ -26,7 +26,7 @@ import { FlyingUnoCardData, UnoCardAnimationLayer } from './UnoCardAnimationLaye
 import { UnoGrandShuffleLayer } from './UnoGrandShuffleLayer';
 import { AmbientParticles } from './AmbientParticles';
 import { UnoOpponentSeat } from '../features/uno/components/UnoOpponentSeat';
-import { multiplayerManager, LobbyPlayerSlot } from '../features/multiplayer/peerManager';
+import { multiplayerManager, LobbyPlayerSlot, VerifiedMultiplayerEvent } from '../features/multiplayer/peerManager';
 import { friendNetwork } from '../features/friends/friendNetwork';
 import {
   ArrowLeft,
@@ -1259,7 +1259,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     const unsubscribe = multiplayerManager.onEvent(event => {
       // Anti-cheat verification helper
       const isSenderAuthorized = (seatIndex: number, declaredPeerId?: string): boolean => {
-        const verifiedId = (event as any)._verifiedSenderId;
+        const verifiedId = (event as VerifiedMultiplayerEvent)._verifiedSenderId;
         if (!verifiedId || !mpSlots || !mpSlots[seatIndex]) return false;
         const slot = mpSlots[seatIndex];
         const expectedPeerId = slot.isAI ? mpSlots[0]?.peerId : slot.peerId;

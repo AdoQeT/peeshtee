@@ -22,6 +22,7 @@ import {
   ensureFirebaseAuth,
   cleanForRtdb
 } from '../../core/firebase';
+import type { DatabaseReference, DataSnapshot, Query } from 'firebase/database';
 import {
   getUserProfile,
   addOrUpdateFriend,
@@ -70,14 +71,23 @@ export interface IncomingFriendNotice {
   timestamp: number;
 }
 
+export interface IncomingFriendRequestPayload {
+  fromId: string;
+  fromFriendCode: string;
+  fromName: string;
+  fromAvatarId: string;
+  fromCustomTitle?: string;
+  [key: string]: unknown;
+}
+
 export class FriendNetwork {
   private onlinePlayers: Map<string, OnlinePlayerPresence> = new Map();
   private friendsPresence: Map<string, OnlinePlayerPresence> = new Map();
-  private friendPresenceListeners: Map<string, any> = new Map();
+  private friendPresenceListeners: Map<string, DatabaseReference> = new Map();
   private listeners: Array<() => void> = [];
   private inviteListeners: Array<(invite: IncomingGameInvite) => void> = [];
   private noticeListeners: Array<(notice: IncomingFriendNotice) => void> = [];
-  private requestListeners: Array<(req: any) => void> = [];
+  private requestListeners: Array<(req: IncomingFriendRequestPayload) => void> = [];
   private currentStatus: 'menu' | 'lobby' | 'playing' = 'menu';
   private currentRoomCode?: string;
   private currentGameType: 'pisti' | 'uno' = 'pisti';
@@ -85,12 +95,12 @@ export class FriendNetwork {
   private serverTimeOffset = 0;
   private initialized = false;
 
-  private invitesRef: any = null;
-  private requestsRef: any = null;
-  private noticesRef: any = null;
-  private exploreQueryRef: any = null;
-  private offsetRef: any = null;
-  private connectedRef: any = null;
+  private invitesRef: DatabaseReference | null = null;
+  private requestsRef: DatabaseReference | null = null;
+  private noticesRef: DatabaseReference | null = null;
+  private exploreQueryRef: Query | null = null;
+  private offsetRef: DatabaseReference | null = null;
+  private connectedRef: DatabaseReference | null = null;
 
   public async init() {
     if (this.initialized || typeof window === 'undefined') return;
@@ -108,7 +118,7 @@ export class FriendNetwork {
     // 0. Synchronize server time offset
     try {
       this.offsetRef = ref(rtdb, '.info/serverTimeOffset');
-      onValue(this.offsetRef, (snap: any) => {
+      onValue(this.offsetRef, (snap: DataSnapshot) => {
         this.serverTimeOffset = typeof snap.val() === 'number' ? snap.val() : 0;
       });
     } catch (e) {
@@ -118,7 +128,7 @@ export class FriendNetwork {
     // 0.1 Register onDisconnect once when connected
     try {
       this.connectedRef = ref(rtdb, '.info/connected');
-      onValue(this.connectedRef, (snap: any) => {
+      onValue(this.connectedRef, (snap: DataSnapshot) => {
         if (snap.val() === true) {
           const profile = getUserProfile();
           if (profile.friendCode) {
@@ -142,7 +152,7 @@ export class FriendNetwork {
       // 1. Firebase Cloud: Listen for Incoming Game Invites
       try {
         this.invitesRef = ref(rtdb, `invites/${cleanMyCode}`);
-        onChildAdded(this.invitesRef, async (snapshot: any) => {
+        onChildAdded(this.invitesRef, async (snapshot: DataSnapshot) => {
           const inv = snapshot.val() as IncomingGameInvite;
           if (!inv) return;
 
@@ -190,7 +200,7 @@ export class FriendNetwork {
       // 2. Firebase Cloud: Listen for Incoming Friend Requests
       try {
         this.requestsRef = ref(rtdb, `requests/${cleanMyCode}`);
-        onChildAdded(this.requestsRef, (snapshot: any) => {
+        onChildAdded(this.requestsRef, (snapshot: DataSnapshot) => {
           const req = snapshot.val();
           if (!req || req.fromId === getUserProfile().id) return;
 
@@ -230,7 +240,7 @@ export class FriendNetwork {
       // 3. Firebase Cloud: Listen for Social Notices (Accept / Remove)
       try {
         this.noticesRef = ref(rtdb, `notices/${cleanMyCode}`);
-        onChildAdded(this.noticesRef, (snapshot: any) => {
+        onChildAdded(this.noticesRef, (snapshot: DataSnapshot) => {
           const notice = snapshot.val();
           if (!notice) return;
           if (notice.type === 'accept') {
@@ -265,7 +275,7 @@ export class FriendNetwork {
       // 4. Firebase Cloud: Discover / Explore presence query (last 30 active players)
       try {
         this.exploreQueryRef = query(ref(rtdb, 'presence'), orderByChild('lastSeen'), limitToLast(30));
-        onValue(this.exploreQueryRef, (snapshot: any) => {
+        onValue(this.exploreQueryRef, (snapshot: DataSnapshot) => {
           if (!snapshot.exists() || !snapshot.val()) {
             this.onlinePlayers.clear();
             this.notifyListeners();
@@ -276,7 +286,7 @@ export class FriendNetwork {
           if (data && typeof data === 'object') {
             this.onlinePlayers.clear();
             const cleanMyCode = (myCode || '').replace(/\D/g, '');
-            Object.values(data).forEach((p: any) => {
+            Object.values(data as Record<string, OnlinePlayerPresence | null>).forEach((p) => {
               const pClean = (p?.friendCode || '').replace(/\D/g, '');
               if (p && pClean && pClean !== cleanMyCode) {
                 if (this.isPlayerOnline(p.lastSeen)) {
@@ -336,7 +346,7 @@ export class FriendNetwork {
       if (!this.friendPresenceListeners.has(code)) {
         try {
           const presenceNodeRef = ref(rtdb, `presence/${code}`);
-          onValue(presenceNodeRef, (snap: any) => {
+          onValue(presenceNodeRef, (snap: DataSnapshot) => {
             const val = snap.val();
             if (val && this.isPlayerOnline(val.lastSeen)) {
               this.friendsPresence.set(code, val);
@@ -391,7 +401,7 @@ export class FriendNetwork {
     const lvlInfo = calculateLevel(profile.xp || 0);
 
     // Minimal footprint presence node: no stats, no matchHistory, no customAvatarUrl
-    const presence: Record<string, any> = {
+    const presence: Record<string, unknown> = {
       id: profile.id,
       friendCode: profile.friendCode,
       name: profile.name,
@@ -527,7 +537,7 @@ export class FriendNetwork {
       get(ref(rtdb, `requests/${profile.friendCode}`)).then(snap => {
         if (snap.exists()) {
           const val = snap.val();
-          Object.entries(val).forEach(([key, item]: [string, any]) => {
+          Object.entries(val as Record<string, { fromFriendCode?: string } | null>).forEach(([key, item]) => {
             if (item && item.fromFriendCode === cleanTargetCode) {
               remove(ref(rtdb, `requests/${profile.friendCode}/${key}`)).catch((err) => {
                 logger.error('Remove declined request error:', err);
@@ -596,7 +606,7 @@ export class FriendNetwork {
     };
   }
 
-  public onFriendRequest(cb: (req: any) => void): () => void {
+  public onFriendRequest(cb: (req: IncomingFriendRequestPayload) => void): () => void {
     this.requestListeners.push(cb);
     return () => {
       this.requestListeners = this.requestListeners.filter(l => l !== cb);

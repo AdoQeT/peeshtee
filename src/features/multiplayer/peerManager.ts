@@ -21,6 +21,11 @@ import {
   ensureFirebaseAuth,
   cleanForRtdb
 } from '../../core/firebase';
+import type { DatabaseReference, DataSnapshot } from 'firebase/database';
+import type { UnoCard } from '../uno/unoTypes';
+
+/** Minimal shape of errors thrown by Firebase / timeout races. */
+type ErrorLike = { message?: string; code?: string } | null | undefined;
 
 export interface LobbyPlayerSlot {
   seatIndex: number; // 0 (Host), 1 (Right/Opp 1), 2 (Top/Teammate), 3 (Left/Opp 2)
@@ -62,7 +67,7 @@ export type MultiplayerEvent =
       gameType?: 'pisti' | 'uno';
       settings: GameSettings;
       slots: LobbyPlayerSlot[];
-      seedUnoDeck?: any[];
+      seedUnoDeck?: UnoCard[];
       roomToken?: string;
     }
   | {
@@ -80,7 +85,7 @@ export type MultiplayerEvent =
       round: number;
       startingTurnSeat: number;
       slots: LobbyPlayerSlot[];
-      seedUnoDeck?: any[];
+      seedUnoDeck?: UnoCard[];
       hostName?: string;
       hostAvatar?: string;
       guestName?: string;
@@ -121,8 +126,8 @@ export type MultiplayerEvent =
     }
   | {
       type: 'MP_UNO_NEXT_ROUND';
-      seedCards?: any[];
-      seedUnoDeck?: any[];
+      seedCards?: UnoCard[];
+      seedUnoDeck?: UnoCard[];
       nextDealerSeat?: number;
       startingTurnSeat?: number;
       round?: number;
@@ -212,6 +217,9 @@ export type MultiplayerEvent =
       senderPeerId: string;
     };
 
+/** Multiplayer event as delivered locally, tagged with the envelope's verified sender id. */
+export type VerifiedMultiplayerEvent = MultiplayerEvent & { _verifiedSenderId?: string };
+
 interface PacketEnvelope {
   __pistiEnvelope: true;
   msgId: string;
@@ -256,10 +264,10 @@ export class MultiplayerManager {
   private broadcastChannel: BroadcastChannel | null = null;
   private storageListener: ((ev: StorageEvent) => void) | null = null;
 
-  private firebaseEventsRef: any = null;
-  private firebasePresenceRef: any = null;
-  private firebaseMemberRef: any = null;
-  private roomPresenceRef: any = null;
+  private firebaseEventsRef: DatabaseReference | null = null;
+  private firebasePresenceRef: DatabaseReference | null = null;
+  private firebaseMemberRef: DatabaseReference | null = null;
+  private roomPresenceRef: DatabaseReference | null = null;
 
   // Heartbeat & reconnect monitoring
   private heartbeatTimer: number | null = null;
@@ -323,13 +331,13 @@ export class MultiplayerManager {
       this.firebaseEventsRef = ref(rtdb, `rooms/${code}/events`);
       onChildAdded(
         this.firebaseEventsRef,
-        (snapshot: any) => {
+        (snapshot: DataSnapshot) => {
           const val = snapshot.val();
           if (val) {
             this.handleRawIncoming(val);
           }
         },
-        (error: any) => {
+        (error: ErrorLike) => {
           logger.error('Firebase onChildAdded error on room events:', error);
           const userMsg =
             error?.code === 'PERMISSION_DENIED'
@@ -345,11 +353,11 @@ export class MultiplayerManager {
       // Listen to room presences to monitor peer health directly
       this.roomPresenceRef = ref(rtdb, `rooms/${code}/presence`);
       let previousPeerIds = new Set<string>();
-      onValue(this.roomPresenceRef, (snapshot: any) => {
+      onValue(this.roomPresenceRef, (snapshot: DataSnapshot) => {
         const val = snapshot.val();
         const currentPeerIds = new Set<string>();
         if (val && typeof val === 'object') {
-          Object.values(val).forEach((p: any) => {
+          Object.values(val as Record<string, { instanceId?: string } | null>).forEach((p) => {
             if (p && p.instanceId && p.instanceId !== this.instanceId) {
               currentPeerIds.add(p.instanceId);
             }
@@ -483,7 +491,8 @@ export class MultiplayerManager {
       try {
         onDisconnect(roomRef).remove();
       } catch {}
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = caught as ErrorLike;
       logger.error('Host room registration error:', e);
       let errorMsg = 'Oda kurulamadı. Lütfen tekrar deneyin.';
       if (e?.message === 'TIMEOUT') {
@@ -525,7 +534,7 @@ export class MultiplayerManager {
       const timeoutMeta = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('TIMEOUT')), 5000);
       });
-      const snap: any = await Promise.race([getMetaPromise, timeoutMeta]);
+      const snap: DataSnapshot = await Promise.race([getMetaPromise, timeoutMeta]);
       if (!snap.exists()) {
         return { success: false, error: 'Oda bulunamadı. Lütfen 6 haneli kodu kontrol ediniz.' };
       }
@@ -533,7 +542,8 @@ export class MultiplayerManager {
       if (meta?.roomToken) {
         this.roomToken = meta.roomToken;
       }
-    } catch (err: any) {
+    } catch (caught: unknown) {
+      const err = caught as ErrorLike;
       logger.error('Room verification error on join:', err);
       if (err?.message === 'TIMEOUT') {
         return { success: false, error: 'Sunucu yanıt vermedi (5s zaman aşımı). Lütfen bağlantınızı kontrol edin.' };
@@ -612,7 +622,7 @@ export class MultiplayerManager {
           uid: auth.currentUser?.uid || null,
           role: this.isHost ? 'host' : 'guest',
           lastSeen: serverTimestamp()
-        })).catch((err: any) => {
+        })).catch((err: ErrorLike) => {
           logger.error('Firebase heartbeat presence error:', err?.code, err);
         });
 
@@ -633,8 +643,9 @@ export class MultiplayerManager {
     }, 3000);
   }
 
-  private handleRawIncoming(envelope: any) {
-    if (!envelope || typeof envelope !== 'object' || !('__pistiEnvelope' in envelope)) return;
+  private handleRawIncoming(rawEnvelope: unknown) {
+    if (!rawEnvelope || typeof rawEnvelope !== 'object' || !('__pistiEnvelope' in rawEnvelope)) return;
+    const envelope = rawEnvelope as PacketEnvelope;
     if (envelope.senderId === this.instanceId || envelope.roomCode !== this.roomCode) return;
 
     // Strict roomToken check: If local manager has a roomToken, incoming envelope MUST have matching roomToken
@@ -707,7 +718,7 @@ export class MultiplayerManager {
 
     // DEV: warn if any undefined sneaks into envelope
     if (import.meta.env.DEV) {
-      const findUndef = (obj: any, path = ''): void => {
+      const findUndef = (obj: unknown, path = ''): void => {
         if (obj && typeof obj === 'object') {
           Object.entries(obj).forEach(([k, v]) => {
             if (v === undefined) logger.error(`[RTDB-undefined] ${path}.${k} is undefined – fix the payload!`);
@@ -721,7 +732,7 @@ export class MultiplayerManager {
     // 1. Firebase Realtime Database
     if (this.firebaseEventsRef) {
       try {
-        push(this.firebaseEventsRef, cleanForRtdb(envelope)).catch((err: any) => {
+        push(this.firebaseEventsRef, cleanForRtdb(envelope)).catch((err: ErrorLike) => {
           logger.error('Firebase push error:', err?.code, err?.message, err);
         });
       } catch (err) {

@@ -24,6 +24,7 @@ import { UserProfile, getUserProfile, getAvatarPreset, recordMatchStats } from '
 import { checkAndUnlockAchievements } from '../features/progression/achievements';
 import { useCardFlightState, getCenter, cardDomElements } from './useCardFlightState';
 import { FlyingCardData } from '../components/CardAnimationLayer';
+import { ChatMessage } from '../components/InGameChat';
 import { RoundScoresState } from './useMultiplayerRoom';
 import confetti from 'canvas-confetti';
 
@@ -106,7 +107,7 @@ export interface UsePistiGameProps {
   setMyMultiplayerSeat: React.Dispatch<React.SetStateAction<number>>;
   setActiveMultiplayerSlots: React.Dispatch<React.SetStateAction<LobbyPlayerSlot[]>>;
   setIsMultiplayerOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setChatMessages: React.Dispatch<React.SetStateAction<any[]>>;
+  setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   resetMultiplayerState: () => void;
   // Visual / Overlay hooks
   setIsSetupOpen: React.Dispatch<React.SetStateAction<boolean>>;

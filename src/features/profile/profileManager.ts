@@ -601,7 +601,7 @@ export async function syncProfileToFirebase(profile: UserProfile): Promise<void>
       lastOnline: Date.now()
     };
     await set(profileRef, cleanForRtdb(dataToSync));
-    remoteProfilesCache.set(profile.friendCode, dataToSync as any);
+    remoteProfilesCache.set(profile.friendCode, dataToSync as Partial<UserProfile>);
   } catch (err) {
     // Non-blocking offline fallback
     logger.warn('Firebase profile sync warning:', err);
@@ -617,7 +617,7 @@ export async function fetchRemoteProfile(friendCode: string): Promise<Partial<Us
   try {
     const snap = await get(ref(rtdb, `profiles/${clean}`));
     if (snap.exists()) {
-      const raw = snap.val() as any;
+      const raw = snap.val() as Partial<UserProfile> & { avatarThumb?: string };
       const data: Partial<UserProfile> = {
         ...raw,
         customAvatarDataUrl: raw.avatarThumb || raw.customAvatarDataUrl || undefined

@@ -27,6 +27,8 @@ import { ProfileModal } from './components/ProfileModal';
 import { FriendsModal } from './components/FriendsModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { InGameChat } from './components/InGameChat';
+import { VoiceChatBar } from './components/VoiceChatBar';
+import { GuildModal } from './components/GuildModal';
 const UnoGameView = lazy(() =>
   import('./components/UnoGameView').then(m => ({ default: m.UnoGameView }))
 );
@@ -109,6 +111,7 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [inspectedProfile, setInspectedProfile] = useState<UserProfile | null>(null);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [isGuildOpen, setIsGuildOpen] = useState(false);
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
   const [activeMatchRecovery, setActiveMatchRecovery] = useState<string | null>(null);
   const [pendingFriendInvite, setPendingFriendInvite] = useState<{
@@ -675,6 +678,7 @@ export default function App() {
           onOpenRules={() => setIsRulesOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenProfile={() => { setUserProfile(getUserProfile()); setIsProfileOpen(true); }}
+          onOpenGuild={() => setIsGuildOpen(true)}
           onOpenFriends={() => setIsFriendsOpen(prev => !prev)}
           isFriendsOpen={isFriendsOpen}
           onStartUnoGame={() => setScreen('uno')}
@@ -794,12 +798,13 @@ export default function App() {
             />
           </Suspense>
 
-          {/* Semi-Transparent Floating In-Game Chat */}
+          {/* Semi-Transparent Floating In-Game Chat & WebRTC Voice Chat */}
           <InGameChat
             messages={chatMessages}
             onSendMessage={handleSendChatMessage}
             isMultiplayer={isMultiplayerGame}
           />
+          <VoiceChatBar isMultiplayer={isMultiplayerGame} />
         </main>
       )}
 
@@ -1051,6 +1056,13 @@ export default function App() {
           setIsProfileOpen(false);
           setInspectedProfile(null);
         }}
+      />
+
+      {/* Guild / Lonca Modal */}
+      <GuildModal
+        isOpen={isGuildOpen}
+        userProfile={userProfile}
+        onClose={() => setIsGuildOpen(false)}
       />
 
       {/* First-time Visitor Onboarding Welcome Modal */}

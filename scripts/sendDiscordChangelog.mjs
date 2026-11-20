@@ -33,13 +33,13 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-added 15s turn timer and AFK protection to online RENQ matches',
-  '-added 4-player online RENQ drop-in bot takeover when a player disconnects',
-  '-improved narrow mobile screen spacing for opponent seats',
-  '-routed remaining achievement error logs through centralized logger'
+  '-added WebRTC peer-to-peer voice chat with mute and deafen controls',
+  '-added Guild / Lonca system with creation, code join, daily quests, and guild leaderboard',
+  '-added production error telemetry and copyable crash report in ErrorBoundary',
+  '-verified 2-tab online room creation and join with automated headless Chrome E2E test'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.32.1';
+const versionTitle = process.argv[2] || 'v1.33.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

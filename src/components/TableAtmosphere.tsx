@@ -1,7 +1,7 @@
 import React from 'react';
 import { TableTheme } from '../types/game';
 
-export const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
+export const TableAtmosphere: React.FC<{ theme: TableTheme }> = React.memo(({ theme }) => {
   switch (theme) {
     case 'traditional':
       return (
@@ -383,4 +383,4 @@ export const TableAtmosphere: React.FC<{ theme: TableTheme }> = ({ theme }) => {
         </div>
       );
   }
-};
+});

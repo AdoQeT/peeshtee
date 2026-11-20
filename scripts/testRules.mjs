@@ -294,3 +294,110 @@ test('Phase 3 Skins & Level Progression: new table themes and card backs map and
   assert.equal(isItemLockedByLevel('card_back', 'obsidian_flame', 8).isLocked, false);
 });
 
+test('Full 2P and 4P Pişti round simulation conserves all 52 cards and exact 13 special card points', async () => {
+  const { chooseAICard } = await import('../src/core/ai/bot.ts');
+
+  for (const playerCount of [2, 4]) {
+    for (let trial = 0; trial < 5; trial++) {
+      const freshDeck = shuffleDeck(createDeck());
+      const init = dealInitialGame(freshDeck, playerCount, true, 0, 0);
+      let remainingDeck = [...init.remainingDeck];
+      let tableCards = [...init.tableCards];
+      let lastCollector = null;
+      const seen = [...tableCards.filter(c => c.faceUp)];
+
+      const players = Array.from({ length: playerCount }, (_, idx) => ({
+        id: `p-${idx}`,
+        name: `Player ${idx}`,
+        isAI: true,
+        avatar: '🤖',
+        hand: [...init.playerHands[idx]],
+        collectedCards: [],
+        pistiPairs: [],
+        pistiCount: 0,
+        doublePistiCount: 0,
+        score: 0,
+        roundScore: 0
+      }));
+
+      let turn = 0;
+      let guard = 0;
+      while (guard++ < 200) {
+        if (players.every(p => p.hand.length === 0)) {
+          if (remainingDeck.length === 0) break;
+          for (let seat = 0; seat < playerCount; seat++) {
+            for (let i = 0; i < 4; i++) {
+              const c = remainingDeck.pop();
+              if (c) players[seat].hand.push(c);
+            }
+          }
+          continue;
+        }
+
+        const acting = players[turn];
+        if (acting.hand.length > 0) {
+          const card = chooseAICard(acting.hand, tableCards, seen, 'hard', 'balanced');
+          acting.hand = acting.hand.filter(c => c.id !== card.id);
+          const evalRes = evaluatePlay(tableCards, card, false);
+          seen.push({ ...card, faceUp: true });
+          if (evalRes.isSweep) {
+            lastCollector = turn;
+            if (evalRes.isPisti || evalRes.isDoublePisti) {
+              acting.pistiPairs.push({
+                bottomCard: tableCards[0],
+                topCard: { ...card, faceUp: true },
+                isDouble: evalRes.isDoublePisti
+              });
+              if (evalRes.isDoublePisti) acting.doublePistiCount += 1;
+              else acting.pistiCount += 1;
+            } else {
+              acting.collectedCards.push(...evalRes.capturedCards);
+            }
+            tableCards = [];
+          } else {
+            tableCards = evalRes.newTableCards;
+          }
+        }
+        turn = (turn + 1) % playerCount;
+      }
+
+      if (tableCards.length > 0 && lastCollector !== null) {
+        players[lastCollector].collectedCards.push(...tableCards.map(c => ({ ...c, faceUp: true })));
+        tableCards = [];
+      }
+
+      // Every single one of the 52 physical cards must exist exactly once
+      const allAccountedIds = new Set();
+      let totalCount = 0;
+      for (const p of players) {
+        for (const c of p.collectedCards) {
+          allAccountedIds.add(c.id);
+          totalCount++;
+        }
+        for (const pair of p.pistiPairs) {
+          allAccountedIds.add(pair.bottomCard.id);
+          allAccountedIds.add(pair.topCard.id);
+          totalCount += 2;
+        }
+      }
+      for (const c of tableCards) {
+        allAccountedIds.add(c.id);
+        totalCount++;
+      }
+
+      assert.equal(totalCount, 52, `${playerCount}P trial ${trial}: exact 52 cards accounted for`);
+      assert.equal(allAccountedIds.size, 52, `${playerCount}P trial ${trial}: zero duplicate card IDs`);
+
+      if (tableCards.length === 0) {
+        const totalSpecialPts = players.reduce(
+          (sum, p) => sum + calculateRoundBreakdown(p, false).specialCardPoints,
+          0
+        );
+        // 4 Aces (4) + 4 Jacks (4) + ♦10 (3) + ♣2 (2) = 13
+        assert.equal(totalSpecialPts, 13, `${playerCount}P trial ${trial}: exact 13 special points conserved`);
+      }
+    }
+  }
+});
+
+

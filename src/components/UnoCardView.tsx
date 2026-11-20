@@ -65,7 +65,7 @@ const SIZE_CLASSES = {
   lg: 'w-28 h-[162px] sm:w-32 sm:h-[186px] text-base rounded-2xl'
 };
 
-export const UnoCardBack: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; style?: React.CSSProperties }> = ({
+export const UnoCardBack: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; style?: React.CSSProperties }> = React.memo(({
   size = 'md',
   className = '',
   style
@@ -90,9 +90,9 @@ export const UnoCardBack: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: stri
       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none" />
     </div>
   );
-};
+});
 
-export const UnoCardView: React.FC<UnoCardViewProps> = ({
+export const UnoCardView: React.FC<UnoCardViewProps> = React.memo(({
   card,
   isBack = false,
   isPlayable = false,
@@ -101,6 +101,17 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
   className = '',
   style
 }) => {
+  const outerRef = React.useRef<HTMLDivElement | null>(null);
+  const glareRef = React.useRef<HTMLDivElement | null>(null);
+  const rectRef = React.useRef<DOMRect | null>(null);
+  const rafRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
   if (isBack || !card) {
     return <UnoCardBack size={size} className={className} style={style} />;
   }
@@ -184,31 +195,57 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
   };
   const label = `${colorNames[card.color]} ${cornerLabel}`;
 
-  const [tilt, setTilt] = React.useState<{ x: number; y: number; glareX: number; glareY: number } | null>(null);
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPlayable) return;
+    rectRef.current = e.currentTarget.getBoundingClientRect();
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isPlayable) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setTilt({
-      x: (y - 0.5) * -22,
-      y: (x - 0.5) * 22,
-      glareX: x * 100,
-      glareY: y * 100
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const el = outerRef.current;
+      if (!el) return;
+      const rect = rectRef.current || el.getBoundingClientRect();
+      rectRef.current = rect;
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      const rotX = ((y - 0.5) * -20).toFixed(1);
+      const rotY = ((x - 0.5) * 20).toFixed(1);
+      el.style.transform = `perspective(800px) rotateX(${rotX}deg) rotateY(${rotY}deg) translate3d(0, -8px, 0) scale(1.08)`;
+      if (glareRef.current) {
+        glareRef.current.style.opacity = '1';
+        glareRef.current.style.background = `radial-gradient(circle at ${(x * 100).toFixed(0)}% ${(y * 100).toFixed(0)}%, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.18) 35%, transparent 70%)`;
+      }
     });
   };
 
   const handleMouseLeave = () => {
-    setTilt(null);
+    rectRef.current = null;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (outerRef.current) {
+      outerRef.current.style.transform = style?.transform || '';
+    }
+    if (glareRef.current) {
+      glareRef.current.style.opacity = '0';
+    }
   };
 
   return (
     <div
+      ref={outerRef}
       role={isPlayable ? 'button' : undefined}
       tabIndex={isPlayable ? 0 : undefined}
       aria-label={label}
       onClick={isPlayable ? e => onClick?.(e) : undefined}
+      onMouseEnter={isPlayable ? handleMouseEnter : undefined}
       onMouseMove={isPlayable ? handleMouseMove : undefined}
       onMouseLeave={isPlayable ? handleMouseLeave : undefined}
       onKeyDown={
@@ -221,13 +258,8 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
             }
           : undefined
       }
-      style={{
-        transform: tilt
-          ? `perspective(800px) rotateX(${tilt.x.toFixed(1)}deg) rotateY(${tilt.y.toFixed(1)}deg) translateY(-8px) scale(1.08)`
-          : undefined,
-        ...style
-      }}
-      className={`relative select-none shrink-0 overflow-hidden rounded-[inherit] border-2 shadow-lg transition-transform duration-150 ease-out ${
+      style={style}
+      className={`relative select-none shrink-0 overflow-hidden rounded-[inherit] border-2 shadow-lg transition-transform duration-150 ease-out will-change-transform ${
         theme.cardBg
       } ${theme.borderColor} ${sizeClass} ${
         isPlayable
@@ -263,17 +295,15 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         {cornerLabel}
       </div>
 
-      {/* Interactive Specular Glare Highlight (Reacts to cursor movement) */}
-      {tilt ? (
+      {/* Base sheen + direct-DOM interactive glare */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none" />
+      {isPlayable && (
         <div
+          ref={glareRef}
           className="absolute inset-0 pointer-events-none rounded-[inherit] z-20 mix-blend-overlay transition-opacity duration-150"
-          style={{
-            background: `radial-gradient(circle at ${tilt.glareX.toFixed(0)}% ${tilt.glareY.toFixed(0)}%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 35%, transparent 70%)`
-          }}
+          style={{ opacity: 0 }}
         />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
       )}
     </div>
   );
-};
+});

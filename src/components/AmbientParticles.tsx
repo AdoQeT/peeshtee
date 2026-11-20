@@ -16,6 +16,9 @@ const THEME_PALETTES: Record<string, string[]> = {
   sakura: ['#f472b6', '#fb7185', '#fda4af', '#fbcfe8', '#f43f5e', '#ffffff'],
   luxury_gold: ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#fef08a', '#fef3c7', '#ffffff'],
   traditional: ['#34d399', '#10b981', '#059669', '#fbbf24', '#f59e0b', '#a7f3d0', '#fef3c7', '#ffffff'],
+  neon_cyber: ['#22d3ee', '#e879f9', '#38bdf8', '#c084fc', '#f472b6', '#ffffff'],
+  ottoman_palace: ['#fbbf24', '#f59e0b', '#f43f5e', '#e11d48', '#fde68a', '#ffffff'],
+  arctic_aurora: ['#2dd4bf', '#38bdf8', '#5eead4', '#a7f3d0', '#7dd3fc', '#ffffff'],
   uno_red: ['#ef4444', '#f87171', '#fca5a5', '#fbbf24', '#ffffff'],
   uno_blue: ['#3b82f6', '#60a5fa', '#93c5fd', '#38bdf8', '#ffffff'],
   uno_green: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#ffffff'],
@@ -37,7 +40,7 @@ interface Particle {
   phase: number;
 }
 
-export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
+const AmbientParticlesInner: React.FC<AmbientParticlesProps> = ({
   theme = 'traditional',
   unoColor,
   intensity = 'dense',
@@ -51,33 +54,41 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animId: number;
-    let dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion || quality === 'low') {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    let animId: number | null = null;
+    let dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5);
     let width = canvas.parentElement?.clientWidth || window.innerWidth;
     let height = canvas.parentElement?.clientHeight || window.innerHeight;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    let resizeRaf: number | null = null;
     const handleResize = () => {
-      if (!canvas) return;
-      dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-      width = canvas.parentElement?.clientWidth || window.innerWidth;
-      height = canvas.parentElement?.clientHeight || window.innerHeight;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (resizeRaf !== null) return;
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = null;
+        if (!canvas) return;
+        dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5);
+        width = canvas.parentElement?.clientWidth || window.innerWidth;
+        height = canvas.parentElement?.clientHeight || window.innerHeight;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      });
     };
     window.addEventListener('resize', handleResize);
-
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion || quality === 'low') return;
 
     const paletteKey =
       theme === 'uno' && unoColor
@@ -88,25 +99,25 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     const colors = THEME_PALETTES[paletteKey] || THEME_PALETTES.estoril_blue;
 
     const isMobile = width < 640;
-    const baseCount = intensity === 'dense' ? (isMobile ? 28 : 55) : (isMobile ? 16 : 32);
+    const baseCount = intensity === 'dense' ? (isMobile ? 18 : 32) : (isMobile ? 12 : 22);
     const qualityMult = quality === 'medium' ? 0.55 : 1.0;
     const count = Math.max(6, Math.round(baseCount * qualityMult));
     const particles: Particle[] = [];
 
     for (let i = 0; i < count; i++) {
-      const baseAlpha = 0.25 + Math.random() * 0.55;
+      const baseAlpha = 0.25 + Math.random() * 0.5;
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.45,
-        vy: -0.25 - Math.random() * 0.45, // gentle upward drift
-        size: 1.4 + Math.random() * 2.8,
+        vx: (Math.random() - 0.5) * 0.42,
+        vy: -0.22 - Math.random() * 0.42,
+        size: 1.4 + Math.random() * 2.5,
         alpha: baseAlpha,
         baseAlpha,
         fadeSpeed: 0.008 + Math.random() * 0.015,
         color: colors[Math.floor(Math.random() * colors.length)],
         wobbleSpeed: 0.01 + Math.random() * 0.02,
-        wobbleAmp: 0.5 + Math.random() * 1.2,
+        wobbleAmp: 0.45 + Math.random() * 1.1,
         phase: Math.random() * Math.PI * 2
       });
     }
@@ -114,20 +125,24 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     let lastTime = performance.now();
 
     const render = (time: number) => {
-      const dt = Math.min(32, time - lastTime) / 16.66;
+      if (document.hidden) {
+        animId = null;
+        return;
+      }
+
+      const dt = Math.min(2.5, Math.max(0.25, (time - lastTime) / 16.667));
       lastTime = time;
 
       ctx.clearRect(0, 0, width, height);
 
-      particles.forEach(p => {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         p.phase += p.wobbleSpeed * dt;
         p.x += (p.vx + Math.sin(p.phase) * p.wobbleAmp) * dt;
         p.y += p.vy * dt;
 
-        // Subtle alpha breathing pulse
         p.alpha = p.baseAlpha * (0.65 + 0.35 * Math.sin(p.phase * 1.5));
 
-        // Screen wrap
         if (p.y < -10) {
           p.y = height + 10;
           p.x = Math.random() * width;
@@ -138,31 +153,37 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
         if (p.x < -10) p.x = width + 10;
         else if (p.x > width + 10) p.x = -10;
 
-        // Draw soft glowing mote with zero CPU shadowBlur overhead
-        ctx.save();
         ctx.fillStyle = p.color;
-        // Outer soft halo
-        ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha * 0.35));
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha * 0.32));
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Inner sharp nucleus
         ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
-      });
+      }
+      ctx.globalAlpha = 1;
 
       animId = requestAnimationFrame(render);
     };
 
+    const handleVisibility = () => {
+      if (!document.hidden && animId === null) {
+        lastTime = performance.now();
+        animId = requestAnimationFrame(render);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     animId = requestAnimationFrame(render);
 
     return () => {
-      cancelAnimationFrame(animId);
+      if (animId !== null) cancelAnimationFrame(animId);
+      if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [theme, unoColor, intensity, quality]);
 
@@ -173,3 +194,5 @@ export const AmbientParticles: React.FC<AmbientParticlesProps> = ({
     />
   );
 };
+
+export const AmbientParticles = React.memo(AmbientParticlesInner);

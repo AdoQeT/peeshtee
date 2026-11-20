@@ -36,7 +36,10 @@ const PALETTES: Record<string, { glow: string; center: string; mid: string; edge
   monaco_velvet: { glow: '245,158,11', center: '#3b0764', mid: '#240440', edge: '#0a0114' },
   traditional: { glow: '16,185,129', center: '#0d442f', mid: '#062a1d', edge: '#031710' },
   sakura: { glow: '244,114,182', center: '#360c29', mid: '#1a051d', edge: '#0a010c' },
-  luxury_gold: { glow: '245,158,11', center: '#38150c', mid: '#1a090d', edge: '#070204' }
+  luxury_gold: { glow: '245,158,11', center: '#38150c', mid: '#1a090d', edge: '#070204' },
+  neon_cyber: { glow: '34,211,238', center: '#0e3a5c', mid: '#1e0b36', edge: '#03040c' },
+  ottoman_palace: { glow: '251,191,36', center: '#5c1127', mid: '#2e0714', edge: '#0a0205' },
+  arctic_aurora: { glow: '45,212,191', center: '#0d4f4f', mid: '#07283b', edge: '#010912' }
 };
 
 // Yelpaze açıları (8 kart). Dönüş merkezi kartın altında olduğu için doğal bir el yelpazesi oluşur.
@@ -45,22 +48,6 @@ const RIFFLE_STEP_MS = 70;
 const RIFFLE_MS = 360;
 const TAP_START_MS = RIFFLE_STEP_MS * (FAN.length - 1) + RIFFLE_MS + 30; // ~880
 const FAN_START_MS = TAP_START_MS + 250; // ~1130
-
-const CSS = `
-@keyframes mio-fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes mio-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes mio-title { from { opacity: 0; letter-spacing: 0.65em; transform: translateY(-14px); } to { opacity: 1; letter-spacing: 0.16em; transform: translateY(0); } }
-@keyframes mio-shimmer { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
-@keyframes mio-riffle-l { from { opacity: 0; transform: translate(-170px, -34px) rotate(-16deg); } 30% { opacity: 1; } to { opacity: 1; transform: translate(0, 0) rotate(0deg); } }
-@keyframes mio-riffle-r { from { opacity: 0; transform: translate(170px, -34px) rotate(16deg); } 30% { opacity: 1; } to { opacity: 1; transform: translate(0, 0) rotate(0deg); } }
-@keyframes mio-tap { 0% { transform: translateY(0) scale(1); } 45% { transform: translateY(-12px) scale(1.04); } 100% { transform: translateY(0) scale(1); } }
-@keyframes mio-fan { from { transform: rotate(0deg); } to { transform: rotate(var(--mio-rot)); } }
-@keyframes mio-spin { to { transform: rotate(360deg); } }
-@keyframes mio-rise { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 0.85; } 100% { transform: translateY(-105vh); opacity: 0; } }
-@keyframes mio-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes mio-ready { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
-@keyframes mio-vs { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
-`;
 
 export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
   label,
@@ -206,8 +193,6 @@ export const MatchIntroOverlay: React.FC<MatchIntroOverlayProps> = ({
         animation: anim('mio-fade-in 320ms ease-out backwards')
       }}
     >
-      <style>{CSS}</style>
-
       {/* Kumaş dokusu + vinyet */}
       <div
         aria-hidden

@@ -59,6 +59,8 @@ interface UnoGameViewProps {
   isMultiplayer?: boolean;
   isHost?: boolean;
   mySeatIndex?: number;
+  isSpectator?: boolean;
+  graphicsQuality?: 'auto' | 'low' | 'medium' | 'high';
   mpSlots?: LobbyPlayerSlot[];
   seedCards?: UnoCard[];
 }
@@ -84,10 +86,36 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   isMultiplayer = false,
   isHost = true,
   mySeatIndex = 0,
+  isSpectator = false,
+  graphicsQuality = 'auto',
   mpSlots,
   seedCards
 }) => {
   const userProfile = getUserProfile();
+  const unoTimersRef = useRef<number[]>([]);
+  const isMountedRef = useRef<boolean>(true);
+
+  const clearUnoTimers = useCallback(() => {
+    unoTimersRef.current.forEach(id => window.clearTimeout(id));
+    unoTimersRef.current = [];
+  }, []);
+
+  const scheduleUnoTimer = useCallback((fn: () => void, ms: number): number => {
+    const id = window.setTimeout(() => {
+      unoTimersRef.current = unoTimersRef.current.filter(t => t !== id);
+      if (isMountedRef.current) fn();
+    }, ms);
+    unoTimersRef.current.push(id);
+    return id;
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearUnoTimers();
+    };
+  }, [clearUnoTimers]);
 
   // Players state setup
   const [players, setPlayers] = useState<UnoPlayer[]>(() => {
@@ -426,6 +454,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Start / Reset Round with animated 108-card 3D shuffle
   const startNewRound = useCallback((customDeck?: UnoCard[]) => {
+    clearUnoTimers();
+    setFlyingCards([]);
     // Instantly dismiss round summary modal with 0ms delay
     setGameState(prev => ({
       ...prev,
@@ -509,7 +539,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     }
 
     dealSteps.forEach(step => {
-      window.setTimeout(() => {
+      scheduleUnoTimer(() => {
         sound.playCardDeal();
         const deckRect = deckRef.current?.getBoundingClientRect() || {
           x: window.innerWidth / 2 - 80,
@@ -523,7 +553,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
         spawnFlyingUnoCard(step.card, deckRect, handRect, {
           startFaceUp: false,
-          endFaceUp: step.playerIdx === 0,
+          endFaceUp: step.playerIdx === 0 && !isSpectator,
           startRotation: -8,
           targetRotation: targetRot,
           duration: 450,
@@ -542,7 +572,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
     // After all player cards dealt, deal the 1st discard card
     const finishDealDelay = delay + 120;
-    window.setTimeout(() => {
+    scheduleUnoTimer(() => {
       sound.playCardDeal();
       const deckRect = deckRef.current?.getBoundingClientRect() || {
         x: window.innerWidth / 2 - 80,
@@ -758,7 +788,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Deliver Penalty Stack Cards directly from the Center Waiting Pool to Player's hand
   const deliverPenaltyCardsToPlayer = useCallback(
-    (playerIdx: number, penaltyCount: number) => {
+    (playerIdx: number, penaltyCount: number): UnoCard[] => {
       setIsAnimatingAction(true);
       // Clear pool cards from table immediately so they fly cleanly without leaving duplicate ghost cards on table
       setPenaltyPoolCount(0);
@@ -778,15 +808,21 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         : { x: window.innerWidth / 2 - 10, y: window.innerHeight / 2 - 50, width: 75, height: 105 };
 
       const currentDeck = [...deckSyncRef.current];
+      let currentDiscard = [...discardSyncRef.current];
       let drawnCards: UnoCard[] = [];
       if (currentDeck.length >= penaltyCount) {
         drawnCards = currentDeck.splice(0, penaltyCount);
         deckSyncRef.current = currentDeck;
       } else {
-        const recycled = shuffleUnoDeck(discardSyncRef.current.slice(1));
+        const topDiscardCard = currentDiscard[0];
+        const recycled = currentDiscard.length > 1 ? shuffleUnoDeck(currentDiscard.slice(1)) : [];
         const combined = [...currentDeck, ...recycled];
         drawnCards = combined.splice(0, penaltyCount);
         deckSyncRef.current = combined;
+        if (topDiscardCard) {
+          currentDiscard = [topDiscardCard];
+          discardSyncRef.current = currentDiscard;
+        }
       }
 
       if (drawnCards.length === 0) {
@@ -801,10 +837,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         });
         setIsAnimatingAction(false);
         advanceTurn(1, gameStateSyncRef.current.direction);
-        return;
+        return [];
       }
 
-      if (isMultiplayer && playerIdx === 0) {
+      if (isMultiplayer && playerIdx === 0 && !isSpectator) {
         multiplayerManager.send({
           type: 'MP_UNO_DRAW_CARD',
           seatIndex: mySeatIndex,
@@ -834,7 +870,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
       sound.playUnoDrawPenalty();
 
       drawnCards.forEach((c, idx) => {
-        window.setTimeout(() => {
+        scheduleUnoTimer(() => {
           const targetEl = playerIdx === 0 ? document.getElementById(`uno-user-card-${c.id}`) : null;
           const targetRectFinal = targetEl ? targetEl.getBoundingClientRect() : targetRect;
           let targetRot = getSeatAngle(playerIdx);
@@ -848,7 +884,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           sound.playCardDeal();
           spawnFlyingUnoCard(c, startRect, targetRectFinal, {
             startFaceUp: false,
-            endFaceUp: playerIdx === 0,
+            endFaceUp: playerIdx === 0 && !isSpectator,
             startRotation: -6,
             targetRotation: targetRot,
             duration: 380,
@@ -866,6 +902,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
                   const updated: UnoGameState = {
                     ...prev,
                     deck: deckSyncRef.current,
+                    discardPile: discardSyncRef.current,
                     pendingDrawPenalty: 0
                   };
                   gameStateSyncRef.current = updated;
@@ -878,8 +915,10 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           });
         }, idx * 105);
       });
+
+      return drawnCards;
     },
-    [getSafeSeatRect, getSeatAngle, spawnFlyingUnoCard, advanceTurn, isMultiplayer, mySeatIndex]
+    [getSafeSeatRect, getSeatAngle, spawnFlyingUnoCard, advanceTurn, isMultiplayer, mySeatIndex, isSpectator, scheduleUnoTimer]
   );
 
   // Handle Play Card with flying 3D arc animation & fanned discard stack physics!
@@ -977,8 +1016,8 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             const newPlayerScore = actingPlayer.score + totalRoundPoints;
             const isGameEnd = true; // Her tamamlanan RENQ maçı/eli profile ve maç geçmişine kaydedilir
 
-            if (isGameEnd) {
-              const oppName = playerIdx === 0 ? (nextPlayers[1]?.name || 'Online Rakip') : (nextPlayers[playerIdx]?.name || 'Online Rakip');
+            if (isGameEnd && !isSpectator) {
+              const oppName = playerIdx === 0 ? (nextPlayers[1]?.name || (isMultiplayer ? 'Online Rakip' : 'Bot')) : (nextPlayers[playerIdx]?.name || 'Bot');
               if (playerIdx === 0) {
                 recordMatchStats(true, Math.max(50, newPlayerScore), 0, 0, true, oppName);
               } else {
@@ -1009,9 +1048,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             return;
           }
 
-          // Check RENQ declaration when dropping to exactly 1 card!
+          // Check RENQ declaration when dropping to exactly 1 card (read live ref so mid-flight RENQ clicks count!)
           if (remainingHandCount === 1) {
-            const hadCalled = actingPlayer.hasCalledUno;
+            const hadCalled = Boolean(playersSyncRef.current[playerIdx]?.hasCalledUno || actingPlayer.hasCalledUno);
             if (playerIdx === 0) {
               if (!hadCalled) {
                 // User forgot to declare RENQ! Auto +2 penalty!
@@ -1206,24 +1245,22 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
         const drawCount = event.count || 1;
-        // If Host, peek the real cards that will be drawn for this guest and send them privately (C2)
-        if (isHost && mpSlots && mpSlots[event.seatIndex]?.peerId) {
-          const drawnReal = deckSyncRef.current.slice(0, drawCount);
-          if (drawnReal.length > 0) {
-            multiplayerManager.sendPrivate(mpSlots[event.seatIndex].peerId, {
-              type: 'MP_UNO_PRIVATE_DRAWN',
-              seatIndex: event.seatIndex,
-              cards: drawnReal
-            });
-          }
-        }
+        let drawnActual: UnoCard[];
         if (event.penalty) {
           showSeatBubble(targetLocalIdx, `💥 ${drawCount} Ceza Kartı Çekti`, 2200);
-          deliverPenaltyCardsToPlayer(targetLocalIdx, drawCount);
+          drawnActual = deliverPenaltyCardsToPlayer(targetLocalIdx, drawCount);
         } else {
-          drawCardsForPlayer(targetLocalIdx, drawCount);
+          drawnActual = drawCardsForPlayer(targetLocalIdx, drawCount);
           showSeatBubble(targetLocalIdx, `📥 ${drawCount} Kart Çekti`);
           pushActionLog(`📥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} desteden kart çekti.`);
+        }
+        // Host privately reveals the exact drawn cards (including any freshly recycled cards) to the drawing guest (C2)
+        if (isHost && mpSlots && mpSlots[event.seatIndex]?.peerId && drawnActual.length > 0) {
+          multiplayerManager.sendPrivate(mpSlots[event.seatIndex].peerId, {
+            type: 'MP_UNO_PRIVATE_DRAWN',
+            seatIndex: event.seatIndex,
+            cards: drawnActual
+          });
         }
       } else if (event.type === 'MP_UNO_PRIVATE_DEAL') {
         if (!isHost && Array.isArray(event.maskedDeck)) {
@@ -1250,9 +1287,11 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         const currentPlayers = playersSyncRef.current;
         const N = currentPlayers.length;
         const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
-        setPlayers(prev =>
-          prev.map((p, idx) => (idx === targetLocalIdx ? { ...p, hasCalledUno: true } : p))
+        const updatedWithUno = currentPlayers.map((p, idx) =>
+          idx === targetLocalIdx ? { ...p, hasCalledUno: true } : p
         );
+        playersSyncRef.current = updatedWithUno;
+        setPlayers(updatedWithUno);
         sound.playUnoShout();
         showSeatBubble(targetLocalIdx, '🔥 RENQ DEDİ!', 2500);
         triggerBanner(`🔥 ${currentPlayers[targetLocalIdx]?.name || 'Rakip'} "RENQ!" DEDİ!`, 'uno');
@@ -1304,7 +1343,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Human card click
   const handleHumanCardClick = (card: UnoCard, e?: React.MouseEvent) => {
-    if (gameState.currentTurn !== 0 || gameState.isRoundOver || isAnimatingAction) return;
+    if (isSpectator || gameState.currentTurn !== 0 || gameState.isRoundOver || isAnimatingAction) return;
 
     const topDiscard = gameState.discardPile[0];
     if (!canPlayUnoCard(card, topDiscard, gameState.currentColor, gameState.pendingDrawPenalty)) return;
@@ -1331,6 +1370,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // Human draws a card from the Deck with full 3D flight & clear feedback!
   const handleHumanDraw = () => {
     if (
+      isSpectator ||
       gameState.currentTurn !== 0 ||
       gameState.isRoundOver ||
       isAnimatingAction ||
@@ -1402,7 +1442,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Human chooses to pass after drawing a playable card
   const handleHumanPassAfterDraw = () => {
-    if (!hasDrawnPlayableThisTurn || gameState.currentTurn !== 0) return;
+    if (isSpectator || !hasDrawnPlayableThisTurn || gameState.currentTurn !== 0) return;
     sound.playClick();
     setHasDrawnPlayableThisTurn(false);
     setNewlyDrawnCardId(null);
@@ -1419,6 +1459,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Human calls "UNO!"
   const handleCallUno = () => {
+    if (isSpectator) return;
     sound.playUnoShout();
     setPlayers(prev => {
       const updated = prev.map((p, idx) => (idx === 0 ? { ...p, hasCalledUno: true } : p));
@@ -1579,7 +1620,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
 
   // Auto-deliver penalty to human player if they have NO cards to counter (+2 / +4)
   useEffect(() => {
-    if (gameState.isRoundOver || isAnimatingAction || gameState.currentTurn !== 0) return;
+    if (isSpectator || gameState.isRoundOver || isAnimatingAction || gameState.currentTurn !== 0) return;
     const pendingPenalty = gameState.pendingDrawPenalty || 0;
     if (pendingPenalty <= 0) return;
 
@@ -1616,12 +1657,13 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     triggerBanner
   ]);
 
-  // Exit button click handler (Surrender confirmation)
+  // Exit button click handler (Surrender confirmation only for active online players)
   const handleExitClick = () => {
     sound.playClick();
-    if (gameState.isGameOver) {
+    if (gameState.isGameOver || isSpectator || !isMultiplayer) {
+      clearUnoTimers();
       if (isMultiplayer) {
-        try { multiplayerManager.leaveRoom(); } catch {}
+        try { multiplayerManager.leaveRoom(false); } catch {}
       }
       friendNetwork.setStatus('menu', undefined);
       onExitToMenu();
@@ -1633,8 +1675,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
   // Confirm surrender in multiplayer
   const handleConfirmSurrender = () => {
     setIsSurrenderModalOpen(false);
-    recordMatchStats(false, 0, 0, 0, true, 'Online Rakip');
-    if (isMultiplayer) {
+    clearUnoTimers();
+    if (isMultiplayer && !isSpectator) {
+      recordMatchStats(false, 0, 0, 0, true, 'Online Rakip');
       try {
         multiplayerManager.send({
           type: 'MP_MATCH_ABORTED',
@@ -1642,7 +1685,7 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
           senderName: userProfile.name,
           gameType: 'uno'
         });
-        multiplayerManager.leaveRoom();
+        multiplayerManager.leaveRoom(false);
       } catch (e) {
         logger.warn(e);
       }
@@ -1693,11 +1736,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     <div
       className="relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-neutral-950 font-sans select-none p-2 sm:p-4"
     >
-      {/* 60/120 FPS Ambient Particles Motor matching active Uno Color */}
+      {/* Ambient Particles Motor matching active Uno Color */}
       <AmbientParticles
         theme="uno"
         unoColor={gameState.currentColor === 'wild' ? undefined : gameState.currentColor}
         intensity="dense"
+        quality={graphicsQuality}
       />
 
       {/* Dynamic 3D Felt Stadium & Lighting Atmosphere */}
@@ -1733,34 +1777,9 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         <UnoGrandShuffleLayer
           getTargetPos={getDeckTargetPos}
           onComplete={handleShuffleFinish}
+          graphicsQuality={graphicsQuality}
         />
       )}
-
-      {/* Keyframes for Emote Pop */}
-      <style>{`
-        @keyframes emotePop2s {
-          0% {
-            transform: translate(-50%, 8px) scale(0.4);
-            opacity: 0;
-          }
-          15% {
-            transform: translate(-50%, -10px) scale(1.15);
-            opacity: 1;
-          }
-          30% {
-            transform: translate(-50%, -6px) scale(1);
-            opacity: 1;
-          }
-          75% {
-            transform: translate(-50%, -12px) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translate(-50%, -24px) scale(0.8);
-            opacity: 0;
-          }
-        }
-      `}</style>
 
       {/* Reverse Direction Orbital Light Ring Sweep (Table Edge Neon Aura) */}
       {isReverseLightActive && (

@@ -103,6 +103,70 @@
   animation: estorilLaserBorder 6s ease infinite;
 }
 
+/* Centralized GPU-Composited Keyframes (avoids per-card <style> CSSOM thrashing) */
+@keyframes cardSpecularGlint {
+  0% { transform: translate3d(-160%, 0, 0); opacity: 0; }
+  15% { opacity: 0.6; }
+  35% { transform: translate3d(160%, 0, 0); opacity: 0; }
+  100% { transform: translate3d(160%, 0, 0); opacity: 0; }
+}
+
+@keyframes cardCountFlip {
+  0% {
+    transform: perspective(900px) rotateY(140deg) translate3d(0, -8px, 0) scale(1.12);
+    opacity: 0.3;
+  }
+  65% {
+    transform: perspective(900px) rotateY(-3deg) translate3d(0, -2px, 0) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(900px) rotateY(0deg) translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes emotePop2s {
+  0% {
+    transform: translate3d(-50%, 8px, 0) scale(0.4);
+    opacity: 0;
+  }
+  14% {
+    transform: translate3d(-50%, -6px, 0) scale(1.18);
+    opacity: 1;
+  }
+  24% {
+    transform: translate3d(-50%, -4px, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(-50%, -8px, 0) scale(1.03);
+    opacity: 1;
+  }
+  80% {
+    transform: translate3d(-50%, -5px, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(-50%, -22px, 0) scale(0.8);
+    opacity: 0;
+  }
+}
+
+@keyframes mio-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mio-fade-up { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes mio-title { from { opacity: 0; letter-spacing: 0.65em; transform: translate3d(0, -14px, 0); } to { opacity: 1; letter-spacing: 0.16em; transform: translate3d(0, 0, 0); } }
+@keyframes mio-shimmer { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+@keyframes mio-riffle-l { from { opacity: 0; transform: translate3d(-170px, -34px, 0) rotate(-16deg); } 30% { opacity: 1; } to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); } }
+@keyframes mio-riffle-r { from { opacity: 0; transform: translate3d(170px, -34px, 0) rotate(16deg); } 30% { opacity: 1; } to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); } }
+@keyframes mio-tap { 0% { transform: translate3d(0, 0, 0) scale(1); } 45% { transform: translate3d(0, -12px, 0) scale(1.04); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes mio-fan { from { transform: rotate(0deg); } to { transform: rotate(var(--mio-rot)); } }
+@keyframes mio-spin { to { transform: rotate(360deg); } }
+@keyframes mio-rise { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 15% { opacity: 0.85; } 100% { transform: translate3d(0, -105vh, 0); opacity: 0; } }
+@keyframes mio-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes mio-ready { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+@keyframes mio-vs { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
 /* Accessibility: respect user prefers-reduced-motion settings */
 @media (prefers-reduced-motion: reduce) {
   *,

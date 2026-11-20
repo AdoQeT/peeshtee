@@ -21,7 +21,7 @@ interface ScoreBoardProps {
   onExitToMenu: () => void;
 }
 
-export const ScoreBoard: React.FC<ScoreBoardProps> = ({
+export const ScoreBoard: React.FC<ScoreBoardProps> = React.memo(({
   players,
   currentTurn,
   remainingDeckCount,
@@ -340,4 +340,4 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
       </div>
     </header>
   );
-};
+});

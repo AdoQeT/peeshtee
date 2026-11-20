@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SlamEvent } from '../types/game';
 import { getLanguage, onLanguageChange, Language } from '../utils/i18n';
 
@@ -7,8 +7,11 @@ interface PistiOverlayProps {
   onComplete: () => void;
 }
 
-export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) => {
+export const PistiOverlay: React.FC<PistiOverlayProps> = React.memo(({ slam, onComplete }) => {
   const [lang, setLang] = useState<Language>(getLanguage());
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const firedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     return onLanguageChange(setLang);
@@ -16,15 +19,20 @@ export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) 
 
   useEffect(() => {
     if (!slam) return;
+    firedIdRef.current = null;
 
-    // Calibrated duration (850ms) perfectly matching the 800ms bannerPop keyframe so the final exit frame is never chopped
+    // Calibrated duration (850ms) matching bannerPop keyframe; uses ref so parent re-renders never reset timer
     const duration = slam.type === 'five_slam_instant_win' ? 1300 : 850;
-    const timer = setTimeout(() => {
-      onComplete();
+    const slamId = slam.id;
+    const timer = window.setTimeout(() => {
+      if (firedIdRef.current !== slamId) {
+        firedIdRef.current = slamId;
+        onCompleteRef.current();
+      }
     }, duration);
 
-    return () => clearTimeout(timer);
-  }, [slam, onComplete]);
+    return () => window.clearTimeout(timer);
+  }, [slam?.id, slam?.type]);
 
   if (!slam) return null;
 
@@ -120,7 +128,15 @@ export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) 
       )}
 
       {/* Floating Arcade Banner (positioned above center pot) */}
-      <div onAnimationEnd={onComplete} className="relative flex flex-col items-center animate-banner-pop max-w-md w-full">
+      <div
+        onAnimationEnd={() => {
+          if (slam && firedIdRef.current !== slam.id) {
+            firedIdRef.current = slam.id;
+            onCompleteRef.current();
+          }
+        }}
+        className="relative flex flex-col items-center animate-banner-pop max-w-md w-full"
+      >
         {/* Subtle Player Badge */}
         <div className="mb-1 bg-slate-950/85 border border-white/20 px-3 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase text-slate-300 shadow-lg backdrop-blur-md">
           {texts.move}
@@ -173,4 +189,4 @@ export const PistiOverlay: React.FC<PistiOverlayProps> = ({ slam, onComplete }) 
       </div>
     </div>
   );
-};
+});

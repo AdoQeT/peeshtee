@@ -431,18 +431,26 @@ export const CardCountingOverlay: React.FC<Props> = ({
 
       const pRect = pointsEl?.getBoundingClientRect();
       const overlapStep = defaultW >= 96 ? 68 : 62;
-      const shiftX = Math.min(currentPointCount, 6) * overlapStep;
+      const shiftAmount = Math.min(currentPointCount, 6) * overlapStep;
+      const isRotatedOpp4P = !isUser && isFourPlayers;
       const targetRect: RectBox =
         pRect && pRect.width > 0
-          ? {
-              left: pRect.left + shiftX,
-              top: pRect.top,
-              width: startRect.width,
-              height: startRect.height
-            }
+          ? isRotatedOpp4P
+            ? {
+                left: pRect.left + Math.max(0, (pRect.width - startRect.width) / 2),
+                top: pRect.bottom - startRect.height - shiftAmount,
+                width: startRect.width,
+                height: startRect.height
+              }
+            : {
+                left: pRect.left + shiftAmount,
+                top: pRect.top,
+                width: startRect.width,
+                height: startRect.height
+              }
           : {
-              left: fallbackOpen.left + 120 + shiftX,
-              top: fallbackOpen.top,
+              left: fallbackOpen.left + (isRotatedOpp4P ? 0 : 120 + shiftAmount),
+              top: fallbackOpen.top - (isRotatedOpp4P ? shiftAmount : 0),
               width: defaultW,
               height: defaultH
             };
@@ -451,6 +459,18 @@ export const CardCountingOverlay: React.FC<Props> = ({
     },
     [isFourPlayers, tableRefs]
   );
+
+  // Latest-value refs so the startup effect NEVER cancels its gatherTimer/readyTimer when players/callbacks re-render
+  const playersLatestRef = useRef(players);
+  playersLatestRef.current = players;
+  const isFourPlayersRef = useRef(isFourPlayers);
+  isFourPlayersRef.current = isFourPlayers;
+  const tableRefsLatestRef = useRef(tableRefs);
+  tableRefsLatestRef.current = tableRefs;
+  const onCountProgressRef = useRef(onCountProgress);
+  onCountProgressRef.current = onCountProgress;
+  const prefersReducedMotionRef = useRef(prefersReducedMotion);
+  prefersReducedMotionRef.current = prefersReducedMotion;
 
   // Başlatma + Pişti ve 4 Kişilik Takım Destelerinin Birleşme Koreografisi (Gathering Phase)
   useEffect(() => {
@@ -466,12 +486,17 @@ export const CardCountingOverlay: React.FC<Props> = ({
     if (startedRef.current) return;
     startedRef.current = true;
 
+    const latestPlayers = playersLatestRef.current;
+    const latestFourPlayers = isFourPlayersRef.current;
+    const latestTableRefs = tableRefsLatestRef.current;
+    const latestReduced = prefersReducedMotionRef.current;
+
     setStepTick(0);
     setIsDone(false);
     setIsFast(false);
     setUserFlight(null);
     setOppFlight(null);
-    onCountProgress?.(0, 0);
+    onCountProgressRef.current?.(0, 0);
 
     const defaultW = typeof window !== 'undefined' && window.innerWidth >= 640 ? 96 : 88;
     const defaultH = typeof window !== 'undefined' && window.innerWidth >= 640 ? 144 : 128;
@@ -479,8 +504,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
     const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 400;
 
     const oppSourceIdx = 1;
-    const userDeckEl = tableRefs?.current?.collectedEls?.[0];
-    const oppDeckEl = tableRefs?.current?.collectedEls?.[oppSourceIdx];
+    const userDeckEl = latestTableRefs?.current?.collectedEls?.[0];
+    const oppDeckEl = latestTableRefs?.current?.collectedEls?.[oppSourceIdx];
 
     const uDeckRect = userDeckEl?.getBoundingClientRect();
     const oDeckRect = oppDeckEl?.getBoundingClientRect();
@@ -494,8 +519,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
       oDeckRect && oDeckRect.width > 0
         ? { left: oDeckRect.left, top: oDeckRect.top, width: oDeckRect.width, height: oDeckRect.height }
         : {
-            left: isFourPlayers ? centerX + 220 : centerX - 240,
-            top: isFourPlayers ? centerY - 60 : centerY - 240,
+            left: latestFourPlayers ? centerX + 220 : centerX - 240,
+            top: latestFourPlayers ? centerY - 60 : centerY - 240,
             width: defaultW,
             height: defaultH
           };
@@ -503,13 +528,13 @@ export const CardCountingOverlay: React.FC<Props> = ({
     const items: GatherFlightItem[] = [];
 
     // 1. Tüm oyuncuların Pişti yığınlarını (pistiEls) kendi takımlarının ana destesine uçur
-    players.forEach((p, idx) => {
+    latestPlayers.forEach((p, idx) => {
       const pairs = p.pistiPairs || [];
       if (pairs.length > 0) {
-        const pistiEl = tableRefs?.current?.pistiEls?.[idx];
+        const pistiEl = latestTableRefs?.current?.pistiEls?.[idx];
         const pRect = pistiEl?.getBoundingClientRect();
         if (pRect && pRect.width > 0) {
-          const isUserTeam = idx === 0 || (isFourPlayers && idx === 2);
+          const isUserTeam = idx === 0 || (latestFourPlayers && idx === 2);
           const topPair = pairs[pairs.length - 1];
           items.push({
             id: `gather-pisti-${idx}`,
@@ -523,10 +548,9 @@ export const CardCountingOverlay: React.FC<Props> = ({
     });
 
     // 2. 4 Kişilik modda ortak (Koltuk 2) ve sol rakibin (Koltuk 3) toplanan destelerini ana takım destelerine (Koltuk 0 ve Koltuk 1) uçur
-    if (isFourPlayers) {
-      // Ortağın (Koltuk 2) toplanan kartları -> Bizim Desteye (Koltuk 0)
-      if ((players[2]?.collectedCards.length || 0) > 0) {
-        const partnerEl = tableRefs?.current?.collectedEls?.[2];
+    if (latestFourPlayers) {
+      if ((latestPlayers[2]?.collectedCards.length || 0) > 0) {
+        const partnerEl = latestTableRefs?.current?.collectedEls?.[2];
         const pRect = partnerEl?.getBoundingClientRect();
         if (pRect && pRect.width > 0) {
           items.push({
@@ -537,9 +561,8 @@ export const CardCountingOverlay: React.FC<Props> = ({
           });
         }
       }
-      // Sol Rakibin (Koltuk 3) toplanan kartları -> Sağ Rakip Takım Destesine (Koltuk 1)
-      if ((players[3]?.collectedCards.length || 0) > 0) {
-        const leftOppEl = tableRefs?.current?.collectedEls?.[3];
+      if ((latestPlayers[3]?.collectedCards.length || 0) > 0) {
+        const leftOppEl = latestTableRefs?.current?.collectedEls?.[3];
         const sRect = leftOppEl?.getBoundingClientRect();
         if (sRect && sRect.width > 0) {
           items.push({
@@ -552,7 +575,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
       }
     }
 
-    if (items.length > 0 && !prefersReducedMotion) {
+    if (items.length > 0 && !latestReduced) {
       setGatherFlights(items);
       setPhase('gathering');
       const gatherTimer = window.setTimeout(() => {
@@ -571,7 +594,7 @@ export const CardCountingOverlay: React.FC<Props> = ({
     return () => {
       window.clearTimeout(readyTimer);
     };
-  }, [isActive, isFourPlayers, players, prefersReducedMotion, tableRefs, onCountProgress]);
+  }, [isActive]);
 
   // Adım adım fiziksel kart çekme ve süzülme motoru
   useEffect(() => {

@@ -46,6 +46,7 @@ interface MainMenuProps {
   onOpenRules: () => void;
   onOpenSettings: () => void;
   onOpenProfile: () => void;
+  onOpenGuild?: () => void;
   onStartUnoGame: () => void;
 }
 
@@ -78,6 +79,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onOpenRules,
   onOpenSettings,
   onOpenProfile,
+  onOpenGuild,
   onStartUnoGame
 }) => {
   const [targetScore, setTargetScore] = useState<number>(defaultSetup.targetScore || 101);
@@ -280,6 +282,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden md:inline">{t.leaderboard || 'Sıralama'}</span>
           </button>
+
+          {/* Guild / Lonca Button */}
+          {onOpenGuild && (
+            <button
+              onClick={() => handleClick(onOpenGuild)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-emerald-950/85 hover:bg-emerald-900 border border-emerald-400/50 text-xs font-bold text-emerald-200 transition-colors shadow-md cursor-pointer"
+              title="Lonca / Guild"
+            >
+              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden md:inline">Lonca</span>
+            </button>
+          )}
 
           {/* Coming Soon Modal Button */}
           <button
@@ -631,7 +645,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.32.1'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.33.0'}
         </span>
       </div>
 

@@ -81,6 +81,13 @@
         }
       }
     },
+    "guilds": {
+      ".read": "auth != null",
+      "$code": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['code', 'name', 'tag']) && newData.child('code').isString() && newData.child('code').val().length <= 16 && newData.child('name').isString() && newData.child('name').val().length <= 32 && newData.child('tag').isString() && newData.child('tag').val().length <= 6"
+      }
+    },
     "admins": {
       "$uid": {
         ".read": "auth != null && $uid === auth.uid",

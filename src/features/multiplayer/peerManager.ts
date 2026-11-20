@@ -261,6 +261,14 @@ export type MultiplayerEvent =
       shuffleStyle: ShuffleStyle;
       startingTurnSeat: number;
       senderPeerId?: string;
+    }
+  | {
+      type: 'MP_VOICE_SIGNAL';
+      signalType: 'join' | 'leave' | 'offer' | 'answer' | 'ice';
+      targetPeerId?: string;
+      sdp?: string;
+      candidate?: RTCIceCandidateInit;
+      senderPeerId?: string;
     };
 
 /** Multiplayer event as delivered locally, tagged with the envelope's verified sender id. */

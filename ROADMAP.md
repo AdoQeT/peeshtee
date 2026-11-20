@@ -80,22 +80,23 @@ This document establishes the official engineering roadmap, critical architectur
 - [x] **Gizlilik & Kullanıcı Hakları (KVKK/GDPR — Completed in v1.31.0)**:
   - Hesap ve profil silme akışı (`deleteAccountAndRemoteData`); "Verilerimi İndir (JSON)" (`exportUserDataAsJson`) ve "Hesabımı ve Verilerimi Sil" seçenekleri ayarlar içinden.
   - Gizlilik politikası ve veri şeffaflığı sekmesi (`SettingsModal.tsx`).
-- [ ] **Hata İzleme & Prodüksiyon Gözlemleme**:
-  - Sentry veya benzeri bir araçla `ErrorBoundary` entegrasyonu; üretimde sessiz catch yerine yapılandırılmış error raporlama.
+- [x] **Hata İzleme & Prodüksiyon Gözlemleme (Completed in v1.33.0)**:
+  - Yapılandırılmış global hata yakalayıcı (`errorReporter.ts`) ve `ErrorBoundary` entegrasyonu; opsiyonel `VITE_ERROR_REPORTING_ENDPOINT` telemetrisi ve tek tıkla kopyalanabilir hata raporu.
 - [x] **Ranked & ELO Sistemi (Completed in v1.31.0)**:
   - ELO-tabanlı sıralama sistemi (`Bronze`, `Silver`, `Gold`, `Platinum`, `Diamond`); Dereceli Lig liderlik tablosu (`LeaderboardModal.tsx`) ve profil ELO rozeti (`ProfileModal.tsx`).
 - [x] **Performans, Yeniden Bağlanma, Seyirci Modu, Etkileşimli Eğitim & Yeni Görünümler (Completed in v1.31.0)**:
   - Grafik kalitesi önayarları (`auto`, `low`, `medium`, `high`) ve `prefers-reduced-motion` uyumluluğu.
   - 8 saniyelik bağlantı kopma toleransı (`PEER_RECONNECTING`) ve `REQUEST_RESYNC` ile el/masa senkronizasyonu.
   - Canlı Seyirci Modu (`isSpectator`), 4 adımlı Etkileşimli İlk Oyun Eğitimi (`InteractiveTutorialModal.tsx`), tarih tohumlu Günlük Meydan Okumalar (`DAILY_CHALLENGE_POOL`) ve 3 yeni masa teması (`neon_cyber`, `ottoman_palace`, `arctic_aurora`) + 3 yeni kart arkası (`ottoman_tughra`, `aurora_crystal`, `obsidian_flame`).
-- [ ] **Sesli Sohbet (Voice Chat)**:
-  - WebRTC peer-to-peer ses kanalı veya Discord Activity entegrasyonu.
-- [ ] **Lonca / Guild Sistemi**:
-  - Takım bazlı arkadaş listesi grupları, lonca rekabeti ve günlük lonca görevi.
+- [x] **Sesli Sohbet (Voice Chat — Completed in v1.33.0)**:
+  - WebRTC peer-to-peer ses kanalı (`voiceChatManager.ts` + `VoiceChatBar.tsx`) ve mevcut oda sinyalleşmesi (`MP_VOICE_SIGNAL`).
+- [x] **Lonca / Guild Sistemi (Completed in v1.33.0)**:
+  - Lonca kurma/katılma (`guildManager.ts` + `GuildModal.tsx`), üye listesi, lonca XP sıralaması ve günlük lonca görevi.
 
 ---
 
 ## 📜 Historical Release Archive (Summary)
+- **v1.33.0**: Added WebRTC peer-to-peer Voice Chat (`voiceChatManager.ts`, `VoiceChatBar.tsx`, `MP_VOICE_SIGNAL`) with mute/deafen controls for online matches; added Guild / Lonca system (`guildManager.ts`, `GuildModal.tsx`, RTDB `guilds` rules) with guild creation, code join, member roster, XP leaderboard, and daily guild quests; added production error telemetry (`errorReporter.ts`, `ErrorBoundary.tsx` copyable error report, global `error`/`unhandledrejection` handlers); and verified 2-tab Headless Chrome multiplayer room creation & join with 0 runtime errors.
 - **v1.32.1**: Added 15-second online RENQ (Uno) turn countdown HUD and Host-authoritative AFK fallback (`UnoGameView.tsx`); added 4-player online RENQ mid-match drop-in bot takeover (`MP_BOT_TAKEOVER`) on guest disconnect; polished narrow mobile (<400px) opponent seat spacing (`UnoOpponentSeat.tsx`); and routed the remaining `console.error` in `achievements.ts` through `logger.error`.
 - **v1.32.0**: Major performance, animation smoothness, and stability overhaul verified with headless Chrome E2E playtesting (2P full round, 4P Pişti, RENQ/Uno, ~5.6ms avg frame time, 0 runtime errors): eliminated `filter: drop-shadow` from all WAAPI card flight keyframes (`cardPhysicsEngine.ts`) for pure GPU compositor animations; moved all inline `<style>` keyframes to `src/index.css` (0 DOM `<style>` churn); replaced `useState` card hover tilt in `CardView.tsx` and `UnoCardView.tsx` with rAF-throttled direct DOM refs; refactored 52-card deck cut ribbon in `TableSurface.tsx` to GPU-only `translate3d` and reduced stacked collected pile DOM overhead; upgraded `particleEngine.ts` (demand-driven auto-pause when idle, delta-time normalization, DPR <= 1.5 cap, logical coordinate fix) and `AmbientParticles.tsx` (visibility pause, resize leak fix, new theme palettes); fixed critical `soundEngine.ts` negative-time `AudioParam.setValueAtTime` RangeError (which could freeze matches on shuffle) and zero-volume exponential ramp crash; fixed critical `CardCountingOverlay.tsx` `gatherTimer` cancellation soft-lock and 4P rotated point-card target coordinates; fixed double-cut race condition, dynamic 4P team names, spectator stat/surrender isolation, and clean turn-timer updates in `usePistiGame.ts`; fixed online RENQ `MP_UNO_CALL_UNO` ref desync, discard recycling card duplication, Host C2 draw reveals on recycled deck, spectator guards, and unmount timer cleanup in `UnoGameView.tsx`; wired `graphicsQuality` end-to-end and added `React.memo` across hot components.
 - **v1.31.1**: Fixed 4-player online Pişti anti-cheat rejection when Host plays on behalf of AI bot seats (`isAI`); fixed relative-to-absolute cutter seat index lookup and added a 10s Host safety deck-cut fallback so 4P rounds never stall on cutting; fixed `MP_CARD_REVEAL` to also patch remaining `deck` cards and keep user hand `faceUp: true` across Wave 2/3 sub-deals; fixed online RENQ initial wild card color desync via deterministic card-ID hashing and fixed bot draw-then-play packet ordering; added Host-authoritative turn timeout fallback when a remote guest's tab is backgrounded; fixed `slotsRef` sync on 4P seat swap; and added 5 new features: Quick Chat Kıraathane chips (`InGameChat.tsx`), Lobby Bot Add/Remove & Difficulty controls (`MultiplayerModal.tsx`), Online Pişti Post-Match Rematch (`MP_REMATCH_START`), 4P Mid-Match Drop-in Bot Takeover (`MP_BOT_TAKEOVER`), and Singleplayer Seen-Cards Counter HUD (`ScoreBoard.tsx`).

@@ -64,7 +64,8 @@ const INITIAL_SETTINGS: GameSettings = {
   aiDifficulty: 'medium',
   playerCount: 2,
   fiveRuleEnabled: false,
-  dealSpeed: 'normal'
+  dealSpeed: 'normal',
+  graphicsQuality: 'auto'
 };
 
 const SHUFFLE_STYLES: ShuffleStyle[] = [
@@ -571,6 +572,21 @@ export default function App() {
     friendNetwork.announcePresence();
   }, []);
 
+  const handleTablePlayCard = useCallback(
+    (card: import('./types/game').Card, rect: DOMRect, tilt: number) => {
+      handlePlayCardWithAnimation(0, card, rect, tilt);
+    },
+    [handlePlayCardWithAnimation]
+  );
+
+  const handleTableExitToMenu = useCallback(() => {
+    if (isMultiplayerGame && !isSpectator && !roundScores?.isGameOver) {
+      setIsSurrenderModalOpen(true);
+      return;
+    }
+    handleExitToMenu();
+  }, [isMultiplayerGame, isSpectator, roundScores?.isGameOver, setIsSurrenderModalOpen, handleExitToMenu]);
+
   return (
     <div
       className={`relative min-h-screen w-full flex flex-col justify-between overflow-hidden bg-slate-950 font-sans transition-transform duration-100 ${
@@ -591,6 +607,7 @@ export default function App() {
         flyingCards={flyingCards}
         cardBack={settings.cardBack}
         theme={settings.theme}
+        graphicsQuality={settings.graphicsQuality}
       />
 
       {/* Active Match Disconnect Recovery Top Banner */}
@@ -629,6 +646,7 @@ export default function App() {
         <MainMenu
           theme={settings.theme}
           cardBack={settings.cardBack}
+          graphicsQuality={settings.graphicsQuality}
           soundEnabled={settings.soundEnabled}
           defaultSetup={{
             playerCount: settings.playerCount,
@@ -672,15 +690,10 @@ export default function App() {
           <UnoGameView
             onExitToMenu={() => {
               try {
-                multiplayerManager.leaveRoom();
+                multiplayerManager.leaveRoom(false);
               } catch {}
               friendNetwork.setStatus('menu', undefined);
-              setIsMultiplayerGame(false);
-              setMyMultiplayerSeat(0);
-              myMultiplayerSeatRef.current = 0;
-              setMultiplayerSeedUnoDeck(null);
-              setInitialJoinCode('');
-              setActiveMultiplayerSlots([]);
+              resetMultiplayerState();
               setUserProfile(getUserProfile());
               friendNetwork.announcePresence();
               setScreen('menu');
@@ -690,6 +703,8 @@ export default function App() {
             isMultiplayer={isMultiplayerGame}
             isHost={isMultiplayerHost}
             mySeatIndex={myMultiplayerSeat}
+            isSpectator={isSpectator}
+            graphicsQuality={settings.graphicsQuality}
             mpSlots={activeMultiplayerSlots}
             seedCards={multiplayerSeedUnoDeck || undefined}
           />
@@ -741,12 +756,13 @@ export default function App() {
             <TableSurface
               theme={settings.theme}
               cardBack={settings.cardBack}
+              graphicsQuality={settings.graphicsQuality}
               tableCards={tableCards}
               players={players}
               currentTurn={currentTurn}
               deckCount={deck.length}
               dealerIndex={dealerIndex}
-              cutterIndex={(dealerIndex + 1) % settings.playerCount}
+              cutterIndex={(dealerIndex + 1) % Math.max(2, players.length)}
               isBusy={isBusy}
               isShuffling={isShuffling}
               hiddenCardIds={hiddenCardIds}
@@ -760,22 +776,14 @@ export default function App() {
               onToggleFastCounting={handleToggleFastCounting}
               onFinishCounting={handleFinishCounting}
               tableRefs={tableRefs}
-              onPlayCard={(card, rect, tilt) =>
-                handlePlayCardWithAnimation(0, card, rect, tilt)
-              }
+              onPlayCard={handleTablePlayCard}
               devSeeAllHands={devSeeAllHands && !isMultiplayerGame}
               isGameOver={Boolean(roundScores?.isGameOver)}
               gameOverWinner={roundScores?.winner ?? null}
               roundScores={roundScores}
               onNextRound={handleNextRound}
               onRestartGame={handleRestartGame}
-              onExitToMenu={() => {
-                if (isMultiplayerGame && !roundScores?.isGameOver) {
-                  setIsSurrenderModalOpen(true);
-                  return;
-                }
-                handleExitToMenu();
-              }}
+              onExitToMenu={handleTableExitToMenu}
               isReadyForNextRound={isReadyForNextRound}
               readySeatsCount={readySeatsCount}
               totalHumanPlayersCount={totalHumanPlayersCount}

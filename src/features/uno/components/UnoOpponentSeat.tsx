@@ -21,7 +21,7 @@ export interface UnoOpponentSeatProps {
   t: typeof translations.tr;
 }
 
-export const UnoOpponentSeat: React.FC<UnoOpponentSeatProps> = ({
+export const UnoOpponentSeat: React.FC<UnoOpponentSeatProps> = React.memo(({
   playerIdx,
   position,
   player,
@@ -168,4 +168,4 @@ export const UnoOpponentSeat: React.FC<UnoOpponentSeatProps> = ({
       </div>
     </div>
   );
-};
+});

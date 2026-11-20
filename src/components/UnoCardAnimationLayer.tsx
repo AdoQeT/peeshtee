@@ -25,7 +25,7 @@ export interface FlyingUnoCardData {
   onComplete?: () => void;
 }
 
-const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
+const FlyingUnoCardItemInner: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
   const onCompleteRef = useRef(fc.onComplete);
@@ -129,7 +129,8 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
         zIndex: fc.zIndex ?? 70,
         pointerEvents: 'none',
         transform: `translate3d(${fc.startX}px, ${fc.startY}px, 0) translate(-50%, -50%) rotate(${fc.startRotation}deg) scale(${startScale})`,
-        willChange: 'transform, filter',
+        willChange: 'transform',
+        boxShadow: '0 14px 28px rgba(0, 0, 0, 0.5)',
         perspective: '1000px',
         transformStyle: 'preserve-3d'
       }}
@@ -179,9 +180,11 @@ const FlyingUnoCardItem: React.FC<{ fc: FlyingUnoCardData }> = ({ fc }) => {
   );
 };
 
+const FlyingUnoCardItem = React.memo(FlyingUnoCardItemInner, (prev, next) => prev.fc.id === next.fc.id);
+
 export const UnoCardAnimationLayer: React.FC<{
   flyingCards: FlyingUnoCardData[];
-}> = ({ flyingCards }) => {
+}> = React.memo(({ flyingCards }) => {
   if (flyingCards.length === 0 || typeof document === 'undefined') return null;
 
   return createPortal(
@@ -192,4 +195,4 @@ export const UnoCardAnimationLayer: React.FC<{
     </div>,
     document.body
   );
-};
+});

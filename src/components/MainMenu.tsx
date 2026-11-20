@@ -31,6 +31,7 @@ import { AmbientParticles } from './AmbientParticles';
 interface MainMenuProps {
   theme: TableTheme;
   cardBack: string;
+  graphicsQuality?: 'auto' | 'low' | 'medium' | 'high';
   soundEnabled: boolean;
   defaultSetup: GameSetupConfig;
   userProfile: UserProfile;
@@ -63,6 +64,7 @@ const TARGET_SCORES = [51, 101, 151];
 export const MainMenu: React.FC<MainMenuProps> = ({
   theme,
   cardBack,
+  graphicsQuality = 'auto',
   soundEnabled: _soundEnabled,
   defaultSetup,
   userProfile,
@@ -150,7 +152,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       } ${bgGradient}`}
     >
       {/* High-Performance Theme Particle Engine */}
-      <AmbientParticles theme={theme} intensity="normal" />
+      <AmbientParticles theme={theme} intensity="normal" quality={graphicsQuality} />
       {/* Pure CSS GPU Ambient Glow */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -629,7 +631,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       {/* True Bottom-Right Corner Version Tag */}
       <div className="fixed bottom-3 right-4 sm:bottom-4 sm:right-6 z-30 pointer-events-none select-none">
         <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-emerald-400 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-md backdrop-blur-sm">
-          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.31.1'}
+          v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.32.0'}
         </span>
       </div>
 

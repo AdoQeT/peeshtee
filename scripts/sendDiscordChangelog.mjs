@@ -33,15 +33,15 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-removed deck cut jack test button from cutting view',
-  '-strictly enforced 3-closed 1-open table card count after jack cut deal',
-  '-felt-native card counting without modal window containers',
-  '-seat-oriented counting angle for 4-player side players with zero teleportation',
-  '-cleaned mock bots and filtered test/bot accounts from global leaderboard',
-  '-added live client update detection banner notifying users without manual f5'
+  '-overhauled card flight, shuffle, and deck cut animations for buttery-smooth GPU performance',
+  '-fixed audio crash that could freeze matches on shuffle when sound context started at 0',
+  '-fixed end-of-round card counting freeze and 4-player rotated card alignment',
+  '-fixed online RENQ call desync, discard recycling duplication, and spectator bugs',
+  '-eliminated per-card hover re-renders, idle canvas loops, and DOM style thrashing',
+  '-added full theme palettes for neon cyber, ottoman palace, and arctic aurora'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.30.3';
+const versionTitle = process.argv[2] || 'v1.32.0';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

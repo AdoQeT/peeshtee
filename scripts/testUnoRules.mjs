@@ -84,24 +84,47 @@ test('tactile deck cut: riffle displacement formula lifts hovered cards smoothly
   assert.equal(factor6, 0);
 });
 
-test('cardPhysicsEngine: motionType=play produces spring easing, 3D loft, and banking', async () => {
+test('cardPhysicsEngine: motionType=play produces smooth GPU-only keyframes with zero filter blur', async () => {
   const { cardPhysics } = await import('../src/core/physics/cardPhysicsEngine.ts');
-  const plan = cardPhysics.generateFlightPlan({
-    startX: 100,
-    startY: 600,
-    targetX: 500,
-    targetY: 300,
-    startRotation: 0,
-    targetRotation: 5,
-    startFaceUp: true,
-    endFaceUp: true,
-    motionType: 'play',
-    arcHeight: 125
-  });
+  const motionTypes = ['deal', 'play', 'sweep', 'jack', 'pisti_slam', 'center_reveal'];
+  for (const motionType of motionTypes) {
+    const plan = cardPhysics.generateFlightPlan({
+      startX: 100,
+      startY: 600,
+      targetX: 500,
+      targetY: 300,
+      startRotation: 0,
+      targetRotation: 5,
+      startFaceUp: true,
+      endFaceUp: true,
+      motionType,
+      arcHeight: 125
+    });
 
-  assert.equal(plan.easing, 'cubic-bezier(0.20, 1.10, 0.30, 1.02)'); // Spring overshoot
-  assert.ok(plan.keyframes.length >= 20);
-  assert.ok(plan.durationMs > 300);
+    assert.ok(plan.keyframes.length >= 11, `${motionType} has smooth keyframes`);
+    assert.ok(plan.durationMs >= 380, `${motionType} has valid duration`);
+    assert.equal(
+      plan.keyframes.every(kf => !('filter' in kf)),
+      true,
+      `${motionType} must NOT animate filter: drop-shadow (compositor jank killer)`
+    );
+  }
+
+  // Waypoint trajectory also stays GPU-only
+  const wpPlan = cardPhysics.generateFlightPlan({
+    startX: 100,
+    startY: 500,
+    targetX: 600,
+    targetY: 200,
+    waypointX: 350,
+    waypointY: 300,
+    startRotation: 0,
+    targetRotation: 0,
+    startFaceUp: false,
+    endFaceUp: true,
+    motionType: 'sweep'
+  });
+  assert.equal(wpPlan.keyframes.every(kf => !('filter' in kf)), true);
 });
 
 test('seatOrientation: seat angles for 2P and 4P layout are mathematically sound', () => {

@@ -111,16 +111,16 @@ class CardPhysicsEngine {
     const liftFactor = motionType === 'pisti_slam' ? 0.75 : motionType === 'jack' ? 0.35 : motionType === 'play' ? 0.30 : 0.24;
     const liftY = motionType === 'pisti_slam' ? 160 : Math.min(arcHeight, Math.max(48, flightDist * liftFactor));
 
-    // Easing: play cards spring in with elastic landing; sweep cards ease-in (accelerate)
+    // Easing: pure smooth curves (zero off-thread filter rasterization)
     const easing =
       motionType === 'sweep' || motionType === 'jack'
-        ? 'cubic-bezier(0.40, 0.05, 0.55, 1.0)'   // accelerate → snappy arrive
+        ? 'cubic-bezier(0.32, 0.08, 0.24, 1.0)'   // accelerate → crisp arrive
         : motionType === 'play'
-        ? 'cubic-bezier(0.20, 1.10, 0.30, 1.02)'  // slight overshoot spring
-        : 'cubic-bezier(0.25, 1.00, 0.35, 1.00)'; // standard casino baize
+        ? 'cubic-bezier(0.22, 1.0, 0.36, 1.0)'    // silky fast-out smooth settle
+        : 'cubic-bezier(0.25, 1.0, 0.35, 1.0)';   // standard casino baize
 
     const lowMode = this.isLowQuality();
-    const steps = lowMode ? 10 : 20; // +2 extra keyframes for smoother arcs, or 10 in low-quality mode
+    const steps = lowMode ? 10 : 18;
     const keyframes: Keyframe[] = [];
 
     if (waypointX !== undefined && waypointY !== undefined) {
@@ -138,76 +138,53 @@ class CardPhysicsEngine {
           curX = startX + (waypointX - startX) * subT + nx * curveMag * subSine * 0.6;
           curY = startY + (waypointY - startY) * subT - liftY * subSine * 0.8;
           curRot = startRotation + (wpRot - startRotation) * subT;
-          curScale = startScale + (wpScale - startScale) * subT + subSine * 0.18;
+          curScale = startScale + (wpScale - startScale) * subT + subSine * 0.16;
         } else {
           const subT = (t - waypointOffset) / (1 - waypointOffset);
           const subSine = Math.sin(subT * Math.PI);
           curX = waypointX + (targetX - waypointX) * subT + nx * curveMag * subSine * 0.9;
-          curY = waypointY + (targetY - waypointY) * subT - liftY * subSine * 1.1;
+          curY = waypointY + (targetY - waypointY) * subT - liftY * subSine * 1.05;
           curRot = wpRot + (targetRotation - wpRot) * subT;
-          curScale = wpScale + (targetScale - wpScale) * subT + subSine * 0.22;
+          curScale = wpScale + (targetScale - wpScale) * subT + subSine * 0.18;
         }
 
         const arcSine = Math.sin(t * Math.PI);
-
-        // Aerodynamic nose-up pitch: more pronounced for jack sweeps
-        const maxPitch = motionType === 'jack' ? 36 : motionType === 'sweep' ? 24 : 28;
+        const maxPitch = motionType === 'jack' ? 32 : motionType === 'sweep' ? 22 : 26;
         const pitchX = Math.round(arcSine * maxPitch);
-
-        // Side tilt (yaw banking) — subtle card lean into the curve
-        const pitchZ = Math.round(arcSine * Math.sign(nx) * 6);
-
-        const shadowY = Math.round(5 + arcSine * 36);
-        const shadowBlur = Math.round(8 + arcSine * 38);
-        const shadowAlpha = (0.60 - arcSine * 0.22).toFixed(2);
+        const pitchZ = Math.round(arcSine * Math.sign(nx) * 5);
 
         keyframes.push({
           offset: t,
-          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
-          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`
         });
       }
     } else if (motionType === 'pisti_slam') {
-      // Pişti / Double Pişti Taakkk Vuruş Fiziği:
-      // 1. Kart havada 160px yükselir, büyür (1.35x), derin gölgesi genişler (Anticipation)
-      // 2. Tepe noktasında hafifçe asılı kalır (Apex Hang)
-      // 3. Son %20'lik dilimde şiddetli kinetik ivmeyle masaya "TAKKK" diye çarpar!
-      const steps = lowMode ? 12 : 24;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
+      // Pişti / Double Pişti Taakkk Vuruş Fiziği (100% GPU compositor-only transform)
+      const slamSteps = lowMode ? 12 : 20;
+      for (let i = 0; i <= slamSteps; i++) {
+        const t = i / slamSteps;
         let curX: number, curY: number, curRot: number, curScale: number;
-        let shadowY: number, shadowBlur: number, shadowAlpha: string;
         let pitchX: number, pitchZ: number;
 
         if (t <= 0.65) {
-          // Faz 1: Yavaşça ve asilce havaya süzülüş (0 -> %65)
           const subT = t / 0.65;
           const easeOut = Math.sin(subT * Math.PI * 0.5);
           curX = startX + (dx * 0.40) * easeOut + nx * (curveMag * 0.6) * easeOut;
           curY = startY + (dy * 0.40) * easeOut - liftY * easeOut;
           curRot = startRotation + (targetRotation - startRotation) * (0.3 * easeOut);
           curScale = startScale + 0.34 * easeOut;
-          pitchX = Math.round(38 * easeOut);
+          pitchX = Math.round(36 * easeOut);
           pitchZ = Math.round(6 * easeOut);
-          shadowY = Math.round(6 + 55 * easeOut);
-          shadowBlur = Math.round(8 + 58 * easeOut);
-          shadowAlpha = (0.68 - 0.38 * easeOut).toFixed(2);
         } else if (t <= 0.78) {
-          // Faz 2: Zirvede havada asılı kalma (Apex Hang)
           const subT = (t - 0.65) / 0.13;
           curX = startX + dx * 0.40 + (dx * 0.08) * subT;
           curY = startY + dy * 0.40 - liftY + (liftY * 0.03) * subT;
           curRot = startRotation + (targetRotation - startRotation) * (0.3 + 0.08 * subT);
           curScale = startScale + 0.34;
-          pitchX = 38;
+          pitchX = 36;
           pitchZ = 6;
-          shadowY = 62;
-          shadowBlur = 66;
-          shadowAlpha = '0.30';
         } else {
-          // Faz 3: Şiddetli ve Ani İniş — TAAAKKK! (%78 -> %100)
           const subT = (t - 0.78) / 0.22;
-          // Kübik ivmelenme (gravity crash)
           const slam = subT * subT * subT;
           const apexX = startX + dx * 0.48;
           const apexY = startY + dy * 0.48 - liftY * 0.97;
@@ -215,35 +192,26 @@ class CardPhysicsEngine {
           curY = apexY + (targetY - apexY) * slam;
           curRot = startRotation + (targetRotation - startRotation) * (0.38 + 0.62 * slam);
           curScale = (startScale + 0.34) - 0.34 * slam;
-          pitchX = Math.round(38 * (1 - slam));
+          pitchX = Math.round(36 * (1 - slam));
           pitchZ = Math.round(6 * (1 - slam));
-          shadowY = Math.round(62 * (1 - slam) + 3 * slam);
-          shadowBlur = Math.round(66 * (1 - slam) + 4 * slam);
-          shadowAlpha = (0.30 + 0.58 * slam).toFixed(2);
 
-          // Çarpma anında mikro esneme
           if (t >= 0.96) {
-            curScale = 1.05;
+            curScale = 1.04;
           }
         }
 
         keyframes.push({
           offset: t,
-          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
-          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`
         });
       }
     } else if (motionType === 'center_reveal') {
-      // Sinematik Ortaya Kart Açılışı:
-      // 1. Kart sol desteden yükselerek kameraya doğru (1.42x) büyür ve havada 180° döner (%0 -> %52)
-      // 2. Zirvede kısa süre asılı kalarak kart yüzünü net şekilde sergiler (%52 -> %74)
-      // 3. Kararlı ve tok bir vuruşla orta destenin üstüne oturur (%74 -> %100)
-      const steps = lowMode ? 12 : 24;
+      // Sinematik Ortaya Kart Açılışı (100% GPU compositor-only transform)
+      const revealSteps = lowMode ? 12 : 20;
       const revealLiftY = Math.max(98, arcHeight);
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
+      for (let i = 0; i <= revealSteps; i++) {
+        const t = i / revealSteps;
         let curX: number, curY: number, curRot: number, curScale: number;
-        let shadowY: number, shadowBlur: number, shadowAlpha: string;
         let pitchX: number, pitchZ: number;
 
         if (t <= 0.52) {
@@ -252,23 +220,17 @@ class CardPhysicsEngine {
           curX = startX + dx * 0.88 * easeOut;
           curY = startY + dy * 0.88 * easeOut - revealLiftY * easeOut;
           curRot = startRotation + (targetRotation - startRotation) * (0.6 * easeOut);
-          curScale = startScale + 0.42 * easeOut;
-          pitchX = Math.round(24 * Math.sin(subT * Math.PI));
-          pitchZ = Math.round(-6 * (1 - easeOut));
-          shadowY = Math.round(6 + 48 * easeOut);
-          shadowBlur = Math.round(8 + 52 * easeOut);
-          shadowAlpha = (0.65 - 0.30 * easeOut).toFixed(2);
+          curScale = startScale + 0.40 * easeOut;
+          pitchX = Math.round(22 * Math.sin(subT * Math.PI));
+          pitchZ = Math.round(-5 * (1 - easeOut));
         } else if (t <= 0.74) {
           const subT = (t - 0.52) / 0.22;
           curX = startX + dx * (0.88 + 0.10 * subT);
           curY = startY + dy * (0.88 + 0.10 * subT) - revealLiftY * (1 - 0.08 * subT);
           curRot = startRotation + (targetRotation - startRotation) * (0.6 + 0.25 * subT);
-          curScale = startScale + 0.42 - 0.04 * subT;
+          curScale = startScale + 0.40 - 0.04 * subT;
           pitchX = Math.round(10 * (1 - subT));
           pitchZ = 0;
-          shadowY = 52;
-          shadowBlur = 56;
-          shadowAlpha = '0.35';
         } else {
           const subT = (t - 0.74) / 0.26;
           const slam = subT * subT * (3 - 2 * subT);
@@ -277,23 +239,18 @@ class CardPhysicsEngine {
           curX = apexX + (targetX - apexX) * slam;
           curY = apexY + (targetY - apexY) * slam;
           curRot = startRotation + (targetRotation - startRotation) * (0.85 + 0.15 * slam);
-          curScale = (startScale + 0.38) - (startScale + 0.38 - targetScale) * slam;
-          pitchX = Math.round(-8 * Math.sin(subT * Math.PI));
+          curScale = (startScale + 0.36) - (startScale + 0.36 - targetScale) * slam;
+          pitchX = Math.round(-6 * Math.sin(subT * Math.PI));
           pitchZ = 0;
-          shadowY = Math.round(52 * (1 - slam) + 4 * slam);
-          shadowBlur = Math.round(56 * (1 - slam) + 6 * slam);
-          shadowAlpha = (0.35 + 0.45 * slam).toFixed(2);
         }
 
         keyframes.push({
           offset: t,
-          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`,
-          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${curScale.toFixed(3)})`
         });
       }
     } else {
-      // 2-Point Parabolic Arc with Bold 3D Wrist Whip & Deep Floating Shadow
-      // Side-curve offset to prevent perfectly vertical/horizontal straight lines
+      // 2-Point Parabolic Arc with Crisp 3D Wrist Whip (100% GPU compositor-only transform)
       const sideOffset = Math.abs(ny) < 0.2 ? curveMag * 0.4 : 0;
       const apexX = startX + dx * 0.5 + nx * curveMag + ny * sideOffset;
       const apexY = startY + dy * 0.5 - liftY;
@@ -302,48 +259,34 @@ class CardPhysicsEngine {
         const t = i / steps;
         const oneMinusT = 1 - t;
 
-        // Quadratic Bezier Curve position
         const curX =
           oneMinusT * oneMinusT * startX + 2 * oneMinusT * t * apexX + t * t * targetX;
         const curY =
           oneMinusT * oneMinusT * startY + 2 * oneMinusT * t * apexY + t * t * targetY;
 
-        // Wrist rotation with apex banking
         const baseRot = startRotation + (targetRotation - startRotation) * t;
-        // Banking intensity varies by card type
         const bankFactor = motionType === 'jack' ? 10 : motionType === 'sweep' ? 5 : 7;
         const banking = Math.sin(t * Math.PI) * (nx * bankFactor);
         const curRot = baseRot + banking;
 
-        // Scale: deal cards land slightly larger for presence, sweep cards shrink into pile
         const arcSine = Math.sin(t * Math.PI);
         const scaleBump =
-          motionType === 'sweep' ? 0.12 :
-          motionType === 'jack' ? 0.30 :
-          motionType === 'play' ? 0.20 : 0.22;
+          motionType === 'sweep' ? 0.10 :
+          motionType === 'jack' ? 0.28 :
+          motionType === 'play' ? 0.18 : 0.20;
         const curScale = startScale + (targetScale - startScale) * t + arcSine * scaleBump;
 
-        // 3D Aerodynamic Pitch — nose-up at apex
-        const maxPitch = motionType === 'jack' ? 38 : motionType === 'play' ? 28 : 26;
+        const maxPitch = motionType === 'jack' ? 34 : motionType === 'play' ? 26 : 24;
         const pitchX = Math.round(arcSine * maxPitch);
+        const pitchZ = Math.round(arcSine * Math.sign(nx || 1) * 4);
 
-        // Subtle side tilt into the curve direction (feels organic)
-        const pitchZ = Math.round(arcSine * Math.sign(nx || 1) * 5);
-
-        // Landing micro-settle: tiny scale overshoot on the last 10% of travel
         const settleT = Math.max(0, (t - 0.9) / 0.1);
-        const settle = settleT > 0 ? Math.sin(settleT * Math.PI) * 0.04 : 0;
+        const settle = settleT > 0 ? Math.sin(settleT * Math.PI) * 0.035 : 0;
         const finalScale = curScale + (t > 0.9 ? settle : 0);
-
-        // Decoupled floating drop-shadow
-        const shadowY = Math.round(4 + arcSine * 40);
-        const shadowBlur = Math.round(6 + arcSine * 42);
-        const shadowAlpha = (0.62 - arcSine * 0.26).toFixed(2);
 
         keyframes.push({
           offset: t,
-          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${finalScale.toFixed(3)})`,
-          ...(lowMode ? {} : { filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha}))` })
+          transform: `translate3d(${curX.toFixed(1)}px, ${curY.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${curRot.toFixed(1)}deg) rotateX(${pitchX}deg) rotateZ(${pitchZ}deg) scale(${finalScale.toFixed(3)})`
         });
       }
     }

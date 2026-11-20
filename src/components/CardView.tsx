@@ -111,6 +111,39 @@ function getCardThemeConfig(theme: TableTheme = 'traditional') {
         courtBg:
           'border-amber-500/70 bg-gradient-to-b from-amber-100 via-amber-200 to-amber-300 text-[#78350f]'
       };
+    case 'neon_cyber':
+      return {
+        bg: 'bg-gradient-to-b from-[#ecfeff] via-[#e0f2fe] to-[#ede9fe] border-2 border-cyan-400/90 shadow-[0_4px_14px_rgba(34,211,238,0.3)]',
+        innerFrame: 'border-fuchsia-500/35 bg-cyan-50/25',
+        fontClass: 'font-cyber font-black',
+        watermarkColor: 'text-cyan-600/[0.08]',
+        getSuitColor: (suit: Suit) =>
+          suit === 'hearts' || suit === 'diamonds' ? 'text-[#db2777]' : 'text-[#0f172a]',
+        courtBg:
+          'border-cyan-400/70 bg-gradient-to-b from-cyan-50 via-sky-100 to-fuchsia-100 text-[#0f172a]'
+      };
+    case 'ottoman_palace':
+      return {
+        bg: 'bg-gradient-to-b from-[#fffbf0] via-[#fef2e4] to-[#fde4cc] border-2 border-amber-600/90 shadow-[0_4px_16px_rgba(217,119,6,0.3)]',
+        innerFrame: 'border-rose-700/35 bg-amber-50/20',
+        fontClass: 'font-serif font-black',
+        watermarkColor: 'text-rose-800/[0.07]',
+        getSuitColor: (suit: Suit) =>
+          suit === 'hearts' || suit === 'diamonds' ? 'text-[#be123c]' : 'text-[#3b0a14]',
+        courtBg:
+          'border-amber-600/70 bg-gradient-to-b from-amber-100 via-rose-100 to-amber-200 text-[#78350f]'
+      };
+    case 'arctic_aurora':
+      return {
+        bg: 'bg-gradient-to-b from-[#f0fdfa] via-[#e0f2fe] to-[#ccfbf1] border-2 border-teal-400/80 shadow-[0_4px_14px_rgba(45,212,191,0.28)]',
+        innerFrame: 'border-teal-500/35 bg-teal-50/20',
+        fontClass: 'font-sans font-black',
+        watermarkColor: 'text-teal-700/[0.07]',
+        getSuitColor: (suit: Suit) =>
+          suit === 'hearts' || suit === 'diamonds' ? 'text-[#e11d48]' : 'text-[#0f3542]',
+        courtBg:
+          'border-teal-400/70 bg-gradient-to-b from-teal-50 via-cyan-100 to-emerald-100 text-[#0f3542]'
+      };
     case 'traditional':
     default:
       return {
@@ -140,7 +173,7 @@ const SakuraFlowerSvg: React.FC<{ className?: string }> = ({ className = 'w-7 h-
   </svg>
 );
 
-export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }> = ({
+export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }> = React.memo(({
   cardBack = 'classic_blue',
   className = ''
 }) => {
@@ -309,13 +342,13 @@ export const CardBackSurface: React.FC<{ cardBack?: string; className?: string }
       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.08] to-transparent pointer-events-none" />
     </div>
   );
-};
+});
 
 export const CardFrontSurface: React.FC<{
   card: Card;
   theme?: TableTheme;
   className?: string;
-}> = ({ card, theme = 'traditional', className = '' }) => {
+}> = React.memo(({ card, theme = 'traditional', className = '' }) => {
   const themeConfig = getCardThemeConfig(theme);
   const suitColor = themeConfig.getSuitColor(card.suit);
   const suitIcon = SUIT_ICONS[card.suit];
@@ -417,9 +450,9 @@ export const CardFrontSurface: React.FC<{
       </div>
     </div>
   );
-};
+});
 
-export const CardView: React.FC<CardViewProps> = ({
+export const CardView: React.FC<CardViewProps> = React.memo(({
   card,
   onClick,
   isPlayable = false,
@@ -432,23 +465,60 @@ export const CardView: React.FC<CardViewProps> = ({
   className = '',
   style
 }) => {
-  const [tilt, setTilt] = React.useState<{ x: number; y: number; glareX: number; glareY: number } | null>(null);
+  const outerRef = React.useRef<HTMLDivElement | null>(null);
+  const glareRef = React.useRef<HTMLDivElement | null>(null);
+  const rectRef = React.useRef<DOMRect | null>(null);
+  const rafRef = React.useRef<number | null>(null);
+
+  const baseTransform = `perspective(800px) rotate(${tiltAngle}deg) rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0) scale(1)`;
+
+  React.useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPlayable || isHiddenInFlight) return;
+    rectRef.current = e.currentTarget.getBoundingClientRect();
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isPlayable || isHiddenInFlight) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setTilt({
-      x: (y - 0.5) * -22,
-      y: (x - 0.5) * 22,
-      glareX: x * 100,
-      glareY: y * 100
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const el = outerRef.current;
+      if (!el) return;
+      const rect = rectRef.current || el.getBoundingClientRect();
+      rectRef.current = rect;
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      const rotX = ((y - 0.5) * -20).toFixed(1);
+      const rotY = ((x - 0.5) * 20).toFixed(1);
+      el.style.transform = `perspective(800px) rotate(${tiltAngle}deg) rotateX(${rotX}deg) rotateY(${rotY}deg) translate3d(0, -14px, 0) scale(1.08)`;
+      if (glareRef.current) {
+        glareRef.current.style.opacity = '1';
+        glareRef.current.style.background = `radial-gradient(circle at ${(x * 100).toFixed(0)}% ${(y * 100).toFixed(0)}%, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.18) 35%, transparent 70%)`;
+      }
     });
   };
 
   const handleMouseLeave = () => {
-    setTilt(null);
+    rectRef.current = null;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (outerRef.current) {
+      outerRef.current.style.transform = baseTransform;
+    }
+    if (glareRef.current) {
+      glareRef.current.style.opacity = '0';
+    }
   };
 
   const sizeClasses = CARD_DIMENSIONS[size].classes;
@@ -458,10 +528,12 @@ export const CardView: React.FC<CardViewProps> = ({
 
   return (
     <div
+      ref={outerRef}
       role={isPlayable ? 'button' : undefined}
       tabIndex={isPlayable && !isHiddenInFlight ? 0 : undefined}
       aria-label={label}
       onClick={isPlayable && !isHiddenInFlight ? onClick : undefined}
+      onMouseEnter={isPlayable && !isHiddenInFlight ? handleMouseEnter : undefined}
       onMouseMove={isPlayable && !isHiddenInFlight ? handleMouseMove : undefined}
       onMouseLeave={isPlayable && !isHiddenInFlight ? handleMouseLeave : undefined}
       onKeyDown={
@@ -475,9 +547,7 @@ export const CardView: React.FC<CardViewProps> = ({
           : undefined
       }
       style={{
-        transform: tilt
-          ? `perspective(800px) rotate(${tiltAngle}deg) rotateX(${tilt.x.toFixed(1)}deg) rotateY(${tilt.y.toFixed(1)}deg) translateY(-14px) scale(1.08)`
-          : `perspective(800px) rotate(${tiltAngle}deg) rotateX(0deg) rotateY(0deg) translateY(0px) scale(1)`,
+        transform: baseTransform,
         transformOrigin: origin,
         ...style
       }}
@@ -497,23 +567,14 @@ export const CardView: React.FC<CardViewProps> = ({
         <CardFrontSurface card={card} theme={theme} />
       )}
 
-      {/* Interactive Specular Glare Layer (Reacts to cursor coordinates) */}
-      {tilt && (
+      {/* Interactive Specular Glare Layer (Direct DOM ref update — zero React re-renders) */}
+      {isPlayable && !isHiddenInFlight && (
         <div
+          ref={glareRef}
           className="absolute inset-0 pointer-events-none rounded-[inherit] z-20 mix-blend-overlay transition-opacity duration-150"
-          style={{
-            background: `radial-gradient(circle at ${tilt.glareX.toFixed(0)}% ${tilt.glareY.toFixed(0)}%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 35%, transparent 70%)`
-          }}
+          style={{ opacity: 0 }}
         />
       )}
-      <style>{`
-        @keyframes cardSpecularGlint {
-          0% { transform: translateX(-160%); opacity: 0; }
-          15% { opacity: 0.6; }
-          35% { transform: translateX(160%); opacity: 0; }
-          100% { transform: translateX(160%); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
-};
+});

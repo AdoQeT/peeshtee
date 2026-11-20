@@ -5,27 +5,29 @@ import { sound } from '../core/audio/soundEngine';
 interface UnoGrandShuffleLayerProps {
   getTargetPos: () => { x: number; y: number };
   onComplete: () => void;
+  graphicsQuality?: 'auto' | 'low' | 'medium' | 'high';
 }
 
 /**
- * 144 FPS Hardware-Accelerated 108-Card Grand Deck Shuffle Engine for UNO
- * - Multi-Packet 3D Deck Split
- * - High-Speed Casino Riffle Interleave
- * - 3D Waterfall Bridge Bend & Snap
- * - Seamless Glide into the Draw Deck Position (Zero Teleportation)
+ * Hardware-Accelerated 108-Card Grand Deck Shuffle Engine for UNO
  */
-export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
+export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = React.memo(({
   getTargetPos,
-  onComplete
+  onComplete,
+  graphicsQuality = 'auto'
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const totalCards = 32; // 32 physical 3D layered cards giving the optical density of a 108-card RENQ deck
+  const getTargetPosRef = useRef(getTargetPos);
+  getTargetPosRef.current = getTargetPos;
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const totalCards = graphicsQuality === 'low' ? 16 : 24;
 
   useLayoutEffect(() => {
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
-    const targetPos = getTargetPos();
+    const targetPos = getTargetPosRef.current();
     const finalX = targetPos.x;
     const finalY = targetPos.y;
 
@@ -108,7 +110,7 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      if (!cancelled) onComplete();
+      if (!cancelled) onCompleteRef.current();
     }, 2400);
 
     return () => {
@@ -118,22 +120,26 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
       window.clearTimeout(slapTimer);
       animations.forEach(a => a.cancel());
     };
-  }, [getTargetPos, onComplete, totalCards]);
+  }, [totalCards]);
 
   return (
     <div
       ref={containerRef}
       className="fixed inset-0 pointer-events-none z-50 overflow-hidden"
     >
-      {/* Dynamic Casino Riffle Atmosphere Glow */}
+      {/* Dynamic Casino Riffle Atmosphere Glow (zero blur-3xl/ping overhead) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-96 h-96 rounded-full bg-amber-500/15 blur-3xl animate-pulse" />
-        <div className="absolute w-60 h-60 rounded-full border-2 border-amber-400/35 animate-ping" style={{ animationDuration: '1.3s' }} />
+        <div
+          className="w-96 h-96 rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(245,158,11,0.06) 45%, transparent 72%)'
+          }}
+        />
       </div>
 
       {/* Floating RENQ Shuffle Banner */}
       <div className="absolute left-1/2 top-[28%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-[160]">
-        <div className="px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wider flex items-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.65)]">
+        <div className="px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wider flex items-center gap-2 shadow-[0_0_24px_rgba(245,158,11,0.5)]">
           <span className="animate-spin">🔥</span>
           <span>108 KART RENQ HARMANLANIYOR</span>
         </div>
@@ -145,7 +151,7 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
           ref={el => {
             cardRefs.current[idx] = el;
           }}
-          className="absolute top-0 left-0 will-change-transform shadow-2xl rounded-2xl"
+          className="absolute top-0 left-0 will-change-transform shadow-xl rounded-2xl"
           style={{
             zIndex: 100 + idx
           }}
@@ -155,4 +161,4 @@ export const UnoGrandShuffleLayer: React.FC<UnoGrandShuffleLayerProps> = ({
       ))}
     </div>
   );
-};
+});

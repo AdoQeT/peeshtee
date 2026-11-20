@@ -48,6 +48,7 @@ export const RoleChip: React.FC<{ role: 'dealer' | 'cutter'; className?: string 
 interface TableSurfaceProps {
   theme: TableTheme;
   cardBack: string;
+  graphicsQuality?: 'auto' | 'low' | 'medium' | 'high';
   tableCards: Card[];
   players: Player[];
   currentTurn: number;
@@ -106,9 +107,10 @@ interface TableSurfaceProps {
   onCutDeck?: (cutIndex: number) => void;
 }
 
-export const TableSurface: React.FC<TableSurfaceProps> = ({
+export const TableSurface: React.FC<TableSurfaceProps> = React.memo(({
   theme,
   cardBack,
+  graphicsQuality = 'auto',
   tableCards,
   players,
   currentTurn,
@@ -153,39 +155,51 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
   const [showEmotePicker, setShowEmotePicker] = React.useState(false);
   const [hoveredHandCardId, setHoveredHandCardId] = React.useState<string | null>(null);
   const [hoveredCutIndex, setHoveredCutIndex] = React.useState<number | null>(null);
+  const hoveredCutIndexRef = React.useRef<number | null>(null);
+  hoveredCutIndexRef.current = hoveredCutIndex;
+  const cutMoveRafRef = React.useRef<number | null>(null);
   const [isSpread, setIsSpread] = React.useState<boolean>(false);
   const spreadContainerRef = React.useRef<HTMLDivElement | null>(null);
 
-  const handleCutMouseMove = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!spreadContainerRef.current || deckCutState?.step !== 'waiting_cut' || !deckCutState.isHumanCutter) return;
-      const rect = spreadContainerRef.current.getBoundingClientRect();
+  React.useEffect(() => {
+    return () => {
+      if (cutMoveRafRef.current !== null) cancelAnimationFrame(cutMoveRafRef.current);
+    };
+  }, []);
+
+  const updateHoveredCutFromClientX = React.useCallback((clientX: number) => {
+    if (cutMoveRafRef.current !== null) return;
+    cutMoveRafRef.current = requestAnimationFrame(() => {
+      cutMoveRafRef.current = null;
+      const el = spreadContainerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
       if (rect.width <= 0) return;
-      const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const relX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       const targetIdx = Math.min(51, Math.max(1, Math.floor(relX * 52)));
-      if (targetIdx !== hoveredCutIndex) {
+      if (targetIdx !== hoveredCutIndexRef.current) {
         sound.playCardHover();
         setHoveredCutIndex(targetIdx);
       }
+    });
+  }, []);
+
+  const handleCutMouseMove = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (deckCutState?.step !== 'waiting_cut' || !deckCutState.isHumanCutter) return;
+      updateHoveredCutFromClientX(e.clientX);
     },
-    [deckCutState?.step, deckCutState?.isHumanCutter, hoveredCutIndex]
+    [deckCutState?.step, deckCutState?.isHumanCutter, updateHoveredCutFromClientX]
   );
 
   const handleCutTouchMove = React.useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
-      if (!spreadContainerRef.current || deckCutState?.step !== 'waiting_cut' || !deckCutState.isHumanCutter) return;
+      if (deckCutState?.step !== 'waiting_cut' || !deckCutState.isHumanCutter) return;
       const touch = e.touches[0];
       if (!touch) return;
-      const rect = spreadContainerRef.current.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const relX = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
-      const targetIdx = Math.min(51, Math.max(1, Math.floor(relX * 52)));
-      if (targetIdx !== hoveredCutIndex) {
-        sound.playCardHover();
-        setHoveredCutIndex(targetIdx);
-      }
+      updateHoveredCutFromClientX(touch.clientX);
     },
-    [deckCutState?.step, deckCutState?.isHumanCutter, hoveredCutIndex]
+    [deckCutState?.step, deckCutState?.isHumanCutter, updateHoveredCutFromClientX]
   );
 
   React.useEffect(() => {
@@ -306,7 +320,7 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
           (onTableCountState?.oppTotal ?? player.collectedCards.length) - teamOppCounted
         )
       : 0;
-    const visibleLayers = Math.min(18, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 2.2)));
+    const visibleLayers = Math.min(6, Math.max(count > 0 ? 1 : 0, Math.ceil(count / 5)));
 
     const isSideSeat = isFourPlayers && (playerIdx === 1 || playerIdx === 3);
     const sideRotDeg = playerIdx === 3 ? 90 : playerIdx === 1 ? -90 : 0;
@@ -328,9 +342,10 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
               style={isSideSeat ? { transform: `rotate(${sideRotDeg}deg)` } : undefined}
             >
               {Array.from({ length: visibleLayers }).map((_, layerIdx) => {
+                const isTopLayer = layerIdx === visibleLayers - 1;
                 const jitterRot = ((layerIdx * 17) % 11) - 5;
                 const jitterX = ((layerIdx * 13) % 7) - 3;
-                const jitterY = layerIdx * -1.2;
+                const jitterY = layerIdx * -1.6;
 
                 return (
                   <div
@@ -340,9 +355,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                       inset: 0,
                       transform: `translate3d(${jitterX}px, ${jitterY}px, 0) rotate(${jitterRot}deg)`
                     }}
-                    className="rounded-lg shadow-md"
+                    className={`rounded-lg shadow-md ${
+                      isTopLayer ? '' : 'bg-slate-800 border border-white/25'
+                    }`}
                   >
-                    <CardBackSurface cardBack={cardBack} />
+                    {isTopLayer && <CardBackSurface cardBack={cardBack} />}
                   </div>
                 );
               })}
@@ -436,55 +453,11 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
     <div
       className={`relative flex-1 w-full max-w-6xl mx-auto flex flex-col justify-between items-center py-2 sm:py-3 px-2 sm:px-6 select-none rounded-3xl border-4 shadow-[inset_0_0_80px_rgba(0,0,0,0.75),0_25px_60px_rgba(0,0,0,0.8)] transition-colors duration-500 ${getThemeBg()}`}
     >
-      {/* Keyframes for On-Table 3D Card Count Flip & Emote Pop */}
-      <style>{`
-        @keyframes cardCountFlip {
-          0% {
-            transform: perspective(900px) rotateY(140deg) translateY(-8px) scale(1.12);
-            opacity: 0.3;
-          }
-          65% {
-            transform: perspective(900px) rotateY(-3deg) translateY(-2px) scale(1.03);
-            opacity: 1;
-          }
-          100% {
-            transform: perspective(900px) rotateY(0deg) translateY(0) scale(1);
-            opacity: 1;
-          }
-        }
-        @keyframes emotePop2s {
-          0% {
-            transform: translate(-50%, 8px) scale(0.4);
-            opacity: 0;
-          }
-          14% {
-            transform: translate(-50%, -6px) scale(1.18);
-            opacity: 1;
-          }
-          24% {
-            transform: translate(-50%, -4px) scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: translate(-50%, -8px) scale(1.03);
-            opacity: 1;
-          }
-          80% {
-            transform: translate(-50%, -5px) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translate(-50%, -22px) scale(0.8);
-            opacity: 0;
-          }
-        }
-      `}</style>
-
       {/* Enriched Theme Atmosphere, Felt Textures & Ambient Watermarks */}
       <TableAtmosphere theme={theme} />
 
-      {/* Dynamic 60/120 FPS Ambient Particles Motor */}
-      <AmbientParticles theme={theme} intensity="dense" />
+      {/* Dynamic Ambient Particles Motor */}
+      <AmbientParticles theme={theme} intensity="dense" quality={graphicsQuality} />
 
       {/* =========================================================
           0. EXTERNAL PERIMETER PLAYER PROFILE BANNERS (Outside Table Edge)
@@ -829,25 +802,22 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                   {Array.from({ length: 52 }).map((_, idx) => {
                     const isSm = typeof window !== 'undefined' && window.innerWidth >= 640;
                     const pileOffset = isSm ? 165 : 115;
+                    const ribbonHalfSpanPx = isSm ? 250 : 132;
                     const cutIdx = deckCutState.cutIndex ?? 26;
                     const isLeftPile = idx < cutIdx;
 
-                    let cardLeft = '50%';
-                    let cardTransform = 'translate(-50%, 0) rotate(0deg)';
+                    let cardTransform = 'translate3d(-50%, 0, 0) rotate(0deg)';
                     let cardZIndex = idx + 1;
                     let cardOpacity = 1;
                     let cardTransition =
-                      'left 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease';
+                      'transform 0.56s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease';
 
                     if (deckCutState.step === 'waiting_cut') {
-                      const maxOffset = isSm ? 44 : 38;
                       const normPos = (idx - 25.5) / 26;
-                      const offsetPercent = isSpread ? normPos * maxOffset : 0;
+                      const spreadX = isSpread ? normPos * ribbonHalfSpanPx : 0;
                       const rotDeg = isSpread ? normPos * 14 : 0;
-                      // Subtle 3D casino arch curve across the ribbon
                       const archY = isSpread ? normPos * normPos * 12 : -(idx * 0.4);
 
-                      // Tactile V-Seam Parting & Riffle Lift around hoveredCutIndex
                       let tactileLiftY = 0;
                       let tactileShiftX = 0;
                       let tactileScale = 1;
@@ -856,22 +826,20 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
 
                       if (hoveredCutIndex !== null && isSpread) {
                         const dist = Math.abs(idx - hoveredCutIndex);
-                        // Part the entire ribbon slightly left/right of the cut seam
                         tactileShiftX = idx < hoveredCutIndex ? -8 : 8;
                         if (dist <= 6) {
                           const factor = 1 - dist / 7;
-                          tactileLiftY = -28 * factor;
-                          tactileScale = 1 + 0.14 * factor;
-                          tactileRotDelta = (idx < hoveredCutIndex ? -7 : 7) * factor;
+                          tactileLiftY = -26 * factor;
+                          tactileScale = 1 + 0.13 * factor;
+                          tactileRotDelta = (idx < hoveredCutIndex ? -6 : 6) * factor;
                           tactileZ = 60 + (7 - dist);
                         }
                       }
 
-                      cardLeft = isSpread ? `calc(50% + ${offsetPercent}%)` : '50%';
-                      cardTransform = `translate(calc(-50% + ${tactileShiftX}px), ${archY + tactileLiftY}px) rotate(${rotDeg + tactileRotDelta}deg) scale(${tactileScale})`;
+                      cardTransform = `translate3d(calc(-50% + ${(spreadX + tactileShiftX).toFixed(1)}px), ${(archY + tactileLiftY).toFixed(1)}px, 0) rotate(${(rotDeg + tactileRotDelta).toFixed(1)}deg) scale(${tactileScale.toFixed(3)})`;
                       cardZIndex = tactileZ;
                       cardTransition = isSpread
-                        ? 'left 0.62s cubic-bezier(0.16, 1, 0.3, 1), transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1)'
+                        ? 'transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1)'
                         : 'none';
                     } else if (
                       deckCutState.step === 'splitting' ||
@@ -880,54 +848,52 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                     ) {
                       if (isLeftPile) {
                         const layer = idx;
-                        // Hide top cards that have already peeled off Pile A into the Center Pot!
                         const isAlreadyDealt = idx >= deckCutState.pileACount;
-                        cardLeft = `calc(50% - ${pileOffset}px)`;
-                        cardTransform = `perspective(900px) translate(-50%, ${
-                          (layer - cutIdx / 2) * -0.75
-                        }px) rotateX(6deg) rotateZ(${(layer - cutIdx / 2) * 0.25}deg) scale(${isAlreadyDealt ? 0.85 : 1})`;
+                        cardTransform = `perspective(900px) translate3d(calc(-50% - ${pileOffset}px), ${
+                          ((layer - cutIdx / 2) * -0.75).toFixed(1)
+                        }px, 0) rotateX(6deg) rotateZ(${((layer - cutIdx / 2) * 0.25).toFixed(1)}deg) scale(${isAlreadyDealt ? 0.85 : 1})`;
                         cardZIndex = layer + 1;
                         cardOpacity = isAlreadyDealt ? 0 : 1;
                       } else {
                         const layer = idx - cutIdx;
-                        cardLeft = `calc(50% + ${pileOffset}px)`;
-                        cardTransform = `perspective(900px) translate(-50%, ${
-                          (layer - (52 - cutIdx) / 2) * -0.75
-                        }px) rotateX(6deg) rotateZ(${(layer - (52 - cutIdx) / 2) * 0.25}deg)`;
+                        cardTransform = `perspective(900px) translate3d(calc(-50% + ${pileOffset}px), ${
+                          ((layer - (52 - cutIdx) / 2) * -0.75).toFixed(1)
+                        }px, 0) rotateX(6deg) rotateZ(${((layer - (52 - cutIdx) / 2) * 0.25).toFixed(1)}deg)`;
                         cardZIndex = layer + 1;
                       }
                       cardTransition =
-                        'left 0.58s cubic-bezier(0.22, 1, 0.36, 1), transform 0.58s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease';
+                        'transform 0.56s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease';
                     } else if (deckCutState.step === 'merging') {
                       if (isLeftPile) {
                         const isAlreadyDealt = idx >= deckCutState.pileACount;
                         const layer = idx;
-                        cardLeft = `calc(50% - ${pileOffset}px)`;
-                        cardTransform = `perspective(900px) translate(-50%, ${
-                          (layer - deckCutState.pileACount / 2) * -0.65
-                        }px) rotate(0deg) scale(1.03)`;
+                        cardTransform = `perspective(900px) translate3d(calc(-50% - ${pileOffset}px), ${
+                          ((layer - deckCutState.pileACount / 2) * -0.65).toFixed(1)
+                        }px, 0) rotate(0deg) scale(1.03)`;
                         cardZIndex = layer + 1;
                         cardOpacity = isAlreadyDealt ? 0 : 1;
                       } else {
-                        // Pile B arcs over the Center Pot and slams on top of Pile A!
                         const layerOnTop = deckCutState.pileACount + (idx - cutIdx);
-                        cardLeft = `calc(50% - ${pileOffset}px)`;
-                        cardTransform = `perspective(900px) translate(-50%, ${
-                          (layerOnTop - 24) * -0.65
-                        }px) rotate(0deg) scale(1.03)`;
+                        cardTransform = `perspective(900px) translate3d(calc(-50% - ${pileOffset}px), ${
+                          ((layerOnTop - 24) * -0.65).toFixed(1)
+                        }px, 0) rotate(0deg) scale(1.03)`;
                         cardZIndex = 70 + idx;
                       }
-                      cardTransition =
-                        'left 0.65s cubic-bezier(0.22, 1.15, 0.38, 1), transform 0.65s cubic-bezier(0.22, 1.15, 0.38, 1)';
+                      cardTransition = 'transform 0.62s cubic-bezier(0.22, 1.08, 0.36, 1)';
                     } else if (deckCutState.step === 'stowing') {
                       const isAlreadyDealt = isLeftPile && idx >= deckCutState.pileACount;
                       const deckSlotOffset = isSm ? 72 : 52;
-                      cardLeft = `calc(50% - ${deckSlotOffset}px)`;
-                      cardTransform = `translate(-50%, ${(idx - 24) * -0.55}px) scale(1)`;
+                      cardTransform = `translate3d(calc(-50% - ${deckSlotOffset}px), ${((idx - 24) * -0.55).toFixed(1)}px, 0) scale(1)`;
                       cardZIndex = idx + 1;
                       cardOpacity = isAlreadyDealt ? 0 : 1;
-                      cardTransition = 'all 0.48s cubic-bezier(0.22, 1, 0.36, 1)';
+                      cardTransition = 'transform 0.46s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease';
                     }
+
+                    const isDetailedCard =
+                      deckCutState.step === 'waiting_cut' ||
+                      idx === Math.max(0, deckCutState.pileACount - 1) ||
+                      idx === 51 ||
+                      idx % 6 === 0;
 
                     return (
                       <div
@@ -948,19 +914,22 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
                         }
                         style={{
                           position: 'absolute',
-                          left: cardLeft,
+                          left: '50%',
                           transform: cardTransform,
                           zIndex: cardZIndex,
                           opacity: cardOpacity,
-                          transition: cardTransition
+                          transition: cardTransition,
+                          willChange: 'transform'
                         }}
                         className={`${CARD_DIMENSIONS.md.classes} ${
+                          isDetailedCard ? '' : 'bg-slate-800 border border-white/25 shadow-sm'
+                        } ${
                           deckCutState.step === 'waiting_cut' && deckCutState.isHumanCutter
                             ? 'cursor-pointer hover:shadow-[0_0_24px_rgba(245,158,11,0.95)] ring-1 hover:ring-2 ring-amber-400/80 pointer-events-auto'
                             : 'pointer-events-none'
                         }`}
                       >
-                        <CardBackSurface cardBack={cardBack} />
+                        {isDetailedCard && <CardBackSurface cardBack={cardBack} />}
                       </div>
                     );
                   })}
@@ -1472,4 +1441,4 @@ export const TableSurface: React.FC<TableSurfaceProps> = ({
       </div>
     </div>
   );
-};
+});

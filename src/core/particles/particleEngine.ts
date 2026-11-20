@@ -22,23 +22,6 @@ interface Particle {
   flipSpeed?: number;
 }
 
-interface AmbientPetal {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  angle: number;
-  spin: number;
-  swayPhase: number;
-  swaySpeed: number;
-  flipPhase: number;
-  flipSpeed: number;
-  color: string;
-  alpha: number;
-  isSpiritWisp?: boolean;
-}
-
 interface Shockwave {
   x: number;
   y: number;
@@ -67,7 +50,6 @@ export class ParticleEngine {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
   private particles: Particle[] = [];
-  private ambientPetals: AmbientPetal[] = [];
   private shockwaves: Shockwave[] = [];
   private streaks: ImpactStreak[] = [];
   private animationFrameId: number | null = null;
@@ -76,28 +58,24 @@ export class ParticleEngine {
   private enabled: boolean = true;
   private quality: GraphicsQuality = 'auto';
   private resizeRafId: number | null = null;
+  private viewWidth: number = 1280;
+  private viewHeight: number = 720;
+  private lastFrameTime: number = 0;
 
   public init(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: true });
     this.resize();
-    this.seedAmbientParticles();
     window.addEventListener('resize', this.handleResize);
-    this.startLoop();
+    // Demand-driven: loop wakes automatically only when bursts/shockwaves/streaks are active
   }
 
   public setTheme(theme: TableTheme) {
-    if (this.currentTheme !== theme) {
-      this.currentTheme = theme;
-      this.seedAmbientParticles();
-    }
+    this.currentTheme = theme;
   }
 
   public setQuality(quality: GraphicsQuality) {
-    if (this.quality !== quality) {
-      this.quality = quality;
-      this.seedAmbientParticles();
-    }
+    this.quality = quality;
   }
 
   private getQualityMultiplier(): number {
@@ -120,6 +98,7 @@ export class ParticleEngine {
       this.particles = [];
       this.shockwaves = [];
       this.streaks = [];
+      this.clearAndStop();
     }
   }
 
@@ -131,7 +110,6 @@ export class ParticleEngine {
       this.resizeRafId = null;
     }
     this.particles = [];
-    this.ambientPetals = [];
     this.shockwaves = [];
     this.streaks = [];
   }
@@ -140,108 +118,47 @@ export class ParticleEngine {
     if (this.resizeRafId !== null) return;
     this.resizeRafId = requestAnimationFrame(() => {
       this.resize();
-      this.seedAmbientParticles();
       this.resizeRafId = null;
     });
   };
 
   public resize() {
     if (!this.canvas) return;
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    this.canvas.width = window.innerWidth * dpr;
-    this.canvas.height = window.innerHeight * dpr;
-    this.canvas.style.width = `${window.innerWidth}px`;
-    this.canvas.style.height = `${window.innerHeight}px`;
+    const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5);
+    this.viewWidth = window.innerWidth;
+    this.viewHeight = window.innerHeight;
+    this.canvas.width = Math.round(this.viewWidth * dpr);
+    this.canvas.height = Math.round(this.viewHeight * dpr);
+    this.canvas.style.width = `${this.viewWidth}px`;
+    this.canvas.style.height = `${this.viewHeight}px`;
     if (this.ctx) {
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
   }
 
-  private seedAmbientParticles() {
-    this.ambientPetals = [];
-    const mult = this.getQualityMultiplier();
-    if (mult <= 0 || this.quality === 'low') return;
-    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
-    const h = typeof window !== 'undefined' ? window.innerHeight : 720;
-
-    if (this.currentTheme === 'sakura') {
-      const petalCount = Math.max(2, Math.round(8 * mult));
-      const wispCount = Math.max(1, Math.round(4 * mult));
-      for (let i = 0; i < petalCount; i++) {
-        this.ambientPetals.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          vx: Math.random() * 0.55 + 0.2,
-          vy: Math.random() * 0.65 + 0.35,
-          size: Math.random() * 5.5 + 4.5,
-          angle: Math.random() * Math.PI * 2,
-          spin: (Math.random() - 0.5) * 0.022,
-          swayPhase: Math.random() * Math.PI * 2,
-          swaySpeed: Math.random() * 0.018 + 0.01,
-          flipPhase: Math.random() * Math.PI * 2,
-          flipSpeed: Math.random() * 0.035 + 0.015,
-          color: SAKURA_COLORS[Math.floor(Math.random() * SAKURA_COLORS.length)],
-          alpha: Math.random() * 0.4 + 0.25,
-          isSpiritWisp: false
-        });
-      }
-
-      for (let i = 0; i < wispCount; i++) {
-        this.ambientPetals.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 0.25,
-          vy: -Math.random() * 0.4 - 0.15,
-          size: Math.random() * 2.5 + 1.5,
-          angle: 0,
-          spin: 0,
-          swayPhase: Math.random() * Math.PI * 2,
-          swaySpeed: 0.02,
-          flipPhase: 0,
-          flipSpeed: 0,
-          color: i % 2 === 0 ? '#f472b6' : '#c084fc',
-          alpha: Math.random() * 0.4 + 0.2,
-          isSpiritWisp: true
-        });
-      }
-    } else {
-      const moteColor =
-        this.currentTheme === 'estoril_blue'
-          ? '#38bdf8'
-          : this.currentTheme === 'monaco_velvet'
-          ? '#10b981'
-          : '#fbbf24';
-
-      const moteCount = Math.max(3, Math.round(14 * mult));
-      for (let i = 0; i < moteCount; i++) {
-        this.ambientPetals.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 0.25,
-          vy: -Math.random() * 0.35 - 0.1,
-          size: Math.random() * 2.2 + 1,
-          angle: 0,
-          spin: 0,
-          swayPhase: Math.random() * Math.PI * 2,
-          swaySpeed: 0.015,
-          flipPhase: 0,
-          flipSpeed: 0,
-          color: moteColor,
-          alpha: Math.random() * 0.3 + 0.1,
-          isSpiritWisp: true
-        });
-      }
-    }
-  }
-
-  private startLoop() {
-    if (this.isRunning) return;
+  private wakeLoop() {
+    if (this.isRunning || !this.ctx || !this.canvas) return;
     this.isRunning = true;
-    const loop = () => {
-      this.updateAndRender();
+    this.lastFrameTime = performance.now();
+    const loop = (now: number) => {
+      if (!this.isRunning) return;
+      const dt = Math.min(2.5, Math.max(0.25, (now - this.lastFrameTime) / 16.667));
+      this.lastFrameTime = now;
+      this.updateAndRender(dt);
+      if (this.particles.length === 0 && this.shockwaves.length === 0 && this.streaks.length === 0) {
+        this.clearAndStop();
+        return;
+      }
       this.animationFrameId = requestAnimationFrame(loop);
     };
     this.animationFrameId = requestAnimationFrame(loop);
+  }
+
+  private clearAndStop() {
+    if (this.ctx && this.canvas) {
+      this.ctx.clearRect(0, 0, this.viewWidth, this.viewHeight);
+    }
+    this.stopLoop();
   }
 
   private stopLoop() {
@@ -286,6 +203,7 @@ export class ParticleEngine {
     });
 
     setTimeout(() => {
+      if (!this.enabled) return;
       this.shockwaves.push({
         x,
         y,
@@ -296,6 +214,7 @@ export class ParticleEngine {
         alpha: 0.9,
         speed: 11
       });
+      this.wakeLoop();
     }, 75);
 
     for (let i = 0; i < sparkCount; i++) {
@@ -340,6 +259,8 @@ export class ParticleEngine {
         alpha: 1
       });
     }
+
+    this.wakeLoop();
   }
 
   /**
@@ -375,6 +296,7 @@ export class ParticleEngine {
         flipSpeed: 0.08
       });
     }
+    this.wakeLoop();
   }
 
   /**
@@ -414,6 +336,7 @@ export class ParticleEngine {
       alpha: 0.75,
       speed: 3.2
     });
+    this.wakeLoop();
   }
 
   /**
@@ -428,6 +351,9 @@ export class ParticleEngine {
     const isEstoril = theme === 'estoril_blue';
     const isGold = theme === 'luxury_gold';
     const isMonaco = theme === 'monaco_velvet';
+    const isCyber = theme === 'neon_cyber';
+    const isOttoman = theme === 'ottoman_palace';
+    const isArctic = theme === 'arctic_aurora';
     const count = Math.max(3, Math.round((isSakura ? 12 : 10) * mult));
 
     const themeColors = isSakura
@@ -438,6 +364,12 @@ export class ParticleEngine {
       ? ['#fbbf24', '#f59e0b', '#fde047', '#ffd700']
       : isMonaco
       ? ['#10b981', '#34d399', '#f59e0b', '#a7f3d0']
+      : isCyber
+      ? ['#22d3ee', '#e879f9', '#38bdf8', '#f472b6']
+      : isOttoman
+      ? ['#fbbf24', '#f43f5e', '#f59e0b', '#fde68a']
+      : isArctic
+      ? ['#2dd4bf', '#38bdf8', '#a7f3d0', '#e0f2fe']
       : ['#ef4444', '#3b82f6', '#f8fafc', '#fbbf24'];
 
     for (let i = 0; i < count; i++) {
@@ -464,6 +396,7 @@ export class ParticleEngine {
         flipSpeed: 0.08
       });
     }
+    this.wakeLoop();
   }
 
   /**
@@ -499,69 +432,16 @@ export class ParticleEngine {
     ctx.restore();
   }
 
-  private updateAndRender() {
+  private updateAndRender(dt: number) {
     if (!this.ctx || !this.canvas) return;
 
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    this.ctx.clearRect(0, 0, w, h);
-
-    // 0. Render & update Ambient Sakura Petals & Spirit Wisps (Fast path, no shadowBlur)
-    if (this.enabled) {
-      for (let i = 0; i < this.ambientPetals.length; i++) {
-        const ap = this.ambientPetals[i];
-        ap.swayPhase += ap.swaySpeed;
-        ap.flipPhase += ap.flipSpeed;
-        ap.angle += ap.spin;
-
-        ap.x += ap.vx + Math.sin(ap.swayPhase) * 0.42;
-        ap.y += ap.vy;
-
-        if (ap.y > h + 20) {
-          ap.y = -20;
-          ap.x = Math.random() * w;
-        } else if (ap.y < -20) {
-          ap.y = h + 20;
-          ap.x = Math.random() * w;
-        }
-        if (ap.x > w + 20) {
-          ap.x = -20;
-        } else if (ap.x < -20) {
-          ap.x = w + 20;
-        }
-
-        if (ap.isSpiritWisp) {
-          const curAlpha = ap.alpha * (0.65 + 0.35 * Math.sin(ap.swayPhase * 2));
-          this.ctx.fillStyle = ap.color;
-          // Outer soft halo
-          this.ctx.globalAlpha = curAlpha * 0.28;
-          this.ctx.beginPath();
-          this.ctx.arc(ap.x, ap.y, ap.size * 2.4, 0, Math.PI * 2);
-          this.ctx.fill();
-          // Inner core
-          this.ctx.globalAlpha = curAlpha;
-          this.ctx.beginPath();
-          this.ctx.arc(ap.x, ap.y, ap.size, 0, Math.PI * 2);
-          this.ctx.fill();
-        } else {
-          this.drawSakuraPetal(
-            this.ctx,
-            ap.x,
-            ap.y,
-            ap.size,
-            ap.angle,
-            ap.flipPhase,
-            ap.color,
-            ap.alpha
-          );
-        }
-      }
-    }
+    this.ctx.clearRect(0, 0, this.viewWidth, this.viewHeight);
+    const drag = Math.pow(0.98, dt);
 
     // 1. Render & update shockwaves
     for (let i = this.shockwaves.length - 1; i >= 0; i--) {
       const sw = this.shockwaves[i];
-      sw.radius += sw.speed;
+      sw.radius += sw.speed * dt;
       sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
 
       if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
@@ -570,21 +450,19 @@ export class ParticleEngine {
         continue;
       }
 
-      this.ctx.save();
       this.ctx.beginPath();
       this.ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
       this.ctx.strokeStyle = sw.color;
       this.ctx.globalAlpha = sw.alpha;
       this.ctx.lineWidth = sw.lineWidth * sw.alpha;
       this.ctx.stroke();
-      this.ctx.restore();
     }
 
     // 2. Render & update radial streaks
     for (let i = this.streaks.length - 1; i >= 0; i--) {
       const st = this.streaks[i];
-      st.length += st.speed;
-      st.alpha -= 0.038;
+      st.length += st.speed * dt;
+      st.alpha -= 0.038 * dt;
 
       if (st.alpha <= 0 || st.length >= st.maxLength) {
         this.streaks[i] = this.streaks[this.streaks.length - 1];
@@ -598,7 +476,6 @@ export class ParticleEngine {
       const endX = st.x + Math.cos(st.angle) * (startDist + st.length);
       const endY = st.y + Math.sin(st.angle) * (startDist + st.length);
 
-      this.ctx.save();
       this.ctx.beginPath();
       this.ctx.moveTo(startX, startY);
       this.ctx.lineTo(endX, endY);
@@ -606,18 +483,17 @@ export class ParticleEngine {
       this.ctx.lineWidth = 2.8;
       this.ctx.globalAlpha = Math.max(0, st.alpha);
       this.ctx.stroke();
-      this.ctx.restore();
     }
 
     // 3. Render & update burst particles (sparks & petals)
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += p.gravity;
-      p.vx *= 0.98;
-      p.vy *= 0.98;
-      p.alpha -= p.decay;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += p.gravity * dt;
+      p.vx *= drag;
+      p.vy *= drag;
+      p.alpha -= p.decay * dt;
 
       if (p.alpha <= 0) {
         this.particles[i] = this.particles[this.particles.length - 1];
@@ -626,8 +502,8 @@ export class ParticleEngine {
       }
 
       if (p.kind === 'petal') {
-        p.angle = (p.angle || 0) + (p.spin || 0.05);
-        p.flipPhase = (p.flipPhase || 0) + (p.flipSpeed || 0.08);
+        p.angle = (p.angle || 0) + (p.spin || 0.05) * dt;
+        p.flipPhase = (p.flipPhase || 0) + (p.flipSpeed || 0.08) * dt;
         this.drawSakuraPetal(
           this.ctx,
           p.x,

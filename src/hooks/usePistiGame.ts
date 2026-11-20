@@ -704,8 +704,8 @@ export function usePistiGame({
       const validIndex = Math.max(1, Math.min(cutIndex, seedDeck.length - 1));
 
       // Guest cutter sends MP_DECK_CUT to Host and waits for Host's MP_PRIVATE_DEAL_VIEW before proceeding!
-      if (isMp && !multiplayerManager.isHost && !overrideCutDeck && deckCutState?.isHumanCutter) {
-        if (multiplayerManager.isConnected) {
+      if (isMp && !multiplayerManager.isHost && !overrideCutDeck) {
+        if (deckCutState?.isHumanCutter && multiplayerManager.isConnected) {
           multiplayerManager.send({
             type: 'MP_DECK_CUT',
             cutIndex: validIndex,
@@ -715,6 +715,10 @@ export function usePistiGame({
         }
         return;
       }
+
+      // Immediately consume pendingDealContext so double-clicks or duplicate events cannot launch a second parallel cut!
+      pendingDealContextRef.current = null;
+      setPendingDealContext(null);
 
       const cutDeck = overrideCutDeck
         ? [...overrideCutDeck]
@@ -1550,8 +1554,12 @@ export function usePistiGame({
               const latestPlayers = playersRef.current;
               const uBreakdown = calculateRoundBreakdown(latestPlayers[0], true);
               const oBreakdown = calculateRoundBreakdown(latestPlayers[1], false);
-              const isUserWin = actingPlayer.id === latestPlayers[0].id;
-              recordMatchStats(isUserWin, isUserWin ? 50 : 0, isUserWin ? 1 : 0, 0, false);
+              const isUserWin =
+                playerIndex === 0 || (latestPlayers.length === 4 && playerIndex === 2);
+              if (!isSpectatorRef?.current) {
+                recordMatchStats(isUserWin, isUserWin ? 50 : 0, isUserWin ? 1 : 0, 0, false);
+                setUserProfile(getUserProfile());
+              }
               setRoundScores({
                 user: uBreakdown,
                 opp: oBreakdown,
@@ -1741,7 +1749,7 @@ export function usePistiGame({
       const userSideAggregate: Player = isFourP
         ? {
             ...finalPlayersState[0],
-            name: 'Bizim Takım (Sen & Dayı)',
+            name: `${finalPlayersState[0].name} & ${finalPlayersState[2].name}`,
             pistiCount: finalPlayersState[0].pistiCount + finalPlayersState[2].pistiCount,
             doublePistiCount:
               finalPlayersState[0].doublePistiCount + finalPlayersState[2].doublePistiCount,
@@ -1761,7 +1769,7 @@ export function usePistiGame({
       const oppSideAggregate: Player = isFourP
         ? {
             ...finalPlayersState[1],
-            name: 'Rakip Takım (Bot & Muhtar)',
+            name: `${finalPlayersState[1].name} & ${finalPlayersState[3].name}`,
             pistiCount: finalPlayersState[1].pistiCount + finalPlayersState[3].pistiCount,
             doublePistiCount:
               finalPlayersState[1].doublePistiCount + finalPlayersState[3].doublePistiCount,
@@ -1810,23 +1818,25 @@ export function usePistiGame({
         matchWinner = newUserScore > newOppScore ? userSideAggregate : oppSideAggregate;
         const isUserWin = newUserScore > newOppScore;
         const oppName = oppSideAggregate.name || 'Rakip';
-        const xpRes = recordMatchStats(
-          isUserWin,
-          newUserScore,
-          userSideAggregate.pistiCount,
-          userSideAggregate.doublePistiCount,
-          false,
-          oppName
-        );
-        setUserProfile(getUserProfile());
-        friendNetwork.announcePresence();
-        checkAndUnlockAchievements(getUserProfile(), {
-          score: newUserScore,
-          justPisti: userSideAggregate.pistiCount > 0,
-          justDoublePisti: userSideAggregate.doublePistiCount > 0,
-        });
-        if (xpRes.leveledUp) {
-          showDevToast(`🎉 SEVİYE ATLADIN! Yeni Seviye: Level ${xpRes.newLevel} (+${xpRes.xpEarned} XP)`);
+        if (!isSpectatorRef?.current) {
+          const xpRes = recordMatchStats(
+            isUserWin,
+            newUserScore,
+            userSideAggregate.pistiCount,
+            userSideAggregate.doublePistiCount,
+            false,
+            oppName
+          );
+          setUserProfile(getUserProfile());
+          friendNetwork.announcePresence();
+          checkAndUnlockAchievements(getUserProfile(), {
+            score: newUserScore,
+            justPisti: userSideAggregate.pistiCount > 0,
+            justDoublePisti: userSideAggregate.doublePistiCount > 0,
+          });
+          if (xpRes.leveledUp) {
+            showDevToast(`🎉 SEVİYE ATLADIN! Yeni Seviye: Level ${xpRes.newLevel} (+${xpRes.xpEarned} XP)`);
+          }
         }
       }
 
@@ -1945,6 +1955,9 @@ export function usePistiGame({
   }, []);
 
   // Turn Countdown Timer: ONLY active in Multiplayer mode!
+  const turnTimeRef = useRef<number>(15);
+  turnTimeRef.current = turnTimeRemaining;
+
   useEffect(() => {
     if (
       !isMultiplayerGame ||
@@ -1952,6 +1965,7 @@ export function usePistiGame({
       isDealingAnimation ||
       isShuffling ||
       isActionLocked ||
+      deckCutState?.isActive ||
       onTableCount.isActive ||
       onTableCount.isDone ||
       roundScores?.isGameOver
@@ -1960,37 +1974,40 @@ export function usePistiGame({
     }
 
     const interval = window.setInterval(() => {
-      setTurnTimeRemaining(prev => {
-        if (prev <= 1) {
-          if (currentTurn === 0 && !isSpectatorRef?.current) {
-            const userPlayer = playersRef.current[0];
-            if (userPlayer && userPlayer.hand.length > 0) {
-              const randomCard =
-                userPlayer.hand[Math.floor(Math.random() * userPlayer.hand.length)];
-              handlePlayCardWithAnimation(0, randomCard);
-            }
-          } else if (multiplayerManager.isHost && currentTurn !== 0) {
-            // Host authoritative timeout fallback if a remote guest's tab is backgrounded/frozen
-            const stalledIdx = currentTurn;
-            window.setTimeout(() => {
-              if (
-                currentTurnRef.current === stalledIdx &&
-                !isBusyRef.current &&
-                !isDealingAnimationRef.current &&
-                !isShufflingRef.current
-              ) {
-                const stalledPlayer = playersRef.current[stalledIdx];
-                if (stalledPlayer && stalledPlayer.hand.length > 0) {
-                  const fallbackCard = stalledPlayer.hand[0];
-                  handlePlayCardWithAnimation(stalledIdx, fallbackCard);
-                }
-              }
-            }, 2200);
+      const nextVal = turnTimeRef.current - 1;
+      if (nextVal <= 0) {
+        turnTimeRef.current = 15;
+        setTurnTimeRemaining(15);
+        if (currentTurnRef.current === 0 && !isSpectatorRef?.current) {
+          const userPlayer = playersRef.current[0];
+          if (userPlayer && userPlayer.hand.length > 0) {
+            const randomCard =
+              userPlayer.hand[Math.floor(Math.random() * userPlayer.hand.length)];
+            handlePlayCardWithAnimation(0, randomCard);
           }
-          return 15;
+        } else if (multiplayerManager.isHost && currentTurnRef.current !== 0) {
+          // Host authoritative timeout fallback if a remote guest's tab is backgrounded/frozen
+          const stalledIdx = currentTurnRef.current;
+          const fallbackTimer = window.setTimeout(() => {
+            if (
+              currentTurnRef.current === stalledIdx &&
+              !isBusyRef.current &&
+              !isDealingAnimationRef.current &&
+              !isShufflingRef.current
+            ) {
+              const stalledPlayer = playersRef.current[stalledIdx];
+              if (stalledPlayer && stalledPlayer.hand.length > 0) {
+                const fallbackCard = stalledPlayer.hand[0];
+                handlePlayCardWithAnimation(stalledIdx, fallbackCard);
+              }
+            }
+          }, 2200);
+          dealTimersRef.current.push(fallbackTimer);
         }
-        return prev - 1;
-      });
+      } else {
+        turnTimeRef.current = nextVal;
+        setTurnTimeRemaining(nextVal);
+      }
     }, 1000);
 
     return () => window.clearInterval(interval);
@@ -2000,6 +2017,7 @@ export function usePistiGame({
     isDealingAnimation,
     isShuffling,
     isActionLocked,
+    deckCutState?.isActive,
     onTableCount.isActive,
     onTableCount.isDone,
     roundScores?.isGameOver,
@@ -2014,6 +2032,7 @@ export function usePistiGame({
       isDealingAnimation ||
       isShuffling ||
       isActionLocked ||
+      deckCutState?.isActive ||
       flyingCards.length > 0 ||
       onTableCount.isActive ||
       onTableCount.isDone ||
@@ -2104,6 +2123,7 @@ export function usePistiGame({
     isDealingAnimation,
     isShuffling,
     isActionLocked,
+    deckCutState?.isActive,
     flyingCards.length,
     onTableCount.isActive,
     onTableCount.isDone,
@@ -2122,6 +2142,7 @@ export function usePistiGame({
       isDealingAnimation ||
       isShuffling ||
       isActionLocked ||
+      deckCutState?.isActive ||
       flyingCards.length > 0 ||
       onTableCount.isActive ||
       onTableCount.isDone ||
@@ -2158,6 +2179,7 @@ export function usePistiGame({
     isDealingAnimation,
     isShuffling,
     isActionLocked,
+    deckCutState?.isActive,
     flyingCards.length,
     onTableCount.isActive,
     onTableCount.isDone,
@@ -2340,8 +2362,19 @@ export function usePistiGame({
   }, [isMultiplayerGame, setIsMultiplayerOpen, setIsSetupOpen, setReadySeatsForNextRound, setChatMessages]);
 
   const handleExitToMenu = useCallback(() => {
+    clearScheduledTimers();
+    clearFlights();
+    setDeckCutState(null);
+    pendingDealContextRef.current = null;
+    setPendingDealContext(null);
+    setIsShuffling(false);
+    setIsDealingAnimation(false);
+    setIsActionLocked(false);
+
     if (isMultiplayerGameRef.current) {
-      if (roundScores && !roundScores.isGameOver && playersRef.current.length >= 2) {
+      const isSpectatorNow = Boolean(isSpectatorRef?.current);
+      const isAlreadyOver = Boolean(roundScores?.isGameOver);
+      if (!isSpectatorNow && roundScores && !isAlreadyOver && playersRef.current.length >= 2) {
         const uScore = playersRef.current[0].score;
         const oScore = playersRef.current[1].score;
         const isWin = uScore > oScore;
@@ -2358,12 +2391,14 @@ export function usePistiGame({
         friendNetwork.announcePresence();
       }
       try {
-        multiplayerManager.send({
-          type: 'MP_MATCH_ABORTED',
-          reason: 'surrender',
-          senderName: userProfile.name
-        });
-        multiplayerManager.leaveRoom();
+        if (!isSpectatorNow && !isAlreadyOver) {
+          multiplayerManager.send({
+            type: 'MP_MATCH_ABORTED',
+            reason: 'surrender',
+            senderName: userProfile.name
+          });
+        }
+        multiplayerManager.leaveRoom(false);
       } catch (e) {
         logger.warn(e);
       }
@@ -2381,7 +2416,10 @@ export function usePistiGame({
   }, [
     userProfile.name,
     roundScores,
+    clearScheduledTimers,
+    clearFlights,
     isMultiplayerGameRef,
+    isSpectatorRef,
     playersRef,
     setUserProfile,
     setIsMultiplayerGame,

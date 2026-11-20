@@ -19,18 +19,32 @@ class SoundEngine {
   constructor() {}
 
   private initCtx() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtxClass =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext;
-      if (AudioCtxClass) {
-        this.ctx = new AudioCtxClass();
+    try {
+      if (!this.ctx && typeof window !== 'undefined') {
+        const AudioCtxClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
+        if (AudioCtxClass) {
+          this.ctx = new AudioCtxClass();
+        }
       }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        void this.ctx.resume().catch(() => {});
+      }
+    } catch {
+      this.ctx = null;
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+  }
+
+  private getReadyCtx(): AudioContext | null {
+    if (!this.enabled || this.volume <= 0.001) return null;
+    this.initCtx();
+    return this.ctx;
+  }
+
+  private safeGain(mult: number): number {
+    return Math.max(0.0001, mult * this.volume);
   }
 
   public setEnabled(enabled: boolean) {
@@ -52,7 +66,7 @@ class SoundEngine {
    * Subtle paper friction tick when skimming/hovering over fanned cards
    */
   public playCardHover() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -81,7 +95,7 @@ class SoundEngine {
    * Snappy, tactile card counting tick ("tık tık tık tık")
    */
   public playCountTick(pitchFactor: number = 1) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -114,7 +128,7 @@ class SoundEngine {
    * Bright, rewarding chime when a special point card (Karo 10, Sinek 2, As, Vale) is set aside
    */
   public playPointCardChime(points: number = 1) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -144,7 +158,7 @@ class SoundEngine {
    * Turkish Tea Glass clink & spoon stir sound ☕
    */
   public playTeaClink() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -171,7 +185,7 @@ class SoundEngine {
    * Dynamic sound per emote
    */
   public playEmoteSound(emoji: string) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -228,63 +242,64 @@ class SoundEngine {
    * Riffle Shuffle fluttering sound of cards interleaving
    */
   public playRiffleShuffle() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.getReadyCtx();
+    if (!ctx) return;
 
-    const t = this.ctx.currentTime;
-    const cardFlutters = 26;
+    try {
+      const t = Math.max(0, ctx.currentTime);
+      const cardFlutters = 26;
 
-    for (let i = 0; i < cardFlutters; i++) {
-      const jitter = (Math.random() - 0.5) * 0.006;
-      const flutterTime = t + i * 0.024 + jitter;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
+      for (let i = 0; i < cardFlutters; i++) {
+        const jitter = (Math.random() - 0.5) * 0.006;
+        const flutterTime = Math.max(t, t + i * 0.024 + jitter);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
 
-      // Pitch slightly rises as the deck interlaces, mimicking physical tension
-      const progress = i / cardFlutters;
-      const baseFreq = 280 + progress * 240 + Math.random() * 80;
+        // Pitch slightly rises as the deck interlaces, mimicking physical tension
+        const progress = i / cardFlutters;
+        const baseFreq = 280 + progress * 240 + Math.random() * 80;
 
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(baseFreq, flutterTime);
-      osc.frequency.exponentialRampToValueAtTime(75, flutterTime + 0.022);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq, flutterTime);
+        osc.frequency.exponentialRampToValueAtTime(75, flutterTime + 0.022);
 
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1400 + progress * 600, flutterTime);
-      filter.Q.setValueAtTime(2.2, flutterTime);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1400 + progress * 600, flutterTime);
+        filter.Q.setValueAtTime(2.2, flutterTime);
 
-      gain.gain.setValueAtTime(0.16 * this.volume, flutterTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, flutterTime + 0.022);
+        gain.gain.setValueAtTime(this.safeGain(0.16), flutterTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, flutterTime + 0.022);
 
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
 
-      osc.start(flutterTime);
-      osc.stop(flutterTime + 0.025);
-    }
+        osc.start(flutterTime);
+        osc.stop(flutterTime + 0.025);
+      }
 
-    // Final crisp square-up deck snap at the end
-    const snapTime = t + cardFlutters * 0.024 + 0.05;
-    const snapOsc = this.ctx.createOscillator();
-    const snapGain = this.ctx.createGain();
-    snapOsc.type = 'triangle';
-    snapOsc.frequency.setValueAtTime(320, snapTime);
-    snapOsc.frequency.exponentialRampToValueAtTime(90, snapTime + 0.045);
-    snapGain.gain.setValueAtTime(0.3 * this.volume, snapTime);
-    snapGain.gain.exponentialRampToValueAtTime(0.001, snapTime + 0.05);
-    snapOsc.connect(snapGain);
-    snapGain.connect(this.ctx.destination);
-    snapOsc.start(snapTime);
-    snapOsc.stop(snapTime + 0.06);
+      // Final crisp square-up deck snap at the end
+      const snapTime = t + cardFlutters * 0.024 + 0.05;
+      const snapOsc = ctx.createOscillator();
+      const snapGain = ctx.createGain();
+      snapOsc.type = 'triangle';
+      snapOsc.frequency.setValueAtTime(320, snapTime);
+      snapOsc.frequency.exponentialRampToValueAtTime(90, snapTime + 0.045);
+      snapGain.gain.setValueAtTime(this.safeGain(0.3), snapTime);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, snapTime + 0.05);
+      snapOsc.connect(snapGain);
+      snapGain.connect(ctx.destination);
+      snapOsc.start(snapTime);
+      snapOsc.stop(snapTime + 0.06);
+    } catch {}
   }
 
   /**
    * Table wash / Scramble swishing sound
    */
   public playWashScramble() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -319,7 +334,7 @@ class SoundEngine {
    * Triple cut thud sound
    */
   public playTripleCut() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -347,7 +362,7 @@ class SoundEngine {
    * Swoosh when cards are swept and gathered to the player's pile
    */
   public playSweepGather() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -373,7 +388,7 @@ class SoundEngine {
    * Authentic Card Play Foley: Crisp paper flick + resonant table-felt thud with organic micro-variation
    */
   public playCardPlay() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -683,7 +698,7 @@ class SoundEngine {
    * Card deal / whoosh sound with tactile paper slide and variable pitch
    */
   public playCardDeal(playbackRate: number = 1.0) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -722,7 +737,7 @@ class SoundEngine {
    * Tactile click when a batch of cards arrives and fans out in hand
    */
   public playCardFan() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -748,7 +763,7 @@ class SoundEngine {
    * Normal matching card trick capture (crisp coin chime)
    */
   public playMatchSweep() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -776,7 +791,7 @@ class SoundEngine {
    * Vale (Jack) Power Sweep (golden vortex resonance)
    */
   public playJackSweep() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -808,7 +823,7 @@ class SoundEngine {
    * PİŞTİ SLAM! Massive 808 bass punch + metallic crack
    */
   public playPistiSlam() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -893,7 +908,7 @@ class SoundEngine {
    * Clean UI Button Click
    */
   public playClick() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -918,7 +933,7 @@ class SoundEngine {
    * UNO: Reverse Direction Whoosh Sound
    */
   public playUnoReverse() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -951,7 +966,7 @@ class SoundEngine {
    * UNO: Skip Turn Laser Strike Sound
    */
   public playUnoSkip() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -976,7 +991,7 @@ class SoundEngine {
    * UNO: Wild Card 4-Color Harmonic Chime
    */
   public playUnoWild() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -1003,7 +1018,7 @@ class SoundEngine {
    * UNO: Dramatic & Radiant "UNO!" Shout Fanfare
    */
   public playUnoShout() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -1031,7 +1046,7 @@ class SoundEngine {
    * UNO: Draw 2 / Draw 4 Impact Thump
    */
   public playUnoDrawPenalty() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -1056,35 +1071,36 @@ class SoundEngine {
    * Dead Center Deck Cut (+5 Puan) Jackpot Fanfare Chime
    */
   public playDeadCenterJackpot() {
-    if (!this.enabled) return;
-    this.initCtx();
-    if (!this.ctx) return;
+    const ctx = this.getReadyCtx();
+    if (!ctx) return;
 
-    const t = this.ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
-    notes.forEach((freq, idx) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
+    try {
+      const t = Math.max(0, ctx.currentTime);
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + idx * 0.08);
 
-      gain.gain.setValueAtTime(0, t + idx * 0.08);
-      gain.gain.linearRampToValueAtTime(0.3 * this.volume, t + idx * 0.08 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.45);
+        gain.gain.setValueAtTime(0.0001, t + idx * 0.08);
+        gain.gain.linearRampToValueAtTime(this.safeGain(0.3), t + idx * 0.08 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.45);
 
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-      osc.start(t + idx * 0.08);
-      osc.stop(t + idx * 0.08 + 0.5);
-    });
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t + idx * 0.08);
+        osc.stop(t + idx * 0.08 + 0.5);
+      });
+    } catch {}
   }
 
   /**
    * Match Point / High Stakes Pulse Sting
    */
   public playMatchPointSting() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0.001) return;
     this.initCtx();
     if (!this.ctx) return;
 

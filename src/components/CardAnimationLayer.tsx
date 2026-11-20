@@ -38,6 +38,7 @@ interface CardAnimationLayerProps {
   flyingCards: FlyingCardData[];
   cardBack: string;
   theme?: TableTheme;
+  graphicsQuality?: 'auto' | 'low' | 'medium' | 'high';
 }
 
 export const SHUFFLE_STYLE_NAMES: Record<ShuffleStyle, string> = {
@@ -48,7 +49,7 @@ export const SHUFFLE_STYLE_NAMES: Record<ShuffleStyle, string> = {
   farot_wave: 'Kavisli Yelpaze & Dalga Şelalesi (Faro Cascade)'
 };
 
-const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: TableTheme }> = ({
+const FlyingCardItemInner: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: TableTheme }> = ({
   fc,
   cardBack,
   theme = 'traditional'
@@ -159,7 +160,8 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
         transformStyle: 'preserve-3d',
         pointerEvents: 'none',
         transform: `translate3d(${fc.startX}px, ${fc.startY}px, 0) translate(-50%, -50%) rotate(${fc.startRotation}deg) scale(${startScale})`,
-        willChange: 'transform, filter'
+        willChange: 'transform',
+        boxShadow: '0 14px 28px rgba(0, 0, 0, 0.5)'
       }}
       className={sizeClasses}
     >
@@ -207,16 +209,23 @@ const FlyingCardItem: React.FC<{ fc: FlyingCardData; cardBack: string; theme?: T
   );
 };
 
+const FlyingCardItem = React.memo(FlyingCardItemInner, (prev, next) =>
+  prev.fc.id === next.fc.id &&
+  prev.cardBack === next.cardBack &&
+  prev.theme === next.theme
+);
+
 /**
- * 144 FPS Hardware-Accelerated 32-Card 3D Casino Grand Shuffle Layer
+ * Hardware-Accelerated 3D Casino Grand Shuffle Layer
  */
 const DynamicDeckShuffle: React.FC<{
   style: ShuffleStyle;
   cardBack: string;
   getDeckTargetPos: () => { x: number; y: number };
-}> = ({ style, cardBack }) => {
+  graphicsQuality?: 'auto' | 'low' | 'medium' | 'high';
+}> = ({ style, cardBack, graphicsQuality = 'auto' }) => {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const totalCards = 32;
+  const totalCards = graphicsQuality === 'low' ? 16 : 24;
 
   useLayoutEffect(() => {
     const centerX = window.innerWidth / 2;
@@ -428,12 +437,13 @@ const DynamicDeckShuffle: React.FC<{
         ];
       } else {
         // Triple Cut: 3-Stack Table Shift & Interleave Slap
-        const stackNum = idx < 11 ? 0 : idx < 22 ? 1 : 2;
+        const third = Math.max(1, Math.ceil(totalCards / 3));
+        const stackNum = idx < third ? 0 : idx < third * 2 ? 1 : 2;
         const stackX = stackNum === 0 ? centerX - 95 : stackNum === 1 ? centerX : centerX + 95;
         const stackRot = stackNum === 0 ? -6 : stackNum === 1 ? 0 : 6;
         const swapX = stackNum === 0 ? centerX + 95 : stackNum === 2 ? centerX - 95 : centerX;
         const swapLiftY = stackNum === 0 ? -38 : stackNum === 2 ? -28 : 10;
-        const finalTripleOrder = stackNum === 0 ? (idx % 11) + 21 : stackNum === 1 ? (idx % 11) : (idx % 11) + 11;
+        const finalTripleOrder = stackNum === 0 ? (idx % third) + third * 2 : stackNum === 1 ? (idx % third) : (idx % third) + third;
 
         keyframes = [
           {
@@ -442,7 +452,7 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeOut
           },
           {
-            transform: `perspective(1100px) translate3d(${stackX}px, ${centerY - (idx % 11) * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(${stackNum === 0 ? 12 : stackNum === 2 ? -12 : 0}deg) rotateZ(${stackRot}deg) scale(1.02)`,
+            transform: `perspective(1100px) translate3d(${stackX}px, ${centerY - (idx % third) * 0.6}px, 0) translate(-50%, -50%) rotateX(10deg) rotateY(${stackNum === 0 ? 12 : stackNum === 2 ? -12 : 0}deg) rotateZ(${stackRot}deg) scale(1.02)`,
             offset: 0.22,
             easing: easeInOut
           },
@@ -452,7 +462,7 @@ const DynamicDeckShuffle: React.FC<{
             easing: easeInOut
           },
           {
-            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - 24 - (idx % 11) * 0.45}px, 0) translate(-50%, -50%) rotateX(12deg) rotateY(0deg) rotateZ(0deg) scale(1.04)`,
+            transform: `perspective(1100px) translate3d(${centerX}px, ${centerY - 24 - (idx % third) * 0.45}px, 0) translate(-50%, -50%) rotateX(12deg) rotateY(0deg) rotateZ(0deg) scale(1.04)`,
             offset: 0.76,
             easing: easeInOut
           },
@@ -481,15 +491,19 @@ const DynamicDeckShuffle: React.FC<{
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50">
-      {/* Ambient Table Spotlight & Shockwave Ring under Shuffling Deck */}
+      {/* Ambient Table Spotlight under Shuffling Deck (zero blur-3xl/ping compositing cost) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-amber-500/15 blur-3xl animate-pulse" />
-        <div className="absolute w-48 h-48 sm:w-64 sm:h-64 rounded-full border-2 border-amber-400/35 shadow-[0_0_50px_rgba(245,158,11,0.3)] animate-ping" style={{ animationDuration: '1.4s' }} />
+        <div
+          className="w-80 h-80 sm:w-[420px] sm:h-[420px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(245,158,11,0.06) 45%, transparent 72%)'
+          }}
+        />
       </div>
 
       {/* Floating Casino Dealer Shuffle HUD Banner */}
       <div className="absolute left-1/2 top-[28%] sm:top-[26%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-[95] animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wider flex items-center gap-2 shadow-[0_0_30px_rgba(245,158,11,0.65)]">
+        <div className="px-4 py-1.5 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-cyber text-xs font-black tracking-wider flex items-center gap-2 shadow-[0_0_24px_rgba(245,158,11,0.5)]">
           <span className="text-sm animate-spin">🎴</span>
           <span>DESTE HARMANLANIYOR</span>
         </div>
@@ -510,7 +524,7 @@ const DynamicDeckShuffle: React.FC<{
             top: 0,
             zIndex: 50 + idx,
             willChange: 'transform',
-            boxShadow: '0 10px 24px rgba(0, 0, 0, 0.55)'
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.5)'
           }}
           className={sizeClasses}
         >
@@ -521,14 +535,17 @@ const DynamicDeckShuffle: React.FC<{
   );
 };
 
-export const CardAnimationLayer: React.FC<CardAnimationLayerProps> = ({
+const CardAnimationLayerInner: React.FC<CardAnimationLayerProps> = ({
   isShuffling,
   shuffleStyle,
   getDeckTargetPos,
   flyingCards,
   cardBack,
-  theme = 'traditional'
+  theme = 'traditional',
+  graphicsQuality = 'auto'
 }) => {
+  if (!isShuffling && flyingCards.length === 0) return null;
+
   return (
     <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
       {isShuffling && (
@@ -536,6 +553,7 @@ export const CardAnimationLayer: React.FC<CardAnimationLayerProps> = ({
           style={shuffleStyle}
           cardBack={cardBack}
           getDeckTargetPos={getDeckTargetPos}
+          graphicsQuality={graphicsQuality}
         />
       )}
 
@@ -545,3 +563,5 @@ export const CardAnimationLayer: React.FC<CardAnimationLayerProps> = ({
     </div>
   );
 };
+
+export const CardAnimationLayer = React.memo(CardAnimationLayerInner);

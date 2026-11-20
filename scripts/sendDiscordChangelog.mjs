@@ -33,15 +33,13 @@ if (!WEBHOOK_URL) {
 }
 
 const defaultBullets = [
-  '-overhauled card flight, shuffle, and deck cut animations for buttery-smooth GPU performance',
-  '-fixed audio crash that could freeze matches on shuffle when sound context started at 0',
-  '-fixed end-of-round card counting freeze and 4-player rotated card alignment',
-  '-fixed online RENQ call desync, discard recycling duplication, and spectator bugs',
-  '-eliminated per-card hover re-renders, idle canvas loops, and DOM style thrashing',
-  '-added full theme palettes for neon cyber, ottoman palace, and arctic aurora'
+  '-added 15s turn timer and AFK protection to online RENQ matches',
+  '-added 4-player online RENQ drop-in bot takeover when a player disconnects',
+  '-improved narrow mobile screen spacing for opponent seats',
+  '-routed remaining achievement error logs through centralized logger'
 ].join('\n');
 
-const versionTitle = process.argv[2] || 'v1.32.0';
+const versionTitle = process.argv[2] || 'v1.32.1';
 const rawDescription = process.argv[3] || defaultBullets;
 
 const changelogDescription = rawDescription

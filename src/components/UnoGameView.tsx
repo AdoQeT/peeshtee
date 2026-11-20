@@ -661,11 +661,17 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     startNewRound();
   }, [startNewRound]);
 
+  const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(15);
+  const turnTimeRef = useRef<number>(15);
+  turnTimeRef.current = turnTimeRemaining;
+
   // Advance turn according to direction and step
   const advanceTurn = useCallback(
     (step: number = 1, customDirection?: 1 | -1) => {
       setHasDrawnPlayableThisTurn(false);
       setNewlyDrawnCardId(null);
+      setTurnTimeRemaining(15);
+      turnTimeRef.current = 15;
       setGameState(prev => {
         const N = playersSyncRef.current.length;
         const dir = customDirection ?? prev.direction;
@@ -1323,9 +1329,47 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
             ? `${event.senderName || 'Rakip'} maçı terk etti.`
             : `${event.senderName || 'Rakip'} bağlantısı koptu.`
         );
+      } else if (event.type === 'MP_BOT_TAKEOVER') {
+        const currentPlayers = playersSyncRef.current;
+        const N = currentPlayers.length;
+        const targetLocalIdx = (event.seatIndex - mySeatIndex + N) % N;
+        const updated = currentPlayers.map((p, idx) =>
+          idx === targetLocalIdx
+            ? { ...p, isAI: true, name: event.botName || `${p.name} (Bot)` }
+            : p
+        );
+        playersSyncRef.current = updated;
+        setPlayers(updated);
+        showSeatBubble(targetLocalIdx, '🤖 Bot Devraldı', 2500);
+        pushActionLog(`🤖 ${event.botName || 'Bot'} ayrılan oyuncunun koltuğunu devraldı!`);
       } else if (event.type === 'PEER_DISCONNECTED') {
-        try { multiplayerManager.leaveRoom(); } catch {}
-        setMatchAbortedReason('Rakip masadan ayrıldı. Bağlantı koptu.');
+        // In 4-player online RENQ, Host seamlessly hands disconnected guest's seat to an AI bot so the match continues!
+        const disconnectedPeerId = event.peerId;
+        const currentPlayers = playersSyncRef.current;
+        const N = currentPlayers.length;
+        const droppedSlot = mpSlots?.find(s => s.peerId === disconnectedPeerId && !s.isHost && !s.isAI);
+        if (N >= 4 && isHost && droppedSlot) {
+          const targetLocalIdx = (droppedSlot.seatIndex - mySeatIndex + N) % N;
+          const botName = `${droppedSlot.name} (Bot)`;
+          const updated = currentPlayers.map((p, idx) =>
+            idx === targetLocalIdx ? { ...p, isAI: true, name: botName } : p
+          );
+          playersSyncRef.current = updated;
+          setPlayers(updated);
+          multiplayerManager.send({
+            type: 'MP_BOT_TAKEOVER',
+            seatIndex: droppedSlot.seatIndex,
+            botName,
+            botAvatar: '🤖',
+            botAvatarId: droppedSlot.avatarId || 'wolf',
+            senderPeerId: multiplayerManager.instanceId
+          });
+          showSeatBubble(targetLocalIdx, '🤖 Bot Devraldı', 2500);
+          pushActionLog(`🤖 ${droppedSlot.name} bağlantısı koptu — Bot devraldı!`);
+        } else {
+          try { multiplayerManager.leaveRoom(false); } catch {}
+          setMatchAbortedReason('Rakip masadan ayrıldı. Bağlantı koptu.');
+        }
       }
     });
 
@@ -1618,6 +1662,121 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     pushActionLog
   ]);
 
+  // Online RENQ Turn Countdown Timer (15s AFK protection + Host authoritative fallback)
+  useEffect(() => {
+    if (!isMultiplayer || gameState.isRoundOver || isAnimatingAction || isUnoShuffling || isInitialDealing) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      const nextVal = turnTimeRef.current - 1;
+      if (nextVal <= 0) {
+        turnTimeRef.current = 15;
+        setTurnTimeRemaining(15);
+
+        const activeTurn = gameStateSyncRef.current.currentTurn;
+        const topDiscard = gameStateSyncRef.current.discardPile[0];
+        const currentColor = gameStateSyncRef.current.currentColor;
+        const pendingPenalty = gameStateSyncRef.current.pendingDrawPenalty || 0;
+
+        if (activeTurn === 0 && !isSpectator) {
+          const me = playersSyncRef.current[0];
+          if (!me || !topDiscard) return;
+          const decision = getBotUnoPlay(me.hand, topDiscard, currentColor, pendingPenalty);
+          if (decision.cardToPlay) {
+            executePlayCard(0, decision.cardToPlay, decision.chosenWildColor);
+            multiplayerManager.send({
+              type: 'MP_UNO_PLAY_CARD',
+              cardId: decision.cardToPlay.id,
+              card: decision.cardToPlay,
+              chosenColor: decision.chosenWildColor,
+              seatIndex: mySeatIndex,
+              senderPeerId: multiplayerManager.instanceId
+            });
+          } else if (pendingPenalty > 0) {
+            deliverPenaltyCardsToPlayer(0, pendingPenalty);
+          } else {
+            multiplayerManager.send({
+              type: 'MP_UNO_DRAW_CARD',
+              seatIndex: mySeatIndex,
+              count: 1,
+              senderPeerId: multiplayerManager.instanceId
+            });
+            drawCardsForPlayer(0, 1, () => {
+              scheduleUnoTimer(() => {
+                multiplayerManager.send({
+                  type: 'MP_UNO_PASS',
+                  seatIndex: mySeatIndex,
+                  senderPeerId: multiplayerManager.instanceId
+                });
+                advanceTurn(1);
+              }, 350);
+            });
+          }
+        } else if (isHost && activeTurn !== 0) {
+          // Host authoritative fallback if a remote guest's tab is frozen/AFK
+          const stalledIdx = activeTurn;
+          scheduleUnoTimer(() => {
+            if (gameStateSyncRef.current.currentTurn !== stalledIdx || gameStateSyncRef.current.isRoundOver) return;
+            const stalledPlayer = playersSyncRef.current[stalledIdx];
+            const topD = gameStateSyncRef.current.discardPile[0];
+            if (!stalledPlayer || !topD) return;
+            const N = playersSyncRef.current.length;
+            const absSeat = (stalledIdx + mySeatIndex) % N;
+            const pen = gameStateSyncRef.current.pendingDrawPenalty || 0;
+            const dec = getBotUnoPlay(stalledPlayer.hand, topD, gameStateSyncRef.current.currentColor, pen);
+            if (dec.cardToPlay) {
+              executePlayCard(stalledIdx, dec.cardToPlay, dec.chosenWildColor);
+              multiplayerManager.send({
+                type: 'MP_UNO_PLAY_CARD',
+                cardId: dec.cardToPlay.id,
+                card: dec.cardToPlay,
+                chosenColor: dec.chosenWildColor,
+                seatIndex: absSeat,
+                senderPeerId: multiplayerManager.instanceId
+              });
+            } else if (pen > 0) {
+              deliverPenaltyCardsToPlayer(stalledIdx, pen);
+              multiplayerManager.send({
+                type: 'MP_UNO_DRAW_CARD',
+                seatIndex: absSeat,
+                count: pen,
+                penalty: true,
+                senderPeerId: multiplayerManager.instanceId
+              });
+            } else {
+              multiplayerManager.send({
+                type: 'MP_UNO_PASS',
+                seatIndex: absSeat,
+                senderPeerId: multiplayerManager.instanceId
+              });
+              advanceTurn(1);
+            }
+          }, 2200);
+        }
+      } else {
+        turnTimeRef.current = nextVal;
+        setTurnTimeRemaining(nextVal);
+      }
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [
+    isMultiplayer,
+    isHost,
+    isSpectator,
+    mySeatIndex,
+    gameState.isRoundOver,
+    isAnimatingAction,
+    isUnoShuffling,
+    isInitialDealing,
+    executePlayCard,
+    deliverPenaltyCardsToPlayer,
+    drawCardsForPlayer,
+    advanceTurn,
+    scheduleUnoTimer
+  ]);
+
   // Auto-deliver penalty to human player if they have NO cards to counter (+2 / +4)
   useEffect(() => {
     if (isSpectator || gameState.isRoundOver || isAnimatingAction || gameState.currentTurn !== 0) return;
@@ -1834,6 +1993,19 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
               </>
             )}
           </div>
+
+          {isMultiplayer && !gameState.isRoundOver && (
+            <div
+              className={`px-2.5 py-1 rounded-full text-xs font-mono font-black border transition-colors ${
+                turnTimeRemaining <= 5
+                  ? 'bg-rose-600/30 text-rose-200 border-rose-400 animate-pulse'
+                  : 'bg-slate-900/85 text-amber-300 border-amber-400/35'
+              }`}
+              title="Sıra Süresi"
+            >
+              ⏱️ {turnTimeRemaining}s
+            </div>
+          )}
 
           <div className="hidden md:block text-xs font-bold text-slate-300 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10">
             {t.targetScoreLabel}: <strong className="text-amber-300">{gameState.targetScore}P</strong>

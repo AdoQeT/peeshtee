@@ -1,5 +1,6 @@
 import { UserProfile, addXp } from '../profile/profileManager';
 import { sound } from '../../core/audio/soundEngine';
+import { logger } from '../../utils/logger';
 
 export interface Achievement {
   id: string;
@@ -108,7 +109,7 @@ export function triggerAchievementUnlock(ach: UnlockedAchievementNotification) {
     try {
       l(ach);
     } catch (e) {
-      console.error('Achievement listener error:', e);
+      logger.error('Achievement listener error:', e);
     }
   });
 }

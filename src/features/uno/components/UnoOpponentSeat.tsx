@@ -98,7 +98,7 @@ export const UnoOpponentSeat: React.FC<UnoOpponentSeatProps> = React.memo(({
 
       {/* Opponent Badge Card */}
       <div
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition-all duration-200 ${
+        className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl border transition-all duration-200 max-w-[140px] sm:max-w-none ${
           isTurn
             ? 'bg-amber-500/35 border-amber-300 ring-4 ring-amber-400/80 shadow-[0_0_35px_rgba(245,158,11,0.95)] scale-105'
             : player.hand.length === 1
@@ -148,7 +148,7 @@ export const UnoOpponentSeat: React.FC<UnoOpponentSeatProps> = React.memo(({
       <div
         ref={cardRackRefCallback}
         className={`flex items-center justify-center ${
-          position === 'top' ? '-space-x-8 mt-1.5 min-h-[74px]' : '-space-x-9 mt-1 min-h-[68px]'
+          position === 'top' ? '-space-x-9 sm:-space-x-8 mt-1.5 min-h-[70px] sm:min-h-[74px]' : '-space-x-10 sm:-space-x-9 mt-1 min-h-[64px] sm:min-h-[68px]'
         }`}
       >
         {Array.from({ length: visibleCardsCount }).map((_, i) => {

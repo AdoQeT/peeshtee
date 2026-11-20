@@ -947,14 +947,53 @@ export const CardCountingOverlay: React.FC<Props> = ({
                   </span>
                 </div>
 
-                {onRestartGame && (
-                  <button
-                    onClick={onRestartGame}
-                    className="w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    <span>{t.newMatch}</span>
-                  </button>
+                {isMultiplayer ? (
+                  <div className="w-full flex flex-col items-center gap-2">
+                    {slotsReadiness.length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-1.5">
+                        {slotsReadiness.map(slot => (
+                          <div
+                            key={slot.seatIndex}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${
+                              slot.isReady
+                                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400/80 shadow-[0_0_10px_rgba(52,211,153,0.35)]'
+                                : 'bg-slate-900/85 text-slate-400 border-slate-700/60'
+                            }`}
+                          >
+                            <span>{slot.isReady ? '✅' : '⏳'}</span>
+                            <span>{slot.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={onToggleReady}
+                      className={`w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shadow-xl ${
+                        isReadyForNextRound
+                          ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-300'
+                          : 'bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 animate-pulse'
+                      }`}
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      {isReadyForNextRound ? (
+                        <span>
+                          ✅ {lang === 'tr' ? 'Rövanş İçin Hazır' : 'Ready for Rematch'} ({readySeatsCount}/{totalHumanPlayersCount})
+                        </span>
+                      ) : (
+                        <span>{lang === 'tr' ? '🔥 Rövanş İste (Hazır)' : '🔥 Request Rematch (Ready)'}</span>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  onRestartGame && (
+                    <button
+                      onClick={onRestartGame}
+                      className="w-full py-2.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 shadow-xl cursor-pointer transition-transform active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>{t.newMatch}</span>
+                    </button>
+                  )
                 )}
               </div>
             ) : isMultiplayer ? (

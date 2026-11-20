@@ -298,6 +298,7 @@ export interface UseMultiplayerEventsProps {
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
   tableCardsRef: React.MutableRefObject<Card[]>;
   setTableCards: React.Dispatch<React.SetStateAction<Card[]>>;
+  setDeck?: React.Dispatch<React.SetStateAction<Card[]>>;
   currentTurnRef: React.MutableRefObject<number>;
   settingsRef: React.MutableRefObject<GameSettings>;
   matchIntroRef: React.MutableRefObject<unknown>;
@@ -360,6 +361,7 @@ export function useMultiplayerEvents({
   setPlayers,
   tableCardsRef,
   setTableCards,
+  setDeck,
   currentTurnRef,
   settingsRef,
   matchIntroRef,
@@ -461,7 +463,14 @@ export function useMultiplayerEvents({
         }
 
         const senderSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === msg.seatIndex);
-        if (!senderSlot || !senderSlot.peerId || !envelopeSender || senderSlot.peerId !== envelopeSender) {
+        const hostSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === 0 || s.isHost);
+        const expectedPeerId = senderSlot?.isAI ? hostSlot?.peerId : senderSlot?.peerId;
+        const isHostAssistedTimeout = Boolean(hostSlot?.peerId && envelopeSender === hostSlot.peerId);
+        if (
+          !senderSlot ||
+          !envelopeSender ||
+          (!isHostAssistedTimeout && (!expectedPeerId || expectedPeerId !== envelopeSender))
+        ) {
           logger.warn(
             `[Anti-Cheat] Unauthorized card play rejected: verified sender "${envelopeSender}" is not registered in seat ${msg.seatIndex} (slot peerId: "${senderSlot?.peerId}")!`
           );
@@ -584,11 +593,111 @@ export function useMultiplayerEvents({
         setPeerReconnectingSeconds(null);
       } else if (msg.type === 'PEER_DISCONNECTED') {
         setPeerReconnectingSeconds(null);
-        if (isMultiplayerGameRef.current) {
+        if (!isMultiplayerGameRef.current) return;
+
+        const slots = activeMultiplayerSlotsRef.current || [];
+        const disconnectedPeerId = msg.peerId;
+        const hostSlot = slots.find(s => s.seatIndex === 0 || s.isHost);
+
+        // If the Host disconnected, the room cannot continue
+        if (!multiplayerManager.isHost && hostSlot && disconnectedPeerId === hostSlot.peerId) {
+          setMatchAbortedInfo({
+            senderName: hostSlot.name || 'Oda Kurucu',
+            reason: 'disconnect'
+          });
+          return;
+        }
+
+        // If a Guest disconnected in a 4-player match (or if Host handles takeover while other humans remain)
+        if (multiplayerManager.isHost && disconnectedPeerId) {
+          const droppedSlot = slots.find(s => s.peerId === disconnectedPeerId && !s.isHost && !s.isAI);
+          if (droppedSlot) {
+            const remainingHumans = slots.filter(
+              s => s.peerId !== disconnectedPeerId && !s.isAI && s.peerId && s.peerId !== ''
+            );
+            // In 4-player mode with at least 2 humans left (Host + at least 1 Guest), convert seat to Bot instead of aborting!
+            if (slots.length === 4 && remainingHumans.length >= 2) {
+              const botName = `${droppedSlot.name} (Bot)`;
+              const botAvatar = '🤖';
+              const botAvatarId = droppedSlot.avatarId || 'lion';
+              const nextSlots = slots.map(s =>
+                s.seatIndex === droppedSlot.seatIndex
+                  ? { ...s, isAI: true, name: botName, avatar: botAvatar, avatarId: botAvatarId }
+                  : s
+              );
+              activeMultiplayerSlotsRef.current = nextSlots;
+              setActiveMultiplayerSlots(nextSlots);
+
+              const N = settingsRef.current.playerCount;
+              const localIdx = (droppedSlot.seatIndex - myMultiplayerSeatRef.current + N) % N;
+              const nextPlayers = playersRef.current.map((p, idx) =>
+                idx === localIdx ? { ...p, isAI: true, name: botName, avatar: botAvatar } : p
+              );
+              playersRef.current = nextPlayers;
+              setPlayers(nextPlayers);
+
+              multiplayerManager.send({
+                type: 'MP_BOT_TAKEOVER',
+                seatIndex: droppedSlot.seatIndex,
+                botName,
+                botAvatar,
+                botAvatarId,
+                senderPeerId: multiplayerManager.instanceId
+              });
+              return;
+            }
+          }
+        }
+
+        // Default fallback for 1v1 disconnect
+        if (multiplayerManager.isHost) {
           setMatchAbortedInfo({
             senderName: 'Rakip',
             reason: 'disconnect'
           });
+        }
+      } else if (msg.type === 'MP_BOT_TAKEOVER') {
+        const nextSlots = (activeMultiplayerSlotsRef.current || []).map(s =>
+          s.seatIndex === msg.seatIndex
+            ? {
+                ...s,
+                isAI: true,
+                name: msg.botName,
+                avatar: msg.botAvatar,
+                avatarId: msg.botAvatarId
+              }
+            : s
+        );
+        activeMultiplayerSlotsRef.current = nextSlots;
+        setActiveMultiplayerSlots(nextSlots);
+
+        const N = settingsRef.current.playerCount;
+        const localIdx = (msg.seatIndex - myMultiplayerSeatRef.current + N) % N;
+        const nextPlayers = playersRef.current.map((p, idx) =>
+          idx === localIdx
+            ? { ...p, isAI: true, name: msg.botName, avatar: msg.botAvatar, avatarId: msg.botAvatarId }
+            : p
+        );
+        playersRef.current = nextPlayers;
+        setPlayers(nextPlayers);
+      } else if (msg.type === 'MP_REMATCH_START') {
+        if (!multiplayerManager.isHost) {
+          setReadySeatsForNextRound(new Set());
+          setRoundScores(null);
+          const resetScores = playersRef.current.map(p => ({
+            ...p,
+            score: 0,
+            roundScore: 0,
+            pistiCount: 0,
+            doublePistiCount: 0,
+            collectedCards: [],
+            pistiPairs: []
+          }));
+          playersRef.current = resetScores;
+          setPlayers(resetScores);
+          const N = settingsRef.current.playerCount;
+          const guestStartingTurn = (msg.startingTurnSeat - myMultiplayerSeatRef.current + N) % N;
+          onStartNextRoundWithDeck(msg.seedDeck, msg.shuffleStyle, guestStartingTurn);
         }
       } else if (msg.type === 'MP_DECK_CUT') {
         if (msg.senderPeerId === multiplayerManager.instanceId) return;
@@ -612,9 +721,16 @@ export function useMultiplayerEvents({
           tableCardsRef.current = patchedTable;
           setTableCards(patchedTable);
 
-          const patchedPlayers = playersRef.current.map(p => ({
+          if (setDeck) {
+            setDeck(prevDeck => prevDeck.map(patchCard));
+          }
+
+          const patchedPlayers = playersRef.current.map((p, idx) => ({
             ...p,
-            hand: p.hand.map(patchCard),
+            hand: p.hand.map(c => {
+              const patched = patchCard(c);
+              return idx === 0 && !isSpectatorRef.current ? { ...patched, faceUp: true } : patched;
+            }),
             collectedCards: p.collectedCards.map(patchCard),
             pistiPairs: p.pistiPairs.map(pair => ({
               ...pair,

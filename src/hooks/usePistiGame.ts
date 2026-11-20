@@ -649,7 +649,10 @@ export function usePistiGame({
           revealedJackCards: []
         });
 
-        const isAiSlot = isMp ? (activeMultiplayerSlotsRef.current?.[cutterSeatIdx]?.isAI || false) : !isHuman;
+        const N = configuredSettings.playerCount;
+        const absCutterSeat = isMp ? (cutterSeatIdx + mySeat) % N : cutterSeatIdx;
+        const cutterSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === absCutterSeat);
+        const isAiSlot = isMp ? Boolean(cutterSlot?.isAI) : !isHuman;
         const shouldAutoCut = (!isMp && !isHuman) || (isMp && multiplayerManager.isHost && isAiSlot);
         if (shouldAutoCut) {
           const botTimer = window.setTimeout(() => {
@@ -657,6 +660,15 @@ export function usePistiGame({
             handleCutDeckAndProceed(botCut);
           }, 1350);
           dealTimersRef.current.push(botTimer);
+        } else if (isMp && multiplayerManager.isHost && !isHuman) {
+          // Safety fallback: if remote human cutter doesn't cut within 10s, Host auto-cuts to prevent freeze
+          const safetyCutTimer = window.setTimeout(() => {
+            if (pendingDealContextRef.current) {
+              const fallbackCut = Math.floor(18 + Math.random() * 18);
+              handleCutDeckAndProceed(fallbackCut);
+            }
+          }, 10000);
+          dealTimersRef.current.push(safetyCutTimer);
         }
       }, shuffleDuration);
 
@@ -1273,7 +1285,11 @@ export function usePistiGame({
           revealedJackCards: []
         });
 
-        const isAiSlot = isMp ? (activeMultiplayerSlotsRef.current?.[cutterSeatIdx]?.isAI || false) : !isHuman;
+        const N = currentSettings.playerCount;
+        const mySeatNow = isMp ? myMultiplayerSeatRef.current : 0;
+        const absCutterSeat = isMp ? (cutterSeatIdx + mySeatNow) % N : cutterSeatIdx;
+        const cutterSlot = activeMultiplayerSlotsRef.current?.find(s => s.seatIndex === absCutterSeat);
+        const isAiSlot = isMp ? Boolean(cutterSlot?.isAI) : !isHuman;
         const shouldAutoCut = (!isMp && !isHuman) || (isMp && multiplayerManager.isHost && isAiSlot);
         if (shouldAutoCut) {
           const botTimer = window.setTimeout(() => {
@@ -1281,6 +1297,15 @@ export function usePistiGame({
             handleCutDeckAndProceed(botCut);
           }, 1350);
           dealTimersRef.current.push(botTimer);
+        } else if (isMp && multiplayerManager.isHost && !isHuman) {
+          // Safety fallback: if remote human cutter doesn't cut within 10s, Host auto-cuts to prevent freeze
+          const safetyCutTimer = window.setTimeout(() => {
+            if (pendingDealContextRef.current) {
+              const fallbackCut = Math.floor(18 + Math.random() * 18);
+              handleCutDeckAndProceed(fallbackCut);
+            }
+          }, 10000);
+          dealTimersRef.current.push(safetyCutTimer);
         }
       }, shuffleDuration);
       dealTimersRef.current.push(t);
@@ -1374,7 +1399,7 @@ export function usePistiGame({
       const tableOffsetY = ((hashNum * 3) % 13) - 6;
       const tableRotation = ((hashNum * 7) % 19) - 9;
 
-      // Broadcast move if local player in Multiplayer OR if host simulating bot in Multiplayer
+      // Broadcast move if local player in Multiplayer OR if host simulating bot/timeout in Multiplayer
       const N = settingsRef.current.playerCount;
       const absSeat = (playerIndex + myMultiplayerSeatRef.current) % N;
       const targetPlayerObj = playersRef.current[playerIndex];
@@ -1382,7 +1407,7 @@ export function usePistiGame({
         !isRemoteMultiplayerMove &&
         multiplayerManager.isConnected &&
         isMultiplayerGameRef.current &&
-        (isHuman || (isMultiplayerHostRef.current && targetPlayerObj?.isAI));
+        ((isHuman && !isSpectatorRef?.current) || isMultiplayerHostRef.current);
 
       if (shouldBroadcast) {
         multiplayerManager.send({
@@ -1937,13 +1962,30 @@ export function usePistiGame({
     const interval = window.setInterval(() => {
       setTurnTimeRemaining(prev => {
         if (prev <= 1) {
-          if (currentTurn === 0) {
+          if (currentTurn === 0 && !isSpectatorRef?.current) {
             const userPlayer = playersRef.current[0];
-            if (userPlayer.hand.length > 0) {
+            if (userPlayer && userPlayer.hand.length > 0) {
               const randomCard =
                 userPlayer.hand[Math.floor(Math.random() * userPlayer.hand.length)];
               handlePlayCardWithAnimation(0, randomCard);
             }
+          } else if (multiplayerManager.isHost && currentTurn !== 0) {
+            // Host authoritative timeout fallback if a remote guest's tab is backgrounded/frozen
+            const stalledIdx = currentTurn;
+            window.setTimeout(() => {
+              if (
+                currentTurnRef.current === stalledIdx &&
+                !isBusyRef.current &&
+                !isDealingAnimationRef.current &&
+                !isShufflingRef.current
+              ) {
+                const stalledPlayer = playersRef.current[stalledIdx];
+                if (stalledPlayer && stalledPlayer.hand.length > 0) {
+                  const fallbackCard = stalledPlayer.hand[0];
+                  handlePlayCardWithAnimation(stalledIdx, fallbackCard);
+                }
+              }
+            }, 2200);
           }
           return 15;
         }
@@ -2213,13 +2255,53 @@ export function usePistiGame({
     }
   }, [readySeatsForNextRound, isMultiplayerGame, myMultiplayerSeatRef, setReadySeatsForNextRound]);
 
-  // Host Synchronous Auto-Start
+  const handleStartMultiplayerRematch = useCallback(() => {
+    setReadySeatsForNextRound(new Set());
+    setRoundScores(null);
+    setRound(1);
+    const N = players.length;
+    setDealerIndex(N - 1);
+    const hostTurn = 0;
+
+    const resetPlayers = playersRef.current.map(p => ({
+      ...p,
+      score: 0,
+      roundScore: 0,
+      pistiCount: 0,
+      doublePistiCount: 0,
+      collectedCards: [],
+      pistiPairs: []
+    }));
+    playersRef.current = resetPlayers;
+    setPlayers(resetPlayers);
+
+    const randomStyle = SHUFFLE_STYLES[Math.floor(Math.random() * SHUFFLE_STYLES.length)];
+    const freshDeck = assignOpaqueDeckIds(shuffleDeck(createDeck()));
+
+    if (isMultiplayerGame && multiplayerManager.isConnected) {
+      const publicMaskedDeck = freshDeck.map(c => createMaskedCard(c.id));
+      multiplayerManager.send({
+        type: 'MP_REMATCH_START',
+        seedDeck: publicMaskedDeck,
+        shuffleStyle: randomStyle,
+        startingTurnSeat: 0,
+        senderPeerId: multiplayerManager.instanceId
+      });
+      startNextRoundWithDeck(freshDeck, randomStyle, hostTurn);
+    }
+  }, [
+    players.length,
+    isMultiplayerGame,
+    startNextRoundWithDeck,
+    setReadySeatsForNextRound
+  ]);
+
+  // Host Synchronous Auto-Start (Next Round OR Post-Match Rematch)
   useEffect(() => {
     if (
       !isMultiplayerGame ||
       !multiplayerManager.isHost ||
       !onTableCount.isDone ||
-      roundScores?.isGameOver ||
       humanSlots.length === 0
     ) {
       return;
@@ -2228,7 +2310,11 @@ export function usePistiGame({
     const allReady = humanSlots.every((s: SlotReadinessInfo) => s.isReady);
     if (allReady) {
       const t = window.setTimeout(() => {
-        handleNextRound();
+        if (roundScores?.isGameOver) {
+          handleStartMultiplayerRematch();
+        } else {
+          handleNextRound();
+        }
       }, 500);
       return () => window.clearTimeout(t);
     }
@@ -2237,7 +2323,8 @@ export function usePistiGame({
     onTableCount.isDone,
     roundScores?.isGameOver,
     humanSlots,
-    handleNextRound
+    handleNextRound,
+    handleStartMultiplayerRematch
   ]);
 
   const handleRestartGame = useCallback(() => {

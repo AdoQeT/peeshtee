@@ -208,6 +208,7 @@ export default function App() {
     tableRefs,
     dealTimersRef,
     deck,
+    setDeck,
     tableCards,
     setTableCards,
     tableCardsRef,
@@ -219,6 +220,7 @@ export default function App() {
     dealerIndex,
     activeSlam,
     setActiveSlam,
+    seenCards,
     roundScores,
     setRoundScores,
     countingUserCards,
@@ -452,6 +454,7 @@ export default function App() {
     setPlayers,
     tableCardsRef,
     setTableCards,
+    setDeck,
     currentTurnRef,
     settingsRef,
     matchIntroRef,
@@ -703,6 +706,8 @@ export default function App() {
             soundEnabled={settings.soundEnabled}
             theme={settings.theme}
             fiveRuleEnabled={settings.fiveRuleEnabled}
+            isMultiplayer={isMultiplayerGame}
+            seenCards={seenCards}
             onToggleSound={() => {
               const val = !settings.soundEnabled;
               sound.setEnabled(val);

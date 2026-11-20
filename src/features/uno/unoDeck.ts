@@ -114,9 +114,12 @@ export function dealUnoGame(
   if (discardIdx === -1) discardIdx = 0;
   const initialDiscard = remaining.splice(discardIdx, 1)[0];
 
+  const deterministicColorIdx =
+    (initialDiscard.id || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) %
+    REGULAR_COLORS.length;
   const initialColor =
     initialDiscard.color === 'wild'
-      ? REGULAR_COLORS[Math.floor(Math.random() * REGULAR_COLORS.length)]
+      ? REGULAR_COLORS[deterministicColorIdx]
       : initialDiscard.color;
 
   return {

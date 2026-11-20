@@ -246,6 +246,21 @@ export type MultiplayerEvent =
       type: 'REQUEST_SEAT_CHANGE';
       targetSeatIndex: number;
       senderPeerId: string;
+    }
+  | {
+      type: 'MP_BOT_TAKEOVER';
+      seatIndex: number;
+      botName: string;
+      botAvatar: string;
+      botAvatarId: string;
+      senderPeerId?: string;
+    }
+  | {
+      type: 'MP_REMATCH_START';
+      seedDeck: Card[];
+      shuffleStyle: ShuffleStyle;
+      startingTurnSeat: number;
+      senderPeerId?: string;
     };
 
 /** Multiplayer event as delivered locally, tagged with the envelope's verified sender id. */
@@ -414,27 +429,31 @@ export class MultiplayerManager {
         }
 
         // Notify if a peer disconnected or closed tab while in room (with 8s grace window for refresh/reconnect)
+        const lostPeers: string[] = [];
         if (previousPeerIds.size > 0) {
           previousPeerIds.forEach(id => {
             if (!currentPeerIds.has(id)) {
-              if (!this.isPeerReconnecting) {
-                this.isPeerReconnecting = true;
-                this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft: 8 });
-                if (this.disconnectGraceTimer) window.clearTimeout(this.disconnectGraceTimer);
-                this.disconnectGraceTimer = window.setTimeout(() => {
-                  this.disconnectGraceTimer = null;
-                  if (this.isPeerReconnecting) {
-                    this.isPeerReconnecting = false;
-                    this.dispatch({ type: 'PEER_DISCONNECTED', peerId: id });
-                  }
-                }, 8000);
-              }
+              lostPeers.push(id);
             }
           });
         }
         previousPeerIds = currentPeerIds;
 
-        if (currentPeerIds.size > 0) {
+        if (lostPeers.length > 0) {
+          if (!this.isPeerReconnecting) {
+            this.isPeerReconnecting = true;
+            this.dispatch({ type: 'PEER_RECONNECTING', secondsLeft: 8 });
+            if (this.disconnectGraceTimer) window.clearTimeout(this.disconnectGraceTimer);
+            const droppedId = lostPeers[0];
+            this.disconnectGraceTimer = window.setTimeout(() => {
+              this.disconnectGraceTimer = null;
+              if (this.isPeerReconnecting) {
+                this.isPeerReconnecting = false;
+                this.dispatch({ type: 'PEER_DISCONNECTED', peerId: droppedId });
+              }
+            }, 8000);
+          }
+        } else if (currentPeerIds.size > 0) {
           this.lastRemoteMessageTime = Date.now();
           if (this.disconnectGraceTimer) {
             window.clearTimeout(this.disconnectGraceTimer);

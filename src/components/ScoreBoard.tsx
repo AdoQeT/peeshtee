@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Player, TableTheme } from '../types/game';
-import { Volume2, VolumeX, Home, Settings, Flame, Shield, Layers } from 'lucide-react';
+import { Card, Player, TableTheme } from '../types/game';
+import { Volume2, VolumeX, Home, Settings, Flame, Shield, Layers, Eye } from 'lucide-react';
 import { AvatarBadge } from './AvatarBadge';
 import { getUserProfile, getAvatarPreset } from '../features/profile/profileManager';
 import { getLanguage, onLanguageChange, translations, Language } from '../utils/i18n';
@@ -14,6 +14,8 @@ interface ScoreBoardProps {
   soundEnabled: boolean;
   theme: TableTheme;
   fiveRuleEnabled: boolean;
+  isMultiplayer?: boolean;
+  seenCards?: Card[];
   onToggleSound: () => void;
   onOpenSettings: () => void;
   onExitToMenu: () => void;
@@ -27,11 +29,14 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
   round,
   soundEnabled,
   fiveRuleEnabled,
+  isMultiplayer = false,
+  seenCards = [],
   onToggleSound,
   onOpenSettings,
   onExitToMenu
 }) => {
   const [lang, setLang] = useState<Language>(getLanguage());
+  const [showCardTracker, setShowCardTracker] = useState(false);
   useEffect(() => {
     return onLanguageChange(setLang);
   }, []);
@@ -173,7 +178,23 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
           </div>
         )}
 
-        <div className="flex items-center gap-1.5">
+        <div className="relative flex items-center gap-1.5">
+          {!isMultiplayer && (
+            <button
+              onClick={() => setShowCardTracker(prev => !prev)}
+              title={lang === 'tr' ? 'Kart Sayacı (Geçen Kartlar)' : 'Card Counter (Seen Cards)'}
+              className={`p-1.5 rounded-xl transition-all border cursor-pointer shadow-sm active:scale-95 flex items-center gap-1 ${
+                showCardTracker
+                  ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                  : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border-white/10'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline text-[10px] font-bold">
+                {lang === 'tr' ? 'Sayaç' : 'Tracker'}
+              </span>
+            </button>
+          )}
           <button
             onClick={onToggleSound}
             title={soundEnabled ? t.soundOff : t.soundOn}
@@ -199,6 +220,54 @@ export const ScoreBoard: React.FC<ScoreBoardProps> = ({
           >
             <Home className="w-3.5 h-3.5" />
           </button>
+
+          {/* Singleplayer Card Counter Popover */}
+          {!isMultiplayer && showCardTracker && (
+            <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 w-72 sm:w-80 p-3 rounded-2xl bg-slate-950/95 border border-amber-400/50 shadow-[0_15px_40px_rgba(0,0,0,0.9)] backdrop-blur-xl text-left">
+              <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-white/10">
+                <span className="text-[11px] font-black text-amber-300 font-cyber">
+                  🃏 {lang === 'tr' ? 'MASADAN GEÇEN KARTLAR' : 'SEEN CARDS TRACKER'}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  {seenCards.length}/52
+                </span>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {[
+                  { v: 1, l: 'A' },
+                  { v: 11, l: 'J' },
+                  { v: 10, l: '10' },
+                  { v: 2, l: '2' },
+                  { v: 13, l: 'K' },
+                  { v: 12, l: 'Q' },
+                  { v: 9, l: '9' },
+                  { v: 8, l: '8' },
+                  { v: 7, l: '7' },
+                  { v: 6, l: '6' },
+                  { v: 5, l: '5' },
+                  { v: 4, l: '4' },
+                  { v: 3, l: '3' }
+                ].map(item => {
+                  const seenCount = seenCards.filter(c => c.value === item.v).length;
+                  return (
+                    <div
+                      key={item.v}
+                      className={`p-1 rounded-lg border text-[10px] font-mono ${
+                        seenCount >= 4
+                          ? 'bg-rose-950/60 border-rose-500/40 text-rose-300 opacity-60'
+                          : seenCount > 0
+                          ? 'bg-amber-500/15 border-amber-400/40 text-amber-200'
+                          : 'bg-slate-900 border-white/10 text-slate-400'
+                      }`}
+                    >
+                      <div className="font-black text-white">{item.l}</div>
+                      <div className="text-[9px]">{seenCount}/4</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

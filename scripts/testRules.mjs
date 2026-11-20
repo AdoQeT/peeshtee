@@ -233,9 +233,35 @@ test('C2 deck secrecy: buildMaskedCutDeckForSeat hides opponent cards & 3 face-d
     guestDeal.playerHands[1].map(c => `${c.suit}-${c.value}`),
     hostDeal.playerHands[1].map(c => `${c.suit}-${c.value}`)
   );
+
+  // 4-Player 2v2 Deck Secrecy across all dealing waves (Wave 1 + Wave 2 + Wave 3)
+  const masked4PSeat2 = buildMaskedCutDeckForSeat(realDeck, 2, 4, 0, 0);
+  const host4PDeal = dealInitialGame(realDeck, 4, true, 0, 0);
+  const guest4PDeal = dealInitialGame(masked4PSeat2, 4, true, 0, 0);
+  assert.equal(guest4PDeal.playerHands[2].every(c => !isMaskedCard(c)), true);
+  assert.deepEqual(
+    guest4PDeal.playerHands[2].map(c => `${c.suit}-${c.value}`),
+    host4PDeal.playerHands[2].map(c => `${c.suit}-${c.value}`)
+  );
+  // Wave 2 refill simulation for 4 players
+  const hostRem = [...host4PDeal.remainingDeck];
+  const guestRem = [...guest4PDeal.remainingDeck];
+  for (let seat = 0; seat < 4; seat++) {
+    for (let i = 0; i < 4; i++) {
+      const hCard = hostRem.pop();
+      const gCard = guestRem.pop();
+      if (seat === 2) {
+        assert.equal(isMaskedCard(gCard), false);
+        assert.equal(gCard.suit, hCard.suit);
+        assert.equal(gCard.value, hCard.value);
+      } else {
+        assert.equal(isMaskedCard(gCard), true);
+      }
+    }
+  }
 });
 
-test('C2 Uno deck secrecy: buildMaskedUnoDeckForSeat hides opponent hands & draw pile while matching initial discard', () => {
+test('C2 Uno deck secrecy: buildMaskedUnoDeckForSeat hides opponent hands & draw pile while matching initial discard and deterministic initialColor', () => {
   const realUno = assignOpaqueUnoDeckIds(shuffleUnoDeck(createUnoDeck()));
   const maskedGuest = buildMaskedUnoDeckForSeat(realUno, 1, 2);
 
@@ -245,6 +271,7 @@ test('C2 Uno deck secrecy: buildMaskedUnoDeckForSeat hides opponent hands & draw
   assert.equal(guestDealt.initialDiscard.id, hostDealt.initialDiscard.id);
   assert.equal(guestDealt.initialDiscard.color, hostDealt.initialDiscard.color);
   assert.equal(guestDealt.initialDiscard.value, hostDealt.initialDiscard.value);
+  assert.equal(guestDealt.initialColor, hostDealt.initialColor);
   assert.deepEqual(
     guestDealt.hands[1].map(c => `${c.color}-${c.value}`),
     hostDealt.hands[1].map(c => `${c.color}-${c.value}`)

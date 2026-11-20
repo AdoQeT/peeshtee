@@ -622,8 +622,12 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
     }, finishDealDelay);
   }, [getSafeSeatRect, spawnFlyingUnoCard, triggerBanner, pushActionLog]);
 
-  // Initial Deal
+  const initialRoundStartedRef = useRef(false);
+
+  // Initial Deal (runs once on mount; subsequent rounds are triggered via MP_UNO_PRIVATE_DEAL or Next Round button)
   useEffect(() => {
+    if (initialRoundStartedRef.current) return;
+    initialRoundStartedRef.current = true;
     startNewRound();
   }, [startNewRound]);
 
@@ -1507,17 +1511,17 @@ export const UnoGameView: React.FC<UnoGameViewProps> = ({
         } else {
           setIsAnimatingAction(true);
           showSeatBubble(botIdx, '📥 Kart Çekiyor...', 1800);
+          if (isMultiplayer) {
+            const botAbsSeat = (botIdx + mySeatIndex) % players.length;
+            multiplayerManager.send({
+              type: 'MP_UNO_DRAW_CARD',
+              seatIndex: botAbsSeat,
+              count: 1,
+              penalty: false,
+              senderPeerId: multiplayerManager.instanceId
+            });
+          }
           drawCardsForPlayer(botIdx, 1, drawn => {
-            if (isMultiplayer) {
-              const botAbsSeat = (botIdx + mySeatIndex) % players.length;
-              multiplayerManager.send({
-                type: 'MP_UNO_DRAW_CARD',
-                seatIndex: botAbsSeat,
-                count: 1,
-                penalty: false,
-                senderPeerId: multiplayerManager.instanceId
-              });
-            }
             if (
               drawn.length > 0 &&
               canPlayUnoCard(drawn[0], topDiscard, currentColor, 0)

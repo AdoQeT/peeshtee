@@ -160,6 +160,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [fiveRuleEnabled, setFiveRuleEnabled] = useState<boolean>(
     initialSettings.fiveRuleEnabled || false
   );
+  const [aiDifficulty, setAiDifficulty] = useState<'easy' | 'medium' | 'hard'>(
+    initialSettings.aiDifficulty || 'medium'
+  );
 
   const localNameRef = useRef(localName);
   localNameRef.current = localName;
@@ -182,13 +185,15 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     ...initialSettings,
     targetScore,
     fiveRuleEnabled,
-    playerCount
+    playerCount,
+    aiDifficulty
   });
   settingsRef.current = {
     ...initialSettings,
     targetScore,
     fiveRuleEnabled,
-    playerCount
+    playerCount,
+    aiDifficulty
   };
 
   useEffect(() => {
@@ -315,9 +320,13 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               };
             } else {
               isNewPlayer = true;
-              const emptyIdx = next.findIndex(
-                s => s.seatIndex > 0 && (!s.peerId || s.peerId === '')
+              let emptyIdx = next.findIndex(
+                s => s.seatIndex > 0 && !s.isAI && (!s.peerId || s.peerId === '')
               );
+              if (emptyIdx === -1) {
+                // If all empty seats are filled by AI bots, replace the first AI bot seat with this human guest
+                emptyIdx = next.findIndex(s => s.seatIndex > 0 && Boolean(s.isAI));
+              }
               if (emptyIdx !== -1) {
                 next[emptyIdx] = {
                   ...next[emptyIdx],
@@ -328,7 +337,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   customAvatarUrl: event.guestCustomAvatarUrl,
                   customTitle: event.guestCustomTitle,
                   level: event.guestLevel || 1,
-                  isHost: false
+                  isHost: false,
+                  isAI: false
                 };
               } else {
                 // Table seats full -> auto-join as spectator
@@ -618,6 +628,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         next[idxA] = slotB;
         next[idxB] = slotA;
         next.sort((a, b) => a.seatIndex - b.seatIndex);
+        slotsRef.current = next;
 
         multiplayerManager.send({
           type: 'HOST_LOBBY_SYNC',
@@ -630,7 +641,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
             ...settingsRef.current,
             playerCount: playerCountRef.current
           },
-          slots: next
+          slots: next,
+          spectators: spectatorsRef.current
         });
         return next;
       });
@@ -641,6 +653,59 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         senderPeerId: multiplayerManager.instanceId
       });
     }
+  };
+
+  const handleToggleBotInSeat = (seatIdx: number) => {
+    if (!multiplayerManager.isHost || seatIdx <= 0) return;
+    sound.playClick();
+    const botNames = getRandomBotNames(3, lang);
+    setSlots(prev => {
+      const next = prev.map(s => {
+        if (s.seatIndex !== seatIdx) return s;
+        if (s.isAI) {
+          return {
+            ...s,
+            peerId: '',
+            name: seatIdx === 2 && playerCount === 4 ? t.mpWaitPartner : t.mpWaitOpponent,
+            avatar: '⏳',
+            avatarId: seatIdx === 2 ? 'dayi' : seatIdx === 1 ? 'lion' : 'muhtar',
+            isAI: false
+          };
+        }
+        const bName =
+          seatIdx === 2
+            ? botNames[1] || 'Dayı Bot'
+            : seatIdx === 1
+            ? botNames[0] || 'Kurnaz Bot'
+            : botNames[2] || 'Muhtar Bot';
+        const bAvatar = seatIdx === 2 ? '👴' : seatIdx === 1 ? '🤖' : '🧔';
+        const bAvatarId = seatIdx === 2 ? 'dayi' : seatIdx === 1 ? 'lion' : 'muhtar';
+        return {
+          ...s,
+          peerId: `ai-bot-${seatIdx}`,
+          name: bName,
+          avatar: bAvatar,
+          avatarId: bAvatarId,
+          isAI: true
+        };
+      });
+      slotsRef.current = next;
+      multiplayerManager.send({
+        type: 'HOST_LOBBY_SYNC',
+        hostName: localNameRef.current,
+        hostAvatar: localAvatarRef.current,
+        hostAvatarId: localAvatarIdRef.current,
+        hostCustomAvatarUrl: localCustomAvatarUrlRef.current,
+        gameType: gameTypeRef.current,
+        settings: {
+          ...settingsRef.current,
+          playerCount: playerCountRef.current
+        },
+        slots: next,
+        spectators: spectatorsRef.current
+      });
+      return next;
+    });
   };
 
   const handleCreateRoom = async () => {
@@ -747,9 +812,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
     const botNames = getRandomBotNames(3, lang);
     const finalSlots = slots.map(s => {
-      if (s.seatIndex > 0 && (!s.peerId || s.peerId === '')) {
+      if (s.seatIndex > 0 && (s.isAI || !s.peerId || s.peerId === '')) {
         const botName =
-          s.seatIndex === 2
+          s.isAI && s.name
+            ? s.name
+            : s.seatIndex === 2
             ? botNames[1] || 'Leo'
             : s.seatIndex === 1
             ? botNames[0] || 'Alex'
@@ -758,6 +825,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         const botAvatarId = s.seatIndex === 2 ? 'dayi' : s.seatIndex === 1 ? 'lion' : 'muhtar';
         return {
           ...s,
+          peerId: `ai-bot-${s.seatIndex}`,
           name: botName,
           avatar: botAvatar,
           avatarId: botAvatarId,
@@ -777,7 +845,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         ...initialSettings,
         playerCount,
         targetScore,
-        fiveRuleEnabled
+        fiveRuleEnabled,
+        aiDifficulty
       },
       finalSlots,
       gameType
@@ -843,7 +912,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     window.setTimeout(() => setInviteSentBanner(null), 4000);
   };
 
-  const connectedHumanCount = slots.filter(s => s.peerId && s.peerId !== '').length;
+  const connectedHumanCount = slots.filter(s => s.peerId && s.peerId !== '' && !s.isAI).length;
+  const occupiedCount = slots.filter(s => (s.peerId && s.peerId !== '') || s.isAI).length;
   const isHost = lobbyRole === 'host';
 
   if (!isOpen) return null;
@@ -1364,10 +1434,40 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
                       <div className="flex items-center gap-2 shrink-0">
                         {isOccupied && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span>{t.mpReadyBadge}</span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                              slot.isAI
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                                : 'bg-emerald-500/20 text-emerald-400 border-emerald-400/40'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                slot.isAI ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'
+                              }`}
+                            />
+                            <span>{slot.isAI ? '🤖 BOT' : t.mpReadyBadge}</span>
                           </span>
+                        )}
+
+                        {/* Host Bot Add/Remove Button on empty or AI seats */}
+                        {isHost && !isHostSlot && (!isOccupied || slot.isAI) && (
+                          <button
+                            onClick={() => handleToggleBotInSeat(slot.seatIndex)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border shrink-0 cursor-pointer transition-colors ${
+                              slot.isAI
+                                ? 'bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border-rose-500/30'
+                                : 'bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border-amber-500/30'
+                            }`}
+                          >
+                            {slot.isAI
+                              ? lang === 'tr'
+                                ? 'Botu Çıkar'
+                                : 'Remove Bot'
+                              : lang === 'tr'
+                              ? '+ Bot Ekle'
+                              : '+ Add Bot'}
+                          </button>
                         )}
 
                         {/* In 4-player mode, allow switching seats */}
@@ -1410,6 +1510,43 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                 </div>
               )}
 
+              {/* Host Bot Difficulty Selector (when 4P or AI seats exist) */}
+              {isHost && (playerCount === 4 || slots.some(s => s.isAI)) && (
+                <div className="p-2.5 rounded-2xl bg-slate-900/75 border border-white/10 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-slate-300">
+                    🤖 {lang === 'tr' ? 'Bot Zorluk Seviyesi' : 'Bot Difficulty'}
+                  </span>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10">
+                    {(['easy', 'medium', 'hard'] as const).map(diff => (
+                      <button
+                        key={diff}
+                        onClick={() => {
+                          sound.playClick();
+                          setAiDifficulty(diff);
+                        }}
+                        className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                          aiDifficulty === diff
+                            ? 'bg-amber-400 text-slate-950 shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {diff === 'easy'
+                          ? lang === 'tr'
+                            ? 'Kolay'
+                            : 'Easy'
+                          : diff === 'medium'
+                          ? lang === 'tr'
+                            ? 'Orta'
+                            : 'Medium'
+                          : lang === 'tr'
+                          ? 'Usta'
+                          : 'Hard'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Host Launch Button or Guest Waiting Message */}
               {isHost ? (
                 <button
@@ -1421,7 +1558,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                   <span>
                     {connectedHumanCount < 2
                       ? t.mpWaitFriendsBtn
-                      : `${t.mpStartMatchHostBtn} (${connectedHumanCount}/${playerCount})`}
+                      : `${t.mpStartMatchHostBtn} (${occupiedCount}/${playerCount})`}
                   </span>
                 </button>
               ) : (

@@ -59,8 +59,8 @@ export const InGameChat: React.FC<InGameChatProps> = ({
     });
   };
 
-  const handleSend = () => {
-    const trimmed = inputText.trim();
+  const handleSend = (overrideText?: string) => {
+    const trimmed = (overrideText ?? inputText).trim();
     if (!trimmed) return;
 
     const now = Date.now();
@@ -76,8 +76,27 @@ export const InGameChat: React.FC<InGameChatProps> = ({
 
     sound.playClick();
     onSendMessage(trimmed);
-    setInputText('');
+    if (!overrideText) {
+      setInputText('');
+    }
   };
+
+  const quickChips =
+    lang === 'tr'
+      ? [
+          '☕ Çaylar benden!',
+          '🃏 O Vale buraya gelecek!',
+          '👏 Eline sağlık usta!',
+          '⚡ Hızlı oyna reis!',
+          '🔥 Pişti geliyorum demez!'
+        ]
+      : [
+          '☕ Tea is on me!',
+          '🃏 That Jack is mine!',
+          '👏 Well played!',
+          '⚡ Hurry up!',
+          '🔥 Pişti incoming!'
+        ];
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -185,6 +204,21 @@ export const InGameChat: React.FC<InGameChatProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Quick Chat Kıraathane Replikleri */}
+          <div className="px-2 py-1.5 bg-slate-950/80 border-t border-white/10 flex items-center gap-1 overflow-x-auto no-scrollbar">
+            {quickChips.map(chip => (
+              <button
+                key={chip}
+                type="button"
+                disabled={isCooldown}
+                onClick={() => handleSend(chip)}
+                className="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/30 text-amber-200 text-[10px] font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors disabled:opacity-40"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
           {/* Input Box with Cooldown Spam Prevention */}
           <div className="p-2 bg-black/50 border-t border-white/10 flex items-center gap-1.5">
             <input
@@ -198,7 +232,7 @@ export const InGameChat: React.FC<InGameChatProps> = ({
               className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/80 transition-colors disabled:opacity-50"
             />
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!inputText.trim() || isCooldown}
               className="p-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-slate-950 transition-all cursor-pointer active:scale-95 shadow-md"
               title={t.chatSendBtn}
